@@ -1,0 +1,5 @@
+rpc_service: 
+  event:
+    name: dynamic_event_name
+  user_param_1: "user_param_1_value"
+  user_param_2: "user_param_2_value"

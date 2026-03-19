@@ -1,0 +1,85 @@
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "kontiki"
+version = "1.0.0"
+description = "Microservices framework in Python."
+authors = ["Julien Weber <jpkwbr@protonmail.com>"]
+readme = "README.md"
+packages = [{include = "kontiki"}]
+license = "Apache-2.0"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+
+[tool.poetry.dependencies]
+python = ">=3.11,<4.0"
+aio-pika = "^9.0.0"
+pydantic = "^2.0.0"
+PyYAML = "^6.0"
+aiohttp = "^3.11.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0.0"
+pytest-asyncio = "^0.21.0"
+pytest-cov = "^4.0.0"
+black = "^23.0.0"
+isort = "^5.12.0"
+flake8 = "^7.0.0"
+
+[tool.poetry.scripts]
+kontiki_registry = "kontiki.registry.server.main:run"
+
+[tool.poetry.urls]
+Homepage = "https://github.com/jpkwbr/kontiki"
+Repository = "https://github.com/jpkwbr/kontiki"
+
+[tool.pytest.ini_options]
+pythonpath = "."
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--verbose",
+]
+markers = [
+    "asyncio: marks tests as async (deselect with '-m \"not asyncio\"')",
+    "unit: marks tests as unit tests",
+    "integration: marks tests as integration tests",
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_first_party = ["kontiki"]

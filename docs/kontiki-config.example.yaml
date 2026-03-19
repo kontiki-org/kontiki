@@ -1,0 +1,39 @@
+# Example configuration for a Kontiki service.
+# Copy and adapt; use your own top-level keys (e.g. "app") for application settings.
+# See docs/configuration.md for the full reference.
+
+kontiki:
+  amqp:
+    url: "amqp://guest:guest@localhost/"
+    rpc:
+      timeout: 10
+    serialization: "pickle"   # or "json"
+    max_pending_messages: 10  # prefetch: limits unacknowledged messages per consumer (load balancing, backpressure)
+    # tls:
+    #   enabled: true
+    #   ca_cert: /path/to/ca.pem
+    #   client_cert: /path/to/client.pem
+    #   client_key: /path/to/client-key.pem
+
+  registration:
+    disable: false
+    delay: 2
+    # configuration:
+    #   public_paths: ["app", "feature_flags"]
+
+  heartbeat:
+    interval: 60
+
+  http:
+    address: "0.0.0.0"
+    port: 8080
+    documentation:
+      enabled: true
+      path_template: "/api/{version}/docs"
+      title: "My API"
+      description: "API documentation for my service."
+
+# Application-specific config (do not use "kontiki" for your own keys).
+# app:
+#   http:
+#     ping_path: "/ping"
