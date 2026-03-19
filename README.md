@@ -115,7 +115,7 @@ Examples can be run via the `Makefile` (see targets such as `run-rpc-service`, `
 | Heartbeats & degraded mode                   | `examples/heartbeat/`                                            |
 | HTTP entrypoints                             | `examples/http/simple/`                                          |
 
-You can also have a look at the following repository [**kontiki-scheduler**](https://github.com/Jpkwbr/kontiki-scheduler). It's an example scheduler service built with Kontiki.
+You can also have a look at the following repository [**kontiki-scheduler**](https://github.com/kontiki-org/kontiki-scheduler). It's an example scheduler service built with Kontiki.
 
 ---
 

@@ -200,4 +200,4 @@ Kontiki ships with lightweight testing utilities under `kontiki.testing` to help
   - **HTTP**: record received requests and optionally pre-program responses (`manager.get_http_requests("my-mock")`, `manager.add_http_response("my-mock", response)`).
   - **RPC**: record incoming call arguments and optionally pre-program return values (`manager.get_remote_calls("my-mock")`, `manager.add_remote_return_value("my-mock", value)`), and call your system via `runner.call("service-name", "method_name", ...)`.
 
-For an example of Behave integration tests using these helpers, see [**kontiki-scheduler**](https://github.com/Jpkwbr/kontiki-scheduler).
+For an example of Behave integration tests using these helpers, see [**kontiki-scheduler**](https://github.com/kontiki-org/kontiki-scheduler).
