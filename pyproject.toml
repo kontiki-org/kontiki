@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "kontiki"
-version = "1.0.0"
+version = "1.0.1"
 description = "Microservices framework in Python."
 authors = ["Julien Weber <jpkwbr@protonmail.com>"]
 readme = "README.md"
@@ -40,8 +40,8 @@ flake8 = "^7.0.0"
 kontiki_registry = "kontiki.registry.server.main:run"
 
 [tool.poetry.urls]
-Homepage = "https://github.com/jpkwbr/kontiki"
-Repository = "https://github.com/jpkwbr/kontiki"
+Homepage = "https://github.com/kontiki-org/kontiki"
+Repository = "https://github.com/kontiki-org/kontiki"
 
 [tool.pytest.ini_options]
 pythonpath = "."
