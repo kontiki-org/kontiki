@@ -10,19 +10,26 @@ SERVICE_DEFINITIONS_BY_TAG = {
     "single_instance": [
         {
             "name": "TestService-1",
-            "service_class": "tests.integration.service.TestService",
+            "service_class": "tests.integration.services.TestService",
             "config_paths": ["tests/integration/config.yaml"],
         }
     ],
     "multi_instance": [
         {
             "name": "TestService-1",
-            "service_class": "tests.integration.service.TestService",
+            "service_class": "tests.integration.services.TestService",
             "config_paths": ["tests/integration/config.yaml"],
         },
         {
             "name": "TestService-2",
-            "service_class": "tests.integration.service.TestService",
+            "service_class": "tests.integration.services.TestService",
+            "config_paths": ["tests/integration/config.yaml"],
+        },
+    ],
+    "task_service": [
+        {
+            "name": "TaskService",
+            "service_class": "tests.integration.services.TaskService",
             "config_paths": ["tests/integration/config.yaml"],
         },
     ],
@@ -52,6 +59,16 @@ class TestMockService(MockService):
         self.event_manager.store_event(payload)
 
 
+class TaskMockService(MockService):
+    @on_event("task_immediate_processed")
+    async def on_task_immediate_processed(self, payload):
+        self.event_manager.store_event(payload)
+
+    @on_event("task_not_immediate_processed")
+    async def on_task_not_immediate_processed(self, payload):
+        self.event_manager.store_event(payload)
+
+
 def before_all(context):
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     context.service_managers = []
@@ -59,10 +76,9 @@ def before_all(context):
 
     # Setup and start the mock service manager and runner
     context.manager = MockServiceManager(log_file=str(LOG_DIR / "mock_services.log"))
-    context.manager.add(
-        TestMockService,
-        config={"kontiki": {"amqp": {"url": "amqp://guest:guest@localhost/"}}},
-    )
+    config = {"kontiki": {"amqp": {"url": "amqp://guest:guest@localhost/"}}}
+    context.manager.add(TestMockService, config)
+    context.manager.add(TaskMockService, config)
     context.runner = MockServiceRunner(context.manager)
     context.runner.start()
     context.runner.ready_event.wait(timeout=10)

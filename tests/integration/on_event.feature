@@ -14,7 +14,7 @@ Feature: Events
                 "message": "simple_event"
             }
             """
-        Then the mock should receive 1 event
+        Then the mock TestMockService should receive 1 event
             """
             [
                 {
@@ -34,7 +34,7 @@ Feature: Events
                 "message": "dynamic_event_name"
             }
             """
-        Then the mock should receive 1 event
+        Then the mock TestMockService should receive 1 event
             """
             [
                 {
@@ -54,7 +54,7 @@ Feature: Events
                 "message": "retry_ok"
             }
             """
-        Then the mock should receive 1 event
+        Then the mock TestMockService should receive 1 event
             """
             [
                 {
@@ -74,7 +74,7 @@ Feature: Events
                 "message": "broadcast_off"
             }
             """
-        Then the mock should receive 1 event
+        Then the mock TestMockService should receive 1 event
             """
             [
                 {
@@ -94,7 +94,7 @@ Feature: Events
                 "message": "broadcast_on"
             }
             """
-        Then the mock should receive 2 events
+        Then the mock TestMockService should receive 2 events
             """
             [
                 {

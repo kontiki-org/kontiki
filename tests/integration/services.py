@@ -1,5 +1,6 @@
 from kontiki.delegate import ServiceDelegate
 from kontiki.messaging import Messenger, on_event, rpc, rpc_error
+from kontiki.task.task import task
 
 
 class TestServiceDelegate(ServiceDelegate):
@@ -55,3 +56,22 @@ class TestService:
     @on_event("broadcast_on", broadcast=True)
     async def on_broadcast_on(self, payload):
         await self.messenger.publish("broadcast_on_processed", payload)
+
+
+class TaskService:
+    messenger = Messenger()
+
+    # ------------------------------------------------------------
+    # Tasks
+    # ------------------------------------------------------------
+
+    @task(interval=10, immediate=True)
+    async def task_immediate(self):
+        await self._publish("task_immediate_processed")
+
+    @task(interval=10, immediate=False)
+    async def task_not_immediate(self):
+        await self._publish("task_not_immediate_processed")
+
+    async def _publish(self, msg):
+        await self.messenger.publish(msg, msg)
