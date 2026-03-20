@@ -99,6 +99,17 @@ my_service --config config.yaml
 
 ---
 
+## Testing
+
+- Unit/lint/format checks:
+  - `make check`
+- Integration tests (Behave: HTTP, events, RPC, tasks):
+  - `make integration-test`
+
+`integration-test` requires RabbitMQ. Locally, the Makefile target starts it automatically with Docker Compose.
+
+---
+
 ## Examples
 
 Examples can be run via the `Makefile` (see targets such as `run-rpc-service`, `run-rpc-example`, `run-simple-events-service`, etc.).

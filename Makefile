@@ -1,5 +1,6 @@
 .PHONY: \
 	install test cov fmt lint check clean \
+	integration-test integration-test-single integration-test-multi \
 	run-amqp down-amqp \
 	run-rpc-service run-rpc-example \
 	run-session-service run-session-example \
@@ -37,6 +38,26 @@ commit: test fmt lint
 	@echo "Committing with message: $(MSG)"
 	git commit -am "$(MSG)"
 
+
+# INTEGRATION TESTS
+# -----------------------------------------------------------------------------
+
+integration-test: run-amqp
+	@$(MAKE) integration-test-single
+	@$(MAKE) integration-test-multi
+	@$(MAKE) integration-test-task
+
+integration-test-single: run-amqp
+	@echo "Running integration tests (single_instance suite)..."
+	$(PY) -m behave tests/integration --tags @single_instance --stop --no-skipped 
+
+integration-test-multi: run-amqp
+	@echo "Running integration tests (multi_instance suite)..."
+	$(PY) -m behave tests/integration --tags @multi_instance --stop --no-skipped
+
+integration-test-task: run-amqp
+	@echo "Running integration tests (task_service suite)..."
+	$(PY) -m behave tests/integration --tags @task_service --stop --no-skipped
 
 # EXAMPLES
 # -----------------------------------------------------------------------------

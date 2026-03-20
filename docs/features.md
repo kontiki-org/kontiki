@@ -201,3 +201,9 @@ Kontiki ships with lightweight testing utilities under `kontiki.testing` to help
   - **RPC**: record incoming call arguments and optionally pre-program return values (`manager.get_remote_calls("my-mock")`, `manager.add_remote_return_value("my-mock", value)`), and call your system via `runner.call("service-name", "method_name", ...)`.
 
 For an example of Behave integration tests using these helpers, see [**kontiki-scheduler**](https://github.com/kontiki-org/kontiki-scheduler).
+
+For this repository's integration test suite, see `tests/integration/` and run:
+
+- `make integration-test` (runs `@single_instance`, `@multi_instance`, and `@task_service`)
+
+The suite demonstrates config merge for multi-instance services with a shared base config and per-instance overrides (e.g. separate HTTP ports).
