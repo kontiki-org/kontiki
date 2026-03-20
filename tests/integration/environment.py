@@ -6,6 +6,13 @@ from kontiki.messaging import on_event
 from kontiki.testing import MockService, MockServiceManager, MockServiceRunner
 
 LOG_DIR = Path("logs/integration")
+SERVICE_DEFINITIONS = [
+    {
+        "name": "TestService",
+        "service_class": "tests.integration.service.TestService",
+        "config_paths": ["tests/integration/config.yaml"],
+    }
+]
 
 
 class TestMockService(MockService):
@@ -25,13 +32,16 @@ class TestMockService(MockService):
 def before_all(context):
     LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-    context.service_manager = ServiceProcessManager(
-        name="TestService",
-        service_class="tests.integration.service.TestService",
-        config_paths=["tests/integration/config.yaml"],
-        log_dir=LOG_DIR,
-    )
-    context.service_manager.start(timeout=20)
+    context.service_managers = []
+    for service in SERVICE_DEFINITIONS:
+        manager = ServiceProcessManager(
+            name=service["name"],
+            service_class=service["service_class"],
+            config_paths=service["config_paths"],
+            log_dir=LOG_DIR,
+        )
+        manager.start(timeout=20)
+        context.service_managers.append(manager)
 
     # Setup and start the mock service manager and runner
     context.manager = MockServiceManager(log_file=str(LOG_DIR / "mock_services.log"))
@@ -47,5 +57,5 @@ def before_all(context):
 def after_all(context):
     if context.runner is not None:
         context.runner.stop()
-    if context.service_manager is not None:
-        context.service_manager.stop()
+    for manager in reversed(context.service_managers):
+        manager.stop(timeout=5)
