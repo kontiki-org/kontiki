@@ -22,9 +22,6 @@ def step_call_rpc_method(context, rpc_method):
 def step_call_rpc_method_with_headers(context, rpc_method):
     payload_str = context.text.strip() if context.text else ""
     params = json.loads(payload_str) if payload_str else {}
-
-    # Feature payload format:
-    # { "headers": { ... } }
     headers = params.get("headers", params)
 
     try:

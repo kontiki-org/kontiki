@@ -24,3 +24,6 @@ dist/
 # Local Python version (pyenv)
 .python-version
 
+# Integration test artifacts
+integration.log
+

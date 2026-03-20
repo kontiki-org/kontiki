@@ -1,7 +1,16 @@
-from kontiki.messaging import rpc, rpc_error
+from kontiki.delegate import ServiceDelegate
+from kontiki.messaging import Messenger, on_event, rpc, rpc_error
+
+
+class TestServiceDelegate(ServiceDelegate):
+    def __init__(self):
+        self._retry = False
 
 
 class TestService:
+    messenger = Messenger()
+    delegate = TestServiceDelegate()
+
     # ------------------------------------------------------------
     # RPC methods
     # ------------------------------------------------------------
@@ -18,3 +27,23 @@ class TestService:
     @rpc(include_headers=True)
     async def rpc_with_headers(self, _headers):
         return _headers["user_header"]
+
+    # ------------------------------------------------------------
+    # Events
+    # ------------------------------------------------------------
+
+    @on_event("simple_event")
+    async def on_simple_event(self, payload):
+        await self.messenger.publish("simple_event_processed", payload)
+
+    @on_event("tests.event.name", use_config=True)
+    async def on_dynamic_event_name(self, payload):
+        await self.messenger.publish("dynamic_event_name_processed", payload)
+
+    @on_event("retry_ok", requeue_on_error=True, reject_on_redelivered=True)
+    async def on_retry_ok(self, payload):
+        if not self.delegate._retry:
+            self.delegate._retry = True
+            raise RuntimeError("Retry should be enabled")
+        if self.delegate._retry:
+            await self.messenger.publish("retry_ok_processed", payload)

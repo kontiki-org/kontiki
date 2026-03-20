@@ -1,6 +1,21 @@
 import time
 
-from kontiki.testing import MockServiceManager, MockServiceRunner
+from kontiki.messaging import on_event
+from kontiki.testing import MockService, MockServiceManager, MockServiceRunner
+
+
+class TestMockService(MockService):
+    @on_event("simple_event_processed")
+    async def on_simple_event_processed(self, payload):
+        self.event_manager.store_event(payload)
+
+    @on_event("dynamic_event_name_processed")
+    async def on_dynamic_event_name_processed(self, payload):
+        self.event_manager.store_event(payload)
+
+    @on_event("retry_ok_processed")
+    async def on_retry_ok_processed(self, payload):
+        self.event_manager.store_event(payload)
 
 
 def before_all(context):
@@ -9,6 +24,10 @@ def before_all(context):
 
     # Setup and start the mock service manager and runner
     context.manager = MockServiceManager(log_file="integration.log")
+    context.manager.add(
+        TestMockService,
+        config={"kontiki": {"amqp": {"url": "amqp://guest:guest@localhost/"}}},
+    )
     context.runner = MockServiceRunner(context.manager)
     context.runner.start()
     context.runner.ready_event.wait(timeout=10)

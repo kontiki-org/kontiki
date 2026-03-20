@@ -23,3 +23,7 @@ logging:
   root:
     handlers: ["console"]
     level: DEBUG
+
+tests:
+  event:
+    name: "dynamic_event_name"
