@@ -1,0 +1,3 @@
+kontiki:
+  http:
+    port: 8082

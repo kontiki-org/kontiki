@@ -29,3 +29,5 @@ logging:
 tests:
   event:
     name: "dynamic_event_name"
+  http:
+    entrypoint: "/test_http_entrypoint"

@@ -18,12 +18,18 @@ SERVICE_DEFINITIONS_BY_TAG = {
         {
             "name": "TestService-1",
             "service_class": "tests.integration.services.TestService",
-            "config_paths": ["tests/integration/config.yaml"],
+            "config_paths": [
+                "tests/integration/config.yaml",
+                "tests/integration/config_multi_1.yaml",
+            ],
         },
         {
             "name": "TestService-2",
             "service_class": "tests.integration.services.TestService",
-            "config_paths": ["tests/integration/config.yaml"],
+            "config_paths": [
+                "tests/integration/config.yaml",
+                "tests/integration/config_multi_2.yaml",
+            ],
         },
     ],
     "task_service": [

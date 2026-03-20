@@ -1,6 +1,10 @@
+from aiohttp import web
+from pydantic import BaseModel
+
 from kontiki.delegate import ServiceDelegate
 from kontiki.messaging import Messenger, on_event, rpc, rpc_error
 from kontiki.task.task import task
+from kontiki.web import http
 
 
 class TestServiceDelegate(ServiceDelegate):
@@ -8,9 +12,20 @@ class TestServiceDelegate(ServiceDelegate):
         self._retry = False
 
 
+class TestHttpRequestModel(BaseModel):
+    name: str
+    age: int
+
+
+class TestHttpExampleError(Exception):
+    pass
+
+
 class TestService:
     messenger = Messenger()
     delegate = TestServiceDelegate()
+
+    http_error_handlers = {TestHttpExampleError: (499, "Example error occurred")}
 
     # ------------------------------------------------------------
     # RPC methods
@@ -56,6 +71,35 @@ class TestService:
     @on_event("broadcast_on", broadcast=True)
     async def on_broadcast_on(self, payload):
         await self.messenger.publish("broadcast_on_processed", payload)
+
+    # ------------------------------------------------------------
+    # Http
+    # ------------------------------------------------------------
+
+    @http("/test_http", "GET")
+    async def test_http(self, request):
+        return web.json_response({"message": "Hello, from test_http!"})
+
+    @http("tests.http.entrypoint", "GET", use_config=True)
+    async def test_http_entrypoint_from_config(self, request):
+        return web.json_response(
+            {"message": "Hello, from test_http_entrypoint_from_config!"}
+        )
+
+    @http(
+        "/test_http_with_request_model",
+        "POST",
+        request_model=TestHttpRequestModel,
+        validate_request=True,
+    )
+    async def test_http_with_request_model(self, request, body: TestHttpRequestModel):
+        return web.json_response(
+            {"message": "Hello, from test_http_with_request_model!"}
+        )
+
+    @http("/test_http_fail", "GET", errors=[TestHttpExampleError])
+    async def test_http_fail(self, request):
+        raise TestHttpExampleError()
 
 
 class TaskService:

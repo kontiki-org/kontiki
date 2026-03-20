@@ -3,6 +3,12 @@ import json
 from behave import then, when
 
 
+def _is_sortable_scalar_list(value):
+    return isinstance(value, list) and all(
+        isinstance(item, (str, int, float, bool)) or item is None for item in value
+    )
+
+
 @when("I publish the {event_type} event with the following payload")
 def step_publish_event(context, event_type):
     payload_str = context.text.strip() if context.text else ""
@@ -24,7 +30,15 @@ def step_receive_processed_payloads(context, mock_name, event_count):
         len(events) >= event_count
     ), f"Expected {event_count} events, got {len(events)}."
     actual_events = events[:event_count]
-    assert sorted(actual_events) == sorted(expected_events), (
+    expected_for_compare = expected_events
+    actual_for_compare = actual_events
+    if _is_sortable_scalar_list(actual_events) and _is_sortable_scalar_list(
+        expected_events
+    ):
+        actual_for_compare = sorted(actual_events)
+        expected_for_compare = sorted(expected_events)
+
+    assert actual_for_compare == expected_for_compare, (
         f"Events mismatch for mock '{mock_name}'.\n"
         f"Expected ({len(expected_events)}):\n"
         f"{json.dumps(expected_events, indent=2, ensure_ascii=True)}\n"
