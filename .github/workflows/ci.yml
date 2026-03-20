@@ -31,7 +31,48 @@ jobs:
         run: |
           poetry install
 
+      - name: Run unit tests
+        run: |
+          make test
+
       - name: Run checks
         run: |
           make check
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    services:
+      rabbitmq:
+        image: rabbitmq:3-management
+        ports:
+          - 5672:5672
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v2
+        with:
+          poetry-version: "2.0.0"
+
+      - name: Install dependencies
+        run: |
+          poetry install
+
+      - name: Run integration tests
+        run: |
+          poetry run python -m behave tests/integration --tags @single_instance --stop --no-skipped
+          poetry run python -m behave tests/integration --tags @multi_instance --stop --no-skipped
+          poetry run python -m behave tests/integration --tags @task_service --stop --no-skipped
 
