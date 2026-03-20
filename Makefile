@@ -38,6 +38,16 @@ commit: test fmt lint
 	git commit -am "$(MSG)"
 
 
+# INTEGRATION TESTS
+# -----------------------------------------------------------------------------
+
+run-test-service: run-amqp
+	@echo "Starting TestService..."
+	$(PY) -m kontiki.runner.__main__ tests.integration.service.TestService --config tests/integration/config.yaml
+
+integration-test:
+	$(PY) -m behave tests/integration --stop
+
 # EXAMPLES
 # -----------------------------------------------------------------------------
 # RPC Service
