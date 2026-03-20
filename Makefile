@@ -1,6 +1,6 @@
 .PHONY: \
 	install test cov fmt lint check clean \
-	integration-test \
+	integration-test integration-test-single integration-test-multi \
 	run-amqp down-amqp \
 	run-rpc-service run-rpc-example \
 	run-session-service run-session-example \
@@ -43,8 +43,16 @@ commit: test fmt lint
 # -----------------------------------------------------------------------------
 
 integration-test: run-amqp
-	@echo "Running integration tests (services are managed by Behave hooks)..."
-	$(PY) -m behave tests/integration --stop
+	@$(MAKE) integration-test-single
+	@$(MAKE) integration-test-multi
+
+integration-test-single: run-amqp
+	@echo "Running integration tests (single_instance suite)..."
+	$(PY) -m behave tests/integration --tags @single_instance --stop --no-skipped 
+
+integration-test-multi: run-amqp
+	@echo "Running integration tests (multi_instance suite)..."
+	$(PY) -m behave tests/integration --tags @multi_instance --stop --no-skipped
 
 # EXAMPLES
 # -----------------------------------------------------------------------------

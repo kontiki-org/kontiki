@@ -1,3 +1,4 @@
+@single_instance
 Feature: RPC
 
     Background:

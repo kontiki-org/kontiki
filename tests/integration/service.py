@@ -47,3 +47,11 @@ class TestService:
             raise RuntimeError("Retry should be enabled")
         if self.delegate._retry:
             await self.messenger.publish("retry_ok_processed", payload)
+
+    @on_event("broadcast_off")
+    async def on_broadcast_off(self, payload):
+        await self.messenger.publish("broadcast_off_processed", payload)
+
+    @on_event("broadcast_on", broadcast=True)
+    async def on_broadcast_on(self, payload):
+        await self.messenger.publish("broadcast_on_processed", payload)
