@@ -1,5 +1,6 @@
 .PHONY: \
 	install test cov fmt lint check clean \
+	integration-test \
 	run-amqp down-amqp \
 	run-rpc-service run-rpc-example \
 	run-session-service run-session-example \
@@ -41,11 +42,8 @@ commit: test fmt lint
 # INTEGRATION TESTS
 # -----------------------------------------------------------------------------
 
-run-test-service: run-amqp
-	@echo "Starting TestService..."
-	$(PY) -m kontiki.runner.__main__ tests.integration.service.TestService --config tests/integration/config.yaml
-
-integration-test:
+integration-test: run-amqp
+	@echo "Running integration tests (services are managed by Behave hooks)..."
 	$(PY) -m behave tests/integration --stop
 
 # EXAMPLES

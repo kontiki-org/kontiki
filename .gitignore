@@ -25,5 +25,5 @@ dist/
 .python-version
 
 # Integration test artifacts
-integration.log
+logs/
 

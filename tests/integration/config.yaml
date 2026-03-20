@@ -1,6 +1,8 @@
 kontiki:
   amqp:
-    uri: amqp://guest:guest@localhost
+    url: amqp://guest:guest@localhost/
+  registration:
+    disable: true
   heartbeat:
     interval: 600
 
