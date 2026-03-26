@@ -103,6 +103,8 @@ class EventTracker:
                 break
             except Exception as e:
                 logging.error("Error during cleanup task: %s", e)
+                # Avoid a tight error loop that can spam logs and fill disk.
+                await asyncio.sleep(self.cleanup_interval)
 
     def is_disabled(self):
         if self.disable_tracking:
