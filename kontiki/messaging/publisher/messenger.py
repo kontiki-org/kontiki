@@ -1,7 +1,7 @@
 import asyncio
 import socket
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from aio_pika import Message, connect_robust
 from aio_pika.exceptions import ChannelInvalidStateError
@@ -231,16 +231,17 @@ class Messenger(ServiceDelegate):
             self._reconnecting = False
 
     def get_service_headers(self):
+        now_utc_iso = datetime.now(timezone.utc).isoformat()
         if self.container:
             return {
                 get_kontiki_header_name("service_name"): self.container.service_name,
                 get_kontiki_header_name("instance_id"): str(self.container.instance_id),
                 get_kontiki_header_name("host"): self.container.host,
-                get_kontiki_header_name("timestamp"): datetime.now(),
+                get_kontiki_header_name("timestamp"): now_utc_iso,
             }
         return {
             get_kontiki_header_name("service_name"): self.service_name,
             get_kontiki_header_name("instance_id"): self.instance_id,
             get_kontiki_header_name("host"): socket.gethostname(),
-            get_kontiki_header_name("timestamp"): datetime.now(),
+            get_kontiki_header_name("timestamp"): now_utc_iso,
         }
