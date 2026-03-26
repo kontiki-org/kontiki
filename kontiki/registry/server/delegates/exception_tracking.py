@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from kontiki.configuration.parameter import get_parameter
 from kontiki.registry.common import EXCEPTION_RKEY
@@ -82,6 +82,8 @@ class ExceptionTracker:
 
             except Exception as e:
                 logging.error("Error during cleanup task: %s", e)
+                # Avoid a tight error loop that can spam logs and fill disk.
+                await asyncio.sleep(self.cleanup_interval)
 
     def is_disabled(self):
         if self.disable_tracking:
@@ -92,7 +94,9 @@ class ExceptionTracker:
         return self.exceptions
 
     def _purge_expired_exceptions(self):
-        expiration_time = datetime.now() - timedelta(minutes=self.exception_ttl)
+        expiration_time = datetime.now(timezone.utc) - timedelta(
+            minutes=self.exception_ttl
+        )
 
         index = len(self.exceptions)
         cutoff = 0
@@ -109,6 +113,15 @@ class ExceptionTracker:
                     logging.warning("Invalid timestamp format: %s", exception_timestamp)
                     cutoff = index + 1
                     continue
+
+            # Normalise to UTC-aware datetime to avoid naive/aware comparisons.
+            if isinstance(exception_timestamp, datetime):
+                if exception_timestamp.tzinfo is None:
+                    exception_timestamp = exception_timestamp.replace(
+                        tzinfo=timezone.utc
+                    )
+                else:
+                    exception_timestamp = exception_timestamp.astimezone(timezone.utc)
 
             if exception_timestamp <= expiration_time:
                 cutoff = index + 1

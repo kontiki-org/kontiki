@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -87,3 +88,17 @@ async def test_handle_event_does_not_override_user_headers():
     # Both keys are present, but the user header wins for the bare name.
     assert normalized[f"{prefix}service_name"] == "internal-svc"
     assert normalized["service_name"] == "user-svc"
+
+
+def test_purge_expired_events_handles_offset_aware_timestamp():
+    # Prevent regression: cleanup must not crash with timezone-aware ISO timestamps.
+    core = DummyCore()
+    tracker = EventTracker(core)
+    tracker.event_ttl = 60
+
+    tracker.events = [
+        {"timestamp": datetime.now(timezone.utc).isoformat()},
+    ]
+
+    tracker._purge_expired_events()
+    assert len(tracker.events) == 1

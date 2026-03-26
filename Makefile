@@ -49,7 +49,7 @@ integration-test: run-amqp
 
 integration-test-single: run-amqp
 	@echo "Running integration tests (single_instance suite)..."
-	$(PY) -m behave tests/integration --tags @single_instance --stop --no-skipped 
+	$(PY) -m behave tests/integration --tags @single_instance --stop --no-skipped
 
 integration-test-multi: run-amqp
 	@echo "Running integration tests (multi_instance suite)..."
@@ -180,4 +180,3 @@ run-amqp:
 
 down-amqp:
 	docker compose -f docker-compose.dev.yaml down
-

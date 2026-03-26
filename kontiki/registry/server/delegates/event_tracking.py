@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from kontiki.configuration.parameter import get_parameter
 from kontiki.messaging.common import declare_event_exchange, declare_rpc_exchange
@@ -103,6 +103,8 @@ class EventTracker:
                 break
             except Exception as e:
                 logging.error("Error during cleanup task: %s", e)
+                # Avoid a tight error loop that can spam logs and fill disk.
+                await asyncio.sleep(self.cleanup_interval)
 
     def is_disabled(self):
         if self.disable_tracking:
@@ -110,7 +112,7 @@ class EventTracker:
         return self.disable_tracking
 
     def _purge_expired_events(self):
-        expiration_time = datetime.now() - timedelta(minutes=self.event_ttl)
+        expiration_time = datetime.now(timezone.utc) - timedelta(minutes=self.event_ttl)
         cutoff = 0
         for index, event in enumerate(self.events):
             event_timestamp = event.get("timestamp")
@@ -125,6 +127,13 @@ class EventTracker:
                     logging.warning("Invalid timestamp format: %s", event_timestamp)
                     cutoff = index + 1
                     continue
+
+            # Normalise to UTC-aware datetime to avoid naive/aware comparisons.
+            if isinstance(event_timestamp, datetime):
+                if event_timestamp.tzinfo is None:
+                    event_timestamp = event_timestamp.replace(tzinfo=timezone.utc)
+                else:
+                    event_timestamp = event_timestamp.astimezone(timezone.utc)
 
             if event_timestamp <= expiration_time:
                 cutoff = index + 1
