@@ -8,6 +8,7 @@
 - **Write only your business logic**: Kontiki manages connections to RabbitMQ, message routing (RPC, events, sessions, broadcast), service lifecycle and configuration merge for you.
 - **Design service interactions as messages**: combine RPC, events, broadcast and per‑instance sessions to describe how services collaborate.
 - **Configuration‑driven**: merged YAML config and a unified runner (`cli.run`) to start services the same way in development and production.
+- **Optional service registry**: heartbeats, degraded state (`degraded_on`), and basic observability (service status, events, exceptions).
 - **Testability-first API**: integration helpers (`kontiki.testing`) are designed to make end-to-end scenarios easy to express with Behave (mock services, captured events/RPC/HTTP, synchronous test runner).
 
 
