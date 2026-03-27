@@ -122,6 +122,16 @@ You can also have a look at the following repository [**kontiki-scheduler**](htt
 
 ---
 
+## Monitoring (KontikiTUI)
+
+When services register with the **Kontiki registry**, you can use [**KontikiTUI**](https://github.com/kontiki-org/kontiki-tui): a small terminal UI to browse registered services, inspect registry **events** and **exceptions**, and tail **log files** from the terminal.
+
+
+<img src="./assets/services.png" alt="KontikiTUI — services overview" width="900">
+
+---
+
+
 ## Misc
 
 *Kontiki did not come out of a naming workshop but from the album [*Kontiki*](https://cottonmather.bandcamp.com/album/kontiki) by the band Cotton Mather.  
