@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 from kontiki.delegate import ServiceDelegate
 from kontiki.messaging import Messenger, on_event, rpc, rpc_error
+from kontiki.registry import degraded_on
 from kontiki.task.task import task
 from kontiki.web import http
 
@@ -119,3 +120,34 @@ class TaskService:
 
     async def _publish(self, msg):
         await self.messenger.publish(msg, msg)
+
+
+class RegistryTestServiceDelegate(ServiceDelegate):
+    def __init__(self):
+        self.degraded = False
+
+    def set_degraded(self, degraded):
+        self.degraded = degraded
+
+    def is_degraded(self):
+        return self.degraded
+
+
+class RegistryTestService:
+    name = "RegistryTestService"
+    delegate = RegistryTestServiceDelegate()
+
+    @rpc
+    async def set_degraded(self, degraded):
+        self.delegate.set_degraded(degraded)
+
+    @rpc
+    async def report_test_exception(self):
+        try:
+            raise Exception("test exception")
+        except Exception as e:
+            await self.delegate.publish_exception(e)
+
+    @degraded_on
+    def is_degraded(self):
+        return self.delegate.is_degraded()

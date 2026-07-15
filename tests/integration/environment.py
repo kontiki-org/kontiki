@@ -39,6 +39,16 @@ SERVICE_DEFINITIONS_BY_TAG = {
             "config_paths": ["tests/integration/config.yaml"],
         },
     ],
+    "registry": [
+        {
+            "name": "ServiceRegistry",
+            "service_class": "kontiki.registry.server.service.ServiceRegistry",
+            "config_paths": [
+                "tests/integration/config.yaml",
+                "tests/integration/config_registry_server.yaml",
+            ],
+        },
+    ],
 }
 EXCLUSIVE_SUITE_TAGS = list(SERVICE_DEFINITIONS_BY_TAG.keys())
 
@@ -77,8 +87,10 @@ class TaskMockService(MockService):
 
 def before_all(context):
     LOG_DIR.mkdir(parents=True, exist_ok=True)
+    context.log_dir = LOG_DIR
     context.service_managers = []
     context.active_suite_tag = None
+    context.registry_test_manager = None
 
     # Setup and start the mock service manager and runner
     context.manager = MockServiceManager(log_file=str(LOG_DIR / "mock_services.log"))
@@ -100,6 +112,12 @@ def before_tag(context, tag):
 def before_scenario(context, scenario):
     if context.active_suite_tag is None:
         raise RuntimeError("No test suite has been started")
+
+
+def after_scenario(context, scenario):
+    if context.registry_test_manager is not None:
+        context.registry_test_manager.stop(timeout=5)
+        context.registry_test_manager = None
 
 
 def _start_test_suite(context, suite_tag):
