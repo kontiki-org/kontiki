@@ -48,7 +48,6 @@ SERVICE_DEFINITIONS_BY_TAG = {
                 "tests/integration/config.yaml",
                 "tests/integration/config_registry_server.yaml",
             ],
-            "http_port": 18082,
         },
     ],
 }
@@ -164,7 +163,7 @@ def _start_test_suite(context, suite_tag):
             config_paths=service["config_paths"],
             log_dir=LOG_DIR,
         )
-        manager.start(timeout=20, http_port=service.get("http_port"))
+        manager.start(timeout=20)
         context.service_managers.append(manager)
 
 

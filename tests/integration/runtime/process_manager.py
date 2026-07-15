@@ -5,19 +5,6 @@ import time
 from pathlib import Path
 
 
-def free_tcp_port(port):
-    try:
-        subprocess.run(
-            ["fuser", "-k", f"{port}/tcp"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=False,
-        )
-        time.sleep(0.3)
-    except FileNotFoundError:
-        pass
-
-
 class ServiceProcessManager:
     def __init__(
         self,
@@ -38,10 +25,8 @@ class ServiceProcessManager:
         self.log_file_path = self.log_dir / f"{self.name}.log"
         self._log_handle = None
 
-    def start(self, timeout=15, amqp_ready_timeout=30, max_attempts=4, http_port=None):
+    def start(self, timeout=15, amqp_ready_timeout=30, max_attempts=4):
         self.log_dir.mkdir(parents=True, exist_ok=True)
-        if http_port is not None:
-            free_tcp_port(http_port)
         self._log_handle = self.log_file_path.open("w", encoding="utf-8")
         for attempt in range(1, max_attempts + 1):
             self._start_process()
