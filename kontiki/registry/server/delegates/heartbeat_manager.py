@@ -51,6 +51,7 @@ class HeartbeatManager:
                             self.degraded_services.remove(service_instance)
                 self.heartbeats[service_instance] = datetime.now()
                 logging.debug("Heartbeat updated for %s.", service_str)
+                await self.core.refresh_instance_status(service_name, instance_id)
             else:
                 # We dont ask for registering again when we just start. We might have
                 # received a heartbeat before the service registry is ready.

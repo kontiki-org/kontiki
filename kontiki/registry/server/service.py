@@ -1,7 +1,9 @@
 from aiohttp import web
 
+from kontiki.messaging import Messenger
 from kontiki.messaging.consumer.rpc import rpc, rpc_error
 from kontiki.registry.server.core import ServiceRegistryCore, ServiceStatus
+from kontiki.task.task import task
 from kontiki.web.web import http
 
 # -----------------------------------------------------------------------------
@@ -9,6 +11,11 @@ from kontiki.web.web import http
 
 class ServiceRegistry:
     core = ServiceRegistryCore()
+    messenger = Messenger()
+
+    @task(interval=5, immediate=False)
+    async def monitor_instance_statuses(self):
+        await self.core.refresh_all_instance_statuses()
 
     # -----------------------------------------------------------------------------
     # HTTP API

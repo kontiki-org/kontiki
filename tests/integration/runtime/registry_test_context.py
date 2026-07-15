@@ -1,5 +1,7 @@
 import ast
+import json
 import re
+import time
 
 REGISTER_LINE = re.compile(
     r"Published message to registry\.register: (.+)$"
@@ -64,12 +66,63 @@ def resolve_placeholders(value, placeholders):
     if isinstance(value, list):
         return [resolve_placeholders(item, placeholders) for item in value]
     if isinstance(value, str):
+        if value == "[TIMESTAMP]":
+            return value
         if value.startswith("[") and value.endswith("]"):
             key = value[1:-1]
             if key in placeholders:
                 return placeholders[key]
         return value
     return value
+
+
+def payload_matches(actual, expected, placeholders):
+    resolved = resolve_placeholders(expected, placeholders)
+    for key, expected_value in resolved.items():
+        if expected_value == "[TIMESTAMP]":
+            if key not in actual or not actual[key]:
+                return False
+            continue
+        if actual.get(key) != expected_value:
+            return False
+    return True
+
+
+def wait_for_registry_event(context, expected, timeout=30):
+    placeholders = getattr(context, "registry_test_placeholders", None)
+    if not placeholders:
+        raise AssertionError(
+            "registry_test_placeholders is not set; start the registry test service first."
+        )
+
+    listener = context.manager.get_service("RegistryEventListener")
+    resolved_expected = resolve_placeholders(expected, placeholders)
+    start = time.time()
+
+    while time.time() - start < timeout:
+        events = listener.get_events()
+        for event in events:
+            if payload_matches(event, expected, placeholders):
+                return event
+
+        remaining = timeout - (time.time() - start)
+        if remaining <= 0:
+            break
+
+        listener.get_events(
+            wait_for_events=len(events) + 1,
+            timeout=remaining,
+        )
+
+    events = listener.get_events()
+    raise AssertionError(
+        "Registry event not received within "
+        f"{timeout}s.\n"
+        f"Expected (resolved):\n"
+        f"{json.dumps(resolved_expected, indent=2, ensure_ascii=True)}\n"
+        f"Received ({len(events)} event(s)):\n"
+        f"{json.dumps(events, indent=2, ensure_ascii=True)}"
+    )
 
 
 def capture_registry_test_exception_timestamp(context):

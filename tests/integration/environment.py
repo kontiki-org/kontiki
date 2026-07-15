@@ -4,6 +4,7 @@ from runtime.process_manager import ServiceProcessManager
 
 from kontiki.messaging import on_event
 from kontiki.testing import MockService, MockServiceManager, MockServiceRunner
+from kontiki.testing.delegates.event_manager import EventManager
 
 LOG_DIR = Path("logs/integration")
 SERVICE_DEFINITIONS_BY_TAG = {
@@ -47,6 +48,7 @@ SERVICE_DEFINITIONS_BY_TAG = {
                 "tests/integration/config.yaml",
                 "tests/integration/config_registry_server.yaml",
             ],
+            "http_port": 18082,
         },
     ],
 }
@@ -85,6 +87,27 @@ class TaskMockService(MockService):
         self.event_manager.store_event(payload)
 
 
+class RegistryEventListener(MockService):
+    name = "RegistryEventListener"
+    event_manager = EventManager()
+
+    @on_event("registry.instance.registered")
+    async def on_instance_registered(self, payload):
+        self.event_manager.store_event(payload)
+
+    @on_event("registry.instance.deregistered")
+    async def on_instance_deregistered(self, payload):
+        self.event_manager.store_event(payload)
+
+    @on_event("registry.instance.status_changed")
+    async def on_instance_status_changed(self, payload):
+        self.event_manager.store_event(payload)
+
+    @on_event("registry.exception.recorded")
+    async def on_exception_recorded(self, payload):
+        self.event_manager.store_event(payload)
+
+
 def before_all(context):
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     context.log_dir = LOG_DIR
@@ -97,6 +120,7 @@ def before_all(context):
     config = {"kontiki": {"amqp": {"url": "amqp://guest:guest@localhost/"}}}
     context.manager.add(TestMockService, config)
     context.manager.add(TaskMockService, config)
+    context.manager.add(RegistryEventListener, config)
     context.runner = MockServiceRunner(context.manager)
     context.runner.start()
     context.runner.ready_event.wait(timeout=10)
@@ -112,6 +136,9 @@ def before_tag(context, tag):
 def before_scenario(context, scenario):
     if context.active_suite_tag is None:
         raise RuntimeError("No test suite has been started")
+
+    if context.active_suite_tag == "registry":
+        context.manager.get_service("RegistryEventListener").clean_events()
 
 
 def after_scenario(context, scenario):
@@ -137,7 +164,7 @@ def _start_test_suite(context, suite_tag):
             config_paths=service["config_paths"],
             log_dir=LOG_DIR,
         )
-        manager.start(timeout=20)
+        manager.start(timeout=20, http_port=service.get("http_port"))
         context.service_managers.append(manager)
 
 

@@ -61,6 +61,7 @@ class ExceptionTracker:
         try:
             self.exceptions.append(exception_data)
             logging.debug("Exception recorded: %s", exception_data)
+            await self.core.on_exception_recorded(exception_data)
         except Exception as e:
             logging.error("Error recording exception: %s", e)
 
