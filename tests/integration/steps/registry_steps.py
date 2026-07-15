@@ -2,7 +2,6 @@ import json
 import time
 
 from behave import given, step, then, when
-
 from runtime.process_manager import ServiceProcessManager
 from runtime.registry_test_context import (
     placeholders_from_registration,

@@ -1,12 +1,12 @@
 import json
 
 from behave import then, when
-
-from kontiki.messaging.publisher.rpc import RpcError
 from runtime.registry_test_context import (
     capture_registry_test_exception_timestamp,
     resolve_placeholders,
 )
+
+from kontiki.messaging.publisher.rpc import RpcError
 
 REGISTRY_RPC_METHODS = frozenset(
     {

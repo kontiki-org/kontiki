@@ -3,12 +3,8 @@ import json
 import re
 import time
 
-REGISTER_LINE = re.compile(
-    r"Published message to registry\.register: (.+)$"
-)
-EXCEPTION_LINE = re.compile(
-    r"Published message to registry\.exception: (.+)$"
-)
+REGISTER_LINE = re.compile(r"Published message to registry\.register: (.+)$")
+EXCEPTION_LINE = re.compile(r"Published message to registry\.exception: (.+)$")
 
 
 def _parse_logged_payload(raw_payload):
@@ -92,7 +88,8 @@ def wait_for_registry_event(context, expected, timeout=30):
     placeholders = getattr(context, "registry_test_placeholders", None)
     if not placeholders:
         raise AssertionError(
-            "registry_test_placeholders is not set; start the registry test service first."
+            "registry_test_placeholders is not set; start the registry test service"
+            " first."
         )
 
     listener = context.manager.get_service("RegistryEventListener")

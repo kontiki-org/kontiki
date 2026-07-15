@@ -98,12 +98,10 @@ class ServiceRegistryCore(ServiceDelegate):
         await self.container.messenger.publish(event_type, payload)
 
     async def on_instance_registered(self, data):
-        await self.publish_registry_event(
-            INSTANCE_REGISTERED, registered_payload(data)
-        )
-        self._tracked_status[(data["service_name"], data["instance_id"])] = (
-            ServiceStatus.DOWN.value
-        )
+        await self.publish_registry_event(INSTANCE_REGISTERED, registered_payload(data))
+        self._tracked_status[
+            (data["service_name"], data["instance_id"])
+        ] = ServiceStatus.DOWN.value
 
     async def on_instance_deregistered(self, service_name, instance_id):
         await self.publish_registry_event(
