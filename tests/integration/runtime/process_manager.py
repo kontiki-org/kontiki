@@ -62,6 +62,19 @@ class ServiceProcessManager:
             self._log_handle.close()
             self._log_handle = None
 
+    def kill(self):
+        if self.process is None:
+            return
+
+        if self.process.poll() is None:
+            self.process.kill()
+            self.process.wait(timeout=5)
+
+        self.process = None
+        if self._log_handle:
+            self._log_handle.close()
+            self._log_handle = None
+
     def _wait_until_started(self, timeout):
         start_time = time.time()
         while time.time() - start_time < timeout:
@@ -72,8 +85,18 @@ class ServiceProcessManager:
                 )
             if self.log_file_path.exists():
                 content = self.log_file_path.read_text(encoding="utf-8")
-                if "Service setup completed" in content:
+                if "Error running service:" in content:
+                    raise RuntimeError(
+                        f"Service '{self.name}' failed to start. "
+                        f"Check logs: {self.log_file_path}"
+                    )
+                if "Service running on http://" in content:
                     return
+                if "Service setup completed" in content:
+                    # Non-HTTP services never log the HTTP startup line.
+                    time.sleep(0.5)
+                    if self.process.poll() is None:
+                        return
             time.sleep(0.2)
 
         raise TimeoutError(

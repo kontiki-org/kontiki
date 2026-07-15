@@ -102,8 +102,8 @@ class HttpServer:
         )
         port = get_kontiki_parameter(self.container.config, "http.port", 8080)
         self.site = web.TCPSite(self.runner, address, port)
-        log.info("Service running on http://%s:%s", address, port)
         await self.site.start()
+        log.info("Service running on http://%s:%s", address, port)
 
     async def stop(self):
         log.info("Stopping HTTP server...")

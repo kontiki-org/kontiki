@@ -4,6 +4,7 @@ from runtime.process_manager import ServiceProcessManager
 
 from kontiki.messaging import on_event
 from kontiki.testing import MockService, MockServiceManager, MockServiceRunner
+from kontiki.testing.delegates.event_manager import EventManager
 
 LOG_DIR = Path("logs/integration")
 SERVICE_DEFINITIONS_BY_TAG = {
@@ -37,6 +38,16 @@ SERVICE_DEFINITIONS_BY_TAG = {
             "name": "TaskService",
             "service_class": "tests.integration.services.TaskService",
             "config_paths": ["tests/integration/config.yaml"],
+        },
+    ],
+    "registry": [
+        {
+            "name": "ServiceRegistry",
+            "service_class": "kontiki.registry.server.service.ServiceRegistry",
+            "config_paths": [
+                "tests/integration/config.yaml",
+                "tests/integration/config_registry_server.yaml",
+            ],
         },
     ],
 }
@@ -75,16 +86,40 @@ class TaskMockService(MockService):
         self.event_manager.store_event(payload)
 
 
+class RegistryEventListener(MockService):
+    name = "RegistryEventListener"
+    event_manager = EventManager()
+
+    @on_event("registry.instance.registered")
+    async def on_instance_registered(self, payload):
+        self.event_manager.store_event(payload)
+
+    @on_event("registry.instance.deregistered")
+    async def on_instance_deregistered(self, payload):
+        self.event_manager.store_event(payload)
+
+    @on_event("registry.instance.status_changed")
+    async def on_instance_status_changed(self, payload):
+        self.event_manager.store_event(payload)
+
+    @on_event("registry.exception.recorded")
+    async def on_exception_recorded(self, payload):
+        self.event_manager.store_event(payload)
+
+
 def before_all(context):
     LOG_DIR.mkdir(parents=True, exist_ok=True)
+    context.log_dir = LOG_DIR
     context.service_managers = []
     context.active_suite_tag = None
+    context.registry_test_manager = None
 
     # Setup and start the mock service manager and runner
     context.manager = MockServiceManager(log_file=str(LOG_DIR / "mock_services.log"))
     config = {"kontiki": {"amqp": {"url": "amqp://guest:guest@localhost/"}}}
     context.manager.add(TestMockService, config)
     context.manager.add(TaskMockService, config)
+    context.manager.add(RegistryEventListener, config)
     context.runner = MockServiceRunner(context.manager)
     context.runner.start()
     context.runner.ready_event.wait(timeout=10)
@@ -100,6 +135,15 @@ def before_tag(context, tag):
 def before_scenario(context, scenario):
     if context.active_suite_tag is None:
         raise RuntimeError("No test suite has been started")
+
+    if context.active_suite_tag == "registry":
+        context.manager.get_service("RegistryEventListener").clean_events()
+
+
+def after_scenario(context, scenario):
+    if context.registry_test_manager is not None:
+        context.registry_test_manager.stop(timeout=5)
+        context.registry_test_manager = None
 
 
 def _start_test_suite(context, suite_tag):

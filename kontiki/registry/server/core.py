@@ -9,6 +9,16 @@ from kontiki.delegate import ServiceDelegate
 from kontiki.messaging.common import create_tls_context, get_amqp_url
 from kontiki.messaging.serialization import Serializer
 from kontiki.registry.common import declare_registry_admin_exchange
+from kontiki.registry.events import (
+    EXCEPTION_RECORDED,
+    INSTANCE_DEREGISTERED,
+    INSTANCE_REGISTERED,
+    INSTANCE_STATUS_CHANGED,
+    deregistered_payload,
+    exception_recorded_payload,
+    registered_payload,
+    status_changed_payload,
+)
 from kontiki.registry.server.delegates.event_tracking import EventTracker
 from kontiki.registry.server.delegates.exception_tracking import ExceptionTracker
 from kontiki.registry.server.delegates.heartbeat_manager import HeartbeatManager
@@ -50,6 +60,7 @@ class ServiceRegistryCore(ServiceDelegate):
 
         self.heartbeats = {}
         self.default_timeout_factor = 3
+        self._tracked_status = {}
 
         self.event_tracker = EventTracker(self)
         self.registry = Registry(self)
@@ -82,6 +93,55 @@ class ServiceRegistryCore(ServiceDelegate):
     async def stop(self):
         if self.connection:
             await self.connection.close()
+
+    async def publish_registry_event(self, event_type, payload):
+        await self.container.messenger.publish(event_type, payload)
+
+    async def on_instance_registered(self, data):
+        await self.publish_registry_event(INSTANCE_REGISTERED, registered_payload(data))
+        self._tracked_status[
+            (data["service_name"], data["instance_id"])
+        ] = ServiceStatus.DOWN.value
+
+    async def on_instance_deregistered(self, service_name, instance_id):
+        await self.publish_registry_event(
+            INSTANCE_DEREGISTERED,
+            deregistered_payload(service_name, instance_id),
+        )
+        self._tracked_status.pop((service_name, instance_id), None)
+
+    async def on_exception_recorded(self, exception_data):
+        await self.publish_registry_event(
+            EXCEPTION_RECORDED, exception_recorded_payload(exception_data)
+        )
+
+    async def refresh_instance_status(self, service_name, instance_id):
+        if not self.registry.has_service_instance(service_name, instance_id):
+            return
+
+        data = self.registry.services[service_name][instance_id]
+        timeout = self._get_timeout(data.get("heartbeat_interval", 10))
+        new_status = self._get_instance_status(instance_id, service_name, timeout)
+        key = (service_name, instance_id)
+        previous_status = self._tracked_status.get(key)
+        if previous_status == new_status:
+            return
+
+        self._tracked_status[key] = new_status
+        if previous_status is None:
+            return
+
+        await self.publish_registry_event(
+            INSTANCE_STATUS_CHANGED,
+            status_changed_payload(
+                service_name, instance_id, previous_status, new_status
+            ),
+        )
+
+    async def refresh_all_instance_statuses(self):
+        for service_name, instances in self.registry.services.items():
+            for instance_id in list(instances.keys()):
+                await self.refresh_instance_status(service_name, instance_id)
 
     async def create_and_consume_queue(self, routing_key, callback):
         queue_name = f"{routing_key}.queue"

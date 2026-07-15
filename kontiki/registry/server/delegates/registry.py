@@ -31,6 +31,7 @@ class Registry:
                 # Services registration
                 self.services[service_name][instance_id] = data
                 logging.info("Registering service %s#%s", service_name, instance_id)
+                await self.core.on_instance_registered(data)
 
             except Exception as e:
                 logging.error("Error processing registration: %s", e)
@@ -64,6 +65,8 @@ class Registry:
                     )
                     # Service entry removal.
                     del self.services[service_name]
+
+                await self.core.on_instance_deregistered(service_name, instance_id)
 
             except Exception as e:
                 logging.error("Error processing unregistration: %s", e)

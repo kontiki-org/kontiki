@@ -1,6 +1,6 @@
 # Kontiki – Features
 
-Kontiki is a Python microservices framework built on AMQP (aio-pika) and asyncio. 
+Kontiki is a Python microservices framework built on AMQP (aio-pika) and asyncio.
 
 - **Write only your business logic**: Kontiki manages connections to RabbitMQ, message routing (RPC, events, sessions, broadcast), service lifecycle and configuration merge for you.
 - **Run several instances of the same service to scale out**: Kontiki uses asyncio to handle many concurrent requests per process, and you can add more service instances to scale horizontally without dealing with threads yourself.
@@ -171,6 +171,8 @@ If the Kontiki registry service is running and registration is not disabled, the
 - **Heartbeats** : Sent automatically at a configurable interval.
 - **Degraded state** : Decorate a method with `@degraded_on`; it is called at each heartbeat. If it returns `True`, the service is reported as degraded. Use your own logic (e.g. error count, dependency health).
 - **Event / exception tracking** : The registry can record events and reported exceptions for observability. Clients can call `ServiceRegistryProxy(messenger).get_services()`, `get_events()`, `get_exceptions()`, and filter by status (e.g. degraded).
+- **Lifecycle events** : The registry also publishes AMQP events on the standard event exchange when instances register or deregister, when computed status changes, or when a client reports an exception. Event types: `registry.instance.registered`, `registry.instance.deregistered`, `registry.instance.status_changed`, `registry.exception.recorded`. Subscribe with `@on_event(...)` like any other event.
+- **Status changes** : Instance status is `active`, `degraded`, or `down`. `registry.instance.status_changed` is published on transitions (not on register/unregister). A newly registered instance is `down` until its first heartbeat; missed heartbeats mark it `down` after `heartbeat_interval × 3`.
 
 If the registry is unavailable at startup, registration is skipped and the service still runs.
 
@@ -204,6 +206,6 @@ For an example of Behave integration tests using these helpers, see [**kontiki-s
 
 For this repository's integration test suite, see `tests/integration/` and run:
 
-- `make integration-test` (runs `@single_instance`, `@multi_instance`, and `@task_service`)
+- `make integration-test` (runs `@single_instance`, `@multi_instance`, `@task_service`, and `@registry`)
 
 The suite demonstrates config merge for multi-instance services with a shared base config and per-instance overrides (e.g. separate HTTP ports).

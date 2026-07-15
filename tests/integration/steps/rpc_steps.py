@@ -1,8 +1,30 @@
 import json
 
 from behave import then, when
+from runtime.registry_test_context import (
+    capture_registry_test_exception_timestamp,
+    resolve_placeholders,
+)
 
 from kontiki.messaging.publisher.rpc import RpcError
+
+REGISTRY_RPC_METHODS = frozenset(
+    {
+        "get_services",
+        "get_exceptions",
+        "get_events",
+        "get_filtered_events",
+        "get_filtered_exceptions",
+    }
+)
+
+
+def _get_rpc_service(context, rpc_method):
+    if getattr(context, "active_suite_tag", None) == "registry":
+        if rpc_method in REGISTRY_RPC_METHODS:
+            return "ServiceRegistry"
+        return "RegistryTestService"
+    return getattr(context, "rpc_service", "TestService")
 
 
 @when("I call the {rpc_method} method with the following parameters")
@@ -11,7 +33,16 @@ def step_call_rpc_method(context, rpc_method):
     try:
         payload_str = context.text.strip() if context.text else ""
         params = json.loads(payload_str) if payload_str else {}
-        context.result = context.runner.call("TestService", rpc_method, **params)
+        placeholders = getattr(context, "registry_test_placeholders", None)
+        if placeholders:
+            params = resolve_placeholders(params, placeholders)
+        service_name = _get_rpc_service(context, rpc_method)
+        context.result = context.runner.call(service_name, rpc_method, **params)
+        if (
+            getattr(context, "active_suite_tag", None) == "registry"
+            and rpc_method == "report_test_exception"
+        ):
+            capture_registry_test_exception_timestamp(context)
     except RpcError as e:
         context.code = e.code
         context.message = e.message
