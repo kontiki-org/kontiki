@@ -40,6 +40,13 @@ SERVICE_DEFINITIONS_BY_TAG = {
             "config_paths": ["tests/integration/config.yaml"],
         },
     ],
+    "task_config_service": [
+        {
+            "name": "TaskConfigService",
+            "service_class": "tests.integration.services.TaskConfigService",
+            "config_paths": ["tests/integration/config.yaml"],
+        },
+    ],
     "registry": [
         {
             "name": "ServiceRegistry",
@@ -83,6 +90,10 @@ class TaskMockService(MockService):
 
     @on_event("task_not_immediate_processed")
     async def on_task_not_immediate_processed(self, payload):
+        self.event_manager.store_event(payload)
+
+    @on_event("task_from_config_processed")
+    async def on_task_from_config_processed(self, payload):
         self.event_manager.store_event(payload)
 
 

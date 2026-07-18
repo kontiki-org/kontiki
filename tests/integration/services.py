@@ -122,6 +122,16 @@ class TaskService:
         await self.messenger.publish(msg, msg)
 
 
+class TaskConfigService:
+    messenger = Messenger()
+
+    @task("tests.task.interval", immediate=True)
+    async def task_from_config(self):
+        await self.messenger.publish(
+            "task_from_config_processed", "task_from_config_processed"
+        )
+
+
 class RegistryTestServiceDelegate(ServiceDelegate):
     def __init__(self):
         self.degraded = False

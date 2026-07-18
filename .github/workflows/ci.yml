@@ -75,5 +75,6 @@ jobs:
           poetry run python -m behave tests/integration --tags @single_instance --stop --no-skipped
           poetry run python -m behave tests/integration --tags @multi_instance --stop --no-skipped
           poetry run python -m behave tests/integration --tags @task_service --stop --no-skipped
+          poetry run python -m behave tests/integration --tags @task_config_service --stop --no-skipped
           poetry run python -m behave tests/integration --tags @registry --stop --no-skipped
 

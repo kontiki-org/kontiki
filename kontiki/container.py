@@ -11,9 +11,10 @@ from kontiki.delegate import ServiceDelegate
 from kontiki.messaging.consumer.core import Consumer
 from kontiki.registry.client.heartbeat_publisher import HeartbeatPublisher
 from kontiki.registry.client.registry_client import ServiceRegistryClient
-from kontiki.task.task import Task
+from kontiki.task.task import Task, resolve_task_interval
 from kontiki.utils import log
 from kontiki.web.web import HttpServer
+
 
 # -----------------------------------------------------------------------------
 
@@ -145,11 +146,11 @@ class ServiceContainer:
         for attr_name in dir(self.service_instance):
             attr = getattr(self.service_instance, attr_name)
             if hasattr(attr, "_task_interval"):
-                interval = getattr(attr, "_task_interval")
-                immediate = getattr(attr, "_task_immediate", True)
+                interval = resolve_task_interval(self.config, attr._task_interval)
+                immediate = attr._task_immediate
 
                 task = Task(interval, attr, immediate)
-                log.debug("Starting %s task.", attr)
+                log.debug("Starting %s task (interval=%s).", attr, interval)
                 self.tasks.append(task)
                 task.start()
 

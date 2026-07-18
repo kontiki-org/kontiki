@@ -111,7 +111,8 @@ Handlers that should receive session-scoped events use `@on_event("event_type", 
 
 Tasks in Kontiki are **scheduled coroutines**: the container runs them on a fixed interval in the service event loop, so you can implement periodic work without an external scheduler.
 
-- **`@task(interval=seconds, immediate=True|False)`** : Registers a method to be run periodically. `immediate=True` runs it once at startup, then on the interval. The method can be async.
+- **`@task(interval, immediate=True|False)`** : Registers a method to be run periodically. `immediate=True` runs it once at startup, then on the interval. The method can be async.
+- **Interval** : a number of seconds (literal), or a **config key string** resolved at service start (e.g. `@task("app.cleanup.interval")`). Use your own config namespace, not `kontiki.*`.
 
 ---
 
@@ -160,7 +161,7 @@ python -m kontiki.runner.__main__ <module.path.ServiceClass> --config config.yam
 
 - **Merge** : Multiple YAML config files can be merged (later files override earlier ones). Use `--config file1.yaml --config file2.yaml` when starting a service.
 - **Parameters** : `get_parameter(config, "path.to.key", default)` and `get_kontiki_parameter(config, "amqp.url", default)` read from the merged config using **dot-separated paths** (e.g. `app.http.port`). Use your own namespace (e.g. `app.*`) for application settings; **do not use the `kontiki.*` namespace** for your own keys.
-- **Paths from config** : For HTTP routes and event types, you can pass a config key and set `use_config=True` so the value is read from config at startup (e.g. different paths per environment).
+- **Paths from config** : For HTTP routes and event types, you can pass a config key and set `use_config=True` so the value is read from config at startup (e.g. different paths per environment). For task intervals, pass a config key string instead of a number (no `use_config` flag).
 
 ---
 
@@ -206,6 +207,6 @@ For an example of Behave integration tests using these helpers, see [**kontiki-s
 
 For this repository's integration test suite, see `tests/integration/` and run:
 
-- `make integration-test` (runs `@single_instance`, `@multi_instance`, `@task_service`, and `@registry`)
+- `make integration-test` (runs `@single_instance`, `@multi_instance`, `@task_service`, `@task_config_service`, and `@registry`)
 
 The suite demonstrates config merge for multi-instance services with a shared base config and per-instance overrides (e.g. separate HTTP ports).
