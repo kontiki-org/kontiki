@@ -111,7 +111,8 @@ Handlers that should receive session-scoped events use `@on_event("event_type", 
 
 Tasks in Kontiki are **scheduled coroutines**: the container runs them on a fixed interval in the service event loop, so you can implement periodic work without an external scheduler.
 
-- **`@task(interval=seconds, immediate=True|False)`** : Registers a method to be run periodically. `immediate=True` runs it once at startup, then on the interval. The method can be async.
+- **`@task(interval, immediate=True|False)`** : Registers a method to be run periodically. `immediate=True` runs it once at startup, then on the interval. The method can be async.
+- **Interval** : a number of seconds (literal), or a **config key string** resolved at service start (e.g. `@task("app.cleanup.interval")`). Use your own config namespace, not `kontiki.*`.
 
 ---
 
@@ -160,7 +161,7 @@ python -m kontiki.runner.__main__ <module.path.ServiceClass> --config config.yam
 
 - **Merge** : Multiple YAML config files can be merged (later files override earlier ones). Use `--config file1.yaml --config file2.yaml` when starting a service.
 - **Parameters** : `get_parameter(config, "path.to.key", default)` and `get_kontiki_parameter(config, "amqp.url", default)` read from the merged config using **dot-separated paths** (e.g. `app.http.port`). Use your own namespace (e.g. `app.*`) for application settings; **do not use the `kontiki.*` namespace** for your own keys.
-- **Paths from config** : For HTTP routes and event types, you can pass a config key and set `use_config=True` so the value is read from config at startup (e.g. different paths per environment).
+- **Paths from config** : For HTTP routes and event types, you can pass a config key and set `use_config=True` so the value is read from config at startup (e.g. different paths per environment). For task intervals, pass a config key string instead of a number (no `use_config` flag).
 
 ---
 
@@ -171,6 +172,7 @@ If the Kontiki registry service is running and registration is not disabled, the
 - **Heartbeats** : Sent automatically at a configurable interval.
 - **Degraded state** : Decorate a method with `@degraded_on`; it is called at each heartbeat. If it returns `True`, the service is reported as degraded. Use your own logic (e.g. error count, dependency health).
 - **Event / exception tracking** : The registry can record events and reported exceptions for observability. Clients can call `ServiceRegistryProxy(messenger).get_services()`, `get_events()`, `get_exceptions()`, and filter by status (e.g. degraded).
+- **Uncaught exceptions** : By default (`kontiki.registration.report_uncaught_exceptions: true`), uncaught exceptions in RPC, unmapped HTTP, and `@task` entrypoints are reported automatically via the same path as `ServiceDelegate.publish_exception`. Mapped HTTP errors (`errors=` on `@http`) and `rpc_error` returns are not reported. Set the option to `false` to opt out. Manual reporting with `publish_exception(exception, context=...)` remains available.
 - **Lifecycle events** : The registry also publishes AMQP events on the standard event exchange when instances register or deregister, when computed status changes, or when a client reports an exception. Event types: `registry.instance.registered`, `registry.instance.deregistered`, `registry.instance.status_changed`, `registry.exception.recorded`. Subscribe with `@on_event(...)` like any other event.
 - **Status changes** : Instance status is `active`, `degraded`, or `down`. `registry.instance.status_changed` is published on transitions (not on register/unregister). A newly registered instance is `down` until its first heartbeat; missed heartbeats mark it `down` after `heartbeat_interval × 3`.
 
@@ -206,6 +208,6 @@ For an example of Behave integration tests using these helpers, see [**kontiki-s
 
 For this repository's integration test suite, see `tests/integration/` and run:
 
-- `make integration-test` (runs `@single_instance`, `@multi_instance`, `@task_service`, and `@registry`)
+- `make integration-test` (runs `@single_instance`, `@multi_instance`, `@task_service`, `@task_config_service`, and `@registry`)
 
 The suite demonstrates config merge for multi-instance services with a shared base config and per-instance overrides (e.g. separate HTTP ports).

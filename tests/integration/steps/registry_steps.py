@@ -12,6 +12,17 @@ from runtime.registry_test_context import (
 
 HEARTBEAT_INTERVAL_SECONDS = 2
 REGISTRY_TEST_CONFIG_PATHS = ["tests/integration/config_registry_test_service.yaml"]
+REGISTRY_TEST_SERVICE_CLASS = "tests.integration.services.RegistryTestService"
+REGISTRY_UNCAUGHT_TASK_SERVICE_CLASS = (
+    "tests.integration.services.RegistryUncaughtTaskTestService"
+)
+
+
+def _registry_test_service_class(context):
+    scenario = getattr(context, "scenario", None)
+    if scenario is not None and "uncaught_task" in scenario.tags:
+        return REGISTRY_UNCAUGHT_TASK_SERVICE_CLASS
+    return REGISTRY_TEST_SERVICE_CLASS
 
 
 def _stop_registry_test_service(context):
@@ -20,12 +31,15 @@ def _stop_registry_test_service(context):
         context.registry_test_manager = None
 
 
-def _start_registry_test_service(context):
+def _start_registry_test_service(context, extra_config_paths=None):
     _stop_registry_test_service(context)
+    config_paths = list(REGISTRY_TEST_CONFIG_PATHS)
+    if extra_config_paths:
+        config_paths.extend(extra_config_paths)
     manager = ServiceProcessManager(
         name="RegistryTestService-1",
-        service_class="tests.integration.services.RegistryTestService",
-        config_paths=REGISTRY_TEST_CONFIG_PATHS,
+        service_class=_registry_test_service_class(context),
+        config_paths=config_paths,
         log_dir=context.log_dir,
     )
     manager.start(timeout=25)
@@ -44,6 +58,13 @@ def step_registry_service_running(context):
 @when("the registry test service is running")
 def step_registry_test_service_running(context):
     _start_registry_test_service(context)
+
+
+@given("the registry test service is running with the following configuration")
+def step_registry_test_service_running_with_config(context):
+    overlay_path = context.log_dir / "registry_test_config_overlay.yaml"
+    overlay_path.write_text(context.text.strip() + "\n", encoding="utf-8")
+    _start_registry_test_service(context, extra_config_paths=[str(overlay_path)])
 
 
 @when("I stop the registry test service")

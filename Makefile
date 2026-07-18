@@ -60,6 +60,8 @@ integration-test-multi: run-amqp
 integration-test-task: run-amqp
 	@echo "Running integration tests (task_service suite)..."
 	$(PY) -m behave tests/integration --tags @task_service --stop --no-skipped
+	@echo "Running integration tests (task_config_service suite)..."
+	$(PY) -m behave tests/integration --tags @task_config_service --stop --no-skipped
 
 integration-test-registry: run-amqp
 	@echo "Running integration tests (registry suite)..."

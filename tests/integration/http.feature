@@ -61,8 +61,8 @@ Feature: HTTP
                 "age": "not-an-int"
             }
             """
-        Then the HTTP response status should be 500
-        And the HTTP response body should contain "Internal Server Error"
+        Then the HTTP response status should be 422
+        And the HTTP response body should contain "Invalid request body"
 
     # ------------------------------------------------------------
     # Error mapping

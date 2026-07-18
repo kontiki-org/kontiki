@@ -11,7 +11,7 @@ from kontiki.delegate import ServiceDelegate
 from kontiki.messaging.consumer.core import Consumer
 from kontiki.registry.client.heartbeat_publisher import HeartbeatPublisher
 from kontiki.registry.client.registry_client import ServiceRegistryClient
-from kontiki.task.task import Task
+from kontiki.task.task import Task, resolve_task_interval
 from kontiki.utils import log
 from kontiki.web.web import HttpServer
 
@@ -145,11 +145,11 @@ class ServiceContainer:
         for attr_name in dir(self.service_instance):
             attr = getattr(self.service_instance, attr_name)
             if hasattr(attr, "_task_interval"):
-                interval = getattr(attr, "_task_interval")
-                immediate = getattr(attr, "_task_immediate", True)
+                interval = resolve_task_interval(self.config, attr._task_interval)
+                immediate = attr._task_immediate
 
-                task = Task(interval, attr, immediate)
-                log.debug("Starting %s task.", attr)
+                task = Task(interval, attr, immediate, container=self)
+                log.debug("Starting %s task (interval=%s).", attr, interval)
                 self.tasks.append(task)
                 task.start()
 
@@ -173,6 +173,28 @@ class ServiceContainer:
             await self.service_registry_client.stop()
         if self.amqp_consumer:
             await self.amqp_consumer.stop()
+
+    async def report_exception(self, exception, context=None):
+        if context is None:
+            context = {}
+
+        if not self.service_registry_client:
+            log.warning("Service registration is disabled or unavailable..")
+            return
+
+        try:
+            await self.service_registry_client.register_exception(exception, context)
+            log.debug("Exception published successfully: %s.", exception)
+        except Exception as e:
+            log.error("Error while publishing exception %s: %s", exception, e)
+
+    async def report_uncaught_exception(self, exception, context):
+        enabled = get_kontiki_parameter(
+            self.config, "registration.report_uncaught_exceptions", True
+        )
+        if not enabled:
+            return
+        await self.report_exception(exception, context)
 
     # Internal methods
 

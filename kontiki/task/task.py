@@ -1,15 +1,17 @@
 import asyncio
 
+from kontiki.configuration.parameter import get_parameter
 from kontiki.utils import log
 
 # -----------------------------------------------------------------------------
 
 
 class Task:
-    def __init__(self, interval, user_task, immediate=True):
+    def __init__(self, interval, user_task, immediate=True, container=None):
         self.interval = interval
         self.user_task = user_task
         self.immediate = immediate
+        self.container = container
         self.running = False
         self.timer_loop_task = None
 
@@ -43,11 +45,40 @@ class Task:
                 self.user_task()
         except Exception as e:
             log.error("Repeat task: Error executing user task: %s", e)
+            if self.container is not None:
+                await self.container.report_uncaught_exception(
+                    e,
+                    {
+                        "entrypoint": "task",
+                        "name": self.user_task.__name__,
+                    },
+                )
+
+
+def resolve_task_interval(config, interval):
+    if type(interval) in (int, float):
+        return interval
+    if isinstance(interval, str):
+        value = get_parameter(config, interval)
+        if type(value) not in (int, float):
+            raise TypeError(
+                f"Task interval '{interval}' must resolve to a number, "
+                f"got {type(value).__name__}."
+            )
+        return value
+    raise TypeError(
+        f"Task interval must be a number or config key string, "
+        f"got {type(interval).__name__}."
+    )
 
 
 def task(interval, immediate=True):
-    # Mark a method as a timer. Timer will be instanciated regarding those
-    # informations
+    if type(interval) not in (int, float) and not isinstance(interval, str):
+        raise TypeError(
+            f"Task interval must be a number or config key string, "
+            f"got {type(interval).__name__}."
+        )
+
     def decorator(func):
         func._task_interval = interval
         func._task_immediate = immediate
