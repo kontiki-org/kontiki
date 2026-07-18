@@ -4,6 +4,7 @@
 
 - Task intervals can be a config key string resolved at service start (e.g. `@task("app.cleanup.interval")`), in addition to a literal number of seconds.
 - Uncaught exceptions in RPC, unmapped HTTP, and `@task` entrypoints are reported to the registry by default (`kontiki.registration.report_uncaught_exceptions`; set to `false` to opt out). Same path as `publish_exception` / `registry.exception.recorded`.
+- Invalid HTTP request bodies (Pydantic validation) now return `422 Unprocessable Entity` instead of being wrapped as `500`.
 - Documents configurable task intervals and automatic exception reporting in `docs/features.md` and `docs/configuration.md`.
 
 ## [1.1.0] - 2026-07-15
