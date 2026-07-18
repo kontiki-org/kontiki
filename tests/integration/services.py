@@ -143,9 +143,16 @@ class RegistryTestServiceDelegate(ServiceDelegate):
         return self.degraded
 
 
+class RegistryMappedHttpError(Exception):
+    pass
+
+
 class RegistryTestService:
     name = "RegistryTestService"
     delegate = RegistryTestServiceDelegate()
+    http_error_handlers = {
+        RegistryMappedHttpError: (499, "Mapped error occurred"),
+    }
 
     @rpc
     async def set_degraded(self, degraded):
@@ -158,6 +165,26 @@ class RegistryTestService:
         except Exception as e:
             await self.delegate.publish_exception(e)
 
+    @rpc
+    async def raise_uncaught_exception(self):
+        raise Exception("uncaught rpc exception")
+
+    @http("/raise_uncaught", "GET")
+    async def raise_uncaught_http(self, request):
+        raise Exception("uncaught http exception")
+
+    @http("/raise_mapped", "GET", errors=[RegistryMappedHttpError])
+    async def raise_mapped_http(self, request):
+        raise RegistryMappedHttpError("mapped http exception")
+
     @degraded_on
     def is_degraded(self):
         return self.delegate.is_degraded()
+
+
+class RegistryUncaughtTaskTestService:
+    name = "RegistryTestService"
+
+    @task(interval=10, immediate=True)
+    async def raise_uncaught_task(self):
+        raise Exception("uncaught task exception")

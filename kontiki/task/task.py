@@ -7,10 +7,11 @@ from kontiki.utils import log
 
 
 class Task:
-    def __init__(self, interval, user_task, immediate=True):
+    def __init__(self, interval, user_task, immediate=True, container=None):
         self.interval = interval
         self.user_task = user_task
         self.immediate = immediate
+        self.container = container
         self.running = False
         self.timer_loop_task = None
 
@@ -44,6 +45,14 @@ class Task:
                 self.user_task()
         except Exception as e:
             log.error("Repeat task: Error executing user task: %s", e)
+            if self.container is not None:
+                await self.container.report_uncaught_exception(
+                    e,
+                    {
+                        "entrypoint": "task",
+                        "name": self.user_task.__name__,
+                    },
+                )
 
 
 def resolve_task_interval(config, interval):

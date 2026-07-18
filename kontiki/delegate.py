@@ -1,6 +1,3 @@
-from kontiki.utils import log
-
-
 class ServiceDelegate:
     def __init__(self):
         self.container = None
@@ -19,17 +16,6 @@ class ServiceDelegate:
         pass
 
     async def publish_exception(self, exception, context=None):
-        if context is None:
-            context = {}
-
-        if not self.container or not self.container.service_registry_client:
-            log.warning("Service registration is disabled or unavailable..")
+        if not self.container:
             return
-
-        try:
-            await self.container.service_registry_client.register_exception(
-                exception, context
-            )
-            log.debug("Exception published successfully: %s.", exception)
-        except Exception as e:
-            log.error("Error while publishing exception %s: %s", exception, e)
+        await self.container.report_exception(exception, context)

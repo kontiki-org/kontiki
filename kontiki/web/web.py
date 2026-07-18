@@ -203,7 +203,18 @@ class HttpServer:
                     )
                     return web.json_response({"message": body}, status=status)
 
+                if isinstance(e, web.HTTPException):
+                    raise
+
                 log.error("Error in handler for %s %s: %s", method, path, e)
+                await self.container.report_uncaught_exception(
+                    e,
+                    {
+                        "entrypoint": "http",
+                        "method": method,
+                        "path": path,
+                    },
+                )
                 raise web.HTTPInternalServerError(reason="Internal Server Error") from e
 
         return handler

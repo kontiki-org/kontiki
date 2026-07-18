@@ -89,6 +89,10 @@ class RpcTask:
                 except Exception as e:
                     msg = "Error while processing RPC method %s: %s"
                     log.error(msg, self.name, e)
+                    await self.container.report_uncaught_exception(
+                        e,
+                        {"entrypoint": "rpc", "name": self.name},
+                    )
                     if not future.done():
                         future.set_result(
                             RpcReturn(
