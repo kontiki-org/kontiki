@@ -15,7 +15,6 @@ from kontiki.task.task import Task, resolve_task_interval
 from kontiki.utils import log
 from kontiki.web.web import HttpServer
 
-
 # -----------------------------------------------------------------------------
 
 
