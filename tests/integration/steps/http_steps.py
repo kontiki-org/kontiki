@@ -6,6 +6,12 @@ from behave import then, when
 BASE_URL = "http://127.0.0.1:8080"
 
 
+def _resolve_url(path_or_url):
+    if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
+        return path_or_url
+    return f"{BASE_URL}{path_or_url}"
+
+
 def _parse_response_body(body):
     if not body:
         return None
@@ -31,7 +37,7 @@ def _perform_request(context, req):
 
 @when('I send an HTTP GET request to "{path}"')
 def step_send_http_get(context, path):
-    req = request.Request(f"{BASE_URL}{path}", method="GET")
+    req = request.Request(_resolve_url(path), method="GET")
     _perform_request(context, req)
 
 
@@ -40,7 +46,7 @@ def step_send_http_post(context, path):
     payload_str = context.text.strip() if context.text else ""
     payload = payload_str.encode("utf-8")
     req = request.Request(
-        f"{BASE_URL}{path}",
+        _resolve_url(path),
         data=payload,
         method="POST",
         headers={"Content-Type": "application/json"},

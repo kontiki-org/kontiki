@@ -67,6 +67,31 @@ def step_registry_test_service_running_with_config(context):
     _start_registry_test_service(context, extra_config_paths=[str(overlay_path)])
 
 
+@given("the registry test service is registered and active")
+def step_registry_test_service_registered_and_active(context):
+    _start_registry_test_service(context)
+    time.sleep(HEARTBEAT_INTERVAL_SECONDS + 1)
+
+
+@given("the registry test service is registered and degraded")
+def step_registry_test_service_registered_and_degraded(context):
+    _start_registry_test_service(context)
+    context.runner.call("RegistryTestService", "set_degraded", degraded=True)
+    time.sleep(HEARTBEAT_INTERVAL_SECONDS + 1)
+
+
+@given("the registry test service is registered and all its instances are down")
+def step_registry_test_service_registered_and_down(context):
+    _start_registry_test_service(context)
+    time.sleep(HEARTBEAT_INTERVAL_SECONDS + 1)
+    if context.registry_test_manager is None:
+        raise AssertionError("Registry test service is not running.")
+    context.registry_test_manager.kill()
+    context.registry_test_manager = None
+    for _ in range(4):
+        time.sleep(HEARTBEAT_INTERVAL_SECONDS + 1)
+
+
 @when("I stop the registry test service")
 def step_stop_registry_test_service(context):
     _stop_registry_test_service(context)

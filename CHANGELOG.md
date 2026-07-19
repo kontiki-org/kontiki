@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.3.0] - 2026-07-19
+
+- Registry HTTP live probe: `GET /live/{service_name}` returns 200 when at least one instance is `active` or `degraded`, 503 otherwise. The registry's own name returns 200 without self-registration (orchestrator-friendly for bus-only services).
+- Documents the live probe in `docs/features.md`.
+
 ## [1.2.0] - 2026-07-18
 
 - Task intervals can be a config key string resolved at service start (e.g. `@task("app.cleanup.interval")`), in addition to a literal number of seconds.

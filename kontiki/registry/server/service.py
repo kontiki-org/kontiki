@@ -20,6 +20,12 @@ class ServiceRegistry:
     # -----------------------------------------------------------------------------
     # HTTP API
     # -----------------------------------------------------------------------------
+    @http("/live/{service_name}", "GET")
+    async def http_live(self, request, service_name):
+        if self.core.is_live(service_name):
+            return web.Response(status=200)
+        raise web.HTTPServiceUnavailable()
+
     @http("/services", "GET")
     async def http_get_all_services(self, request):
         services = self.core.get_services()
