@@ -194,6 +194,24 @@ class ServiceRegistryCore(ServiceDelegate):
 
         return dict(filtered_services)
 
+    def is_live(self, service_name):
+        if service_name == self.container.service_name:
+            return True
+
+        instances = self.registry.services.get(service_name)
+        if not instances:
+            return False
+
+        for instance_id, data in instances.items():
+            status = self._get_instance_status(
+                instance_id,
+                service_name,
+                self._get_timeout(data.get("heartbeat_interval", 10)),
+            )
+            if status in (ServiceStatus.ACTIVE.value, ServiceStatus.DEGRADED.value):
+                return True
+        return False
+
     def get_events(self):
         return make_serializable(self.event_tracker.events)
 
