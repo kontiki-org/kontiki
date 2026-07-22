@@ -1,6 +1,11 @@
 import logging
 
-from kontiki.registry.common import REGISTER_RKEY, UNREGISTER_RKEY, nested_dict
+from kontiki.registry.common import (
+    REGISTER_RKEY,
+    UNREGISTER_RKEY,
+    nested_dict,
+    normalize_registration_group,
+)
 
 # -----------------------------------------------------------------------------
 
@@ -27,6 +32,7 @@ class Registry:
                 data = self.core.serializer.loads(message.body)
                 service_name = data["service_name"]
                 instance_id = data["instance_id"]
+                data["group"] = normalize_registration_group(data.get("group"))
 
                 # Services registration
                 self.services[service_name][instance_id] = data

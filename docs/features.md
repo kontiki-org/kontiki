@@ -159,7 +159,7 @@ python -m kontiki.runner.__main__ <module.path.ServiceClass> --config config.yam
 
 ## Configuration
 
-- **Merge** : Multiple YAML config files can be merged (later files override earlier ones). Use `--config file1.yaml --config file2.yaml` when starting a service.
+- **Merge** : Multiple YAML config files can be merged with `--config file1.yaml --config file2.yaml`. Nested dicts are combined; new keys from later files are added. The same leaf key with the same value logs a warning; conflicting leaf values raise an error (later files do **not** override earlier ones).
 - **Parameters** : `get_parameter(config, "path.to.key", default)` and `get_kontiki_parameter(config, "amqp.url", default)` read from the merged config using **dot-separated paths** (e.g. `app.http.port`). Use your own namespace (e.g. `app.*`) for application settings; **do not use the `kontiki.*` namespace** for your own keys.
 - **Paths from config** : For HTTP routes and event types, you can pass a config key and set `use_config=True` so the value is read from config at startup (e.g. different paths per environment). For task intervals, pass a config key string instead of a number (no `use_config` flag).
 
@@ -169,6 +169,8 @@ python -m kontiki.runner.__main__ <module.path.ServiceClass> --config config.yam
 
 If the Kontiki registry service is running and registration is not disabled, the service registers itself and can:
 
+- **Registration group** : Each registration includes a first-class `group` field (`kontiki.registration.group`, default `business`). Typical values: `business` (day-to-day workloads) and `platform` (ops / mesh). Blank or whitespace is normalized to `business`. UIs can filter on this field; registry RPC and live probes still see the full fleet.
+- **Configuration** : Optionally expose selected config paths to the registry (for UIs) via `kontiki.registration.configuration.public_paths`.
 - **Heartbeats** : Sent automatically at a configurable interval.
 - **Degraded state** : Decorate a method with `@degraded_on`; it is called at each heartbeat. If it returns `True`, the service is reported as degraded. Use your own logic (e.g. error count, dependency health).
 - **Live probe** : The registry HTTP API exposes `GET /live/{service_name}` for orchestrators (Docker Compose / Kubernetes). Returns **200** if at least one instance is `active` or `degraded` (recent heartbeat), **503** otherwise. When `{service_name}` is the registry's own name (e.g. `ServiceRegistry`), returns **200** as soon as the registry HTTP server is up (no self-registration required). Prefer this over in-service HTTP probes on bus-only workers.
@@ -211,4 +213,4 @@ For this repository's integration test suite, see `tests/integration/` and run:
 
 - `make integration-test` (runs `@single_instance`, `@multi_instance`, `@task_service`, `@task_config_service`, and `@registry`)
 
-The suite demonstrates config merge for multi-instance services with a shared base config and per-instance overrides (e.g. separate HTTP ports).
+The suite demonstrates config merge for multi-instance services with a shared base config and complementary per-instance settings (e.g. separate HTTP ports in different files, without conflicting leaf keys).

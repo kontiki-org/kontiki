@@ -17,7 +17,37 @@ Feature: Automatic uncaught exception reporting
     does not pollute RPC/HTTP exception assertions.
 
     Background:
-        Given the registry service is running
+        Given the registry service is running with the following configuration
+            """
+            kontiki:
+              amqp:
+                url: amqp://guest:guest@localhost/
+              registration:
+                disable: true
+              http:
+                address: 127.0.0.1
+                port: 18082
+
+            logging:
+              version: 1
+              disable_existing_loggers: True
+              formatters:
+                default:
+                  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(filename)s:%(lineno)d"
+              handlers:
+                console:
+                  class: logging.StreamHandler
+                  formatter: default
+                  level: DEBUG
+              loggers:
+                kontiki:
+                  handlers: ["console"]
+                  level: DEBUG
+                  propagate: False
+              root:
+                handlers: ["console"]
+                level: DEBUG
+            """
 
     # ------------------------------------------------------------
     # Opt-out
@@ -26,8 +56,34 @@ Feature: Automatic uncaught exception reporting
         Given the registry test service is running with the following configuration
             """
             kontiki:
+              amqp:
+                url: amqp://guest:guest@localhost/
               registration:
+                disable: false
+                delay: 0
                 report_uncaught_exceptions: false
+              heartbeat:
+                interval: 2
+
+            logging:
+              version: 1
+              disable_existing_loggers: True
+              formatters:
+                default:
+                  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(filename)s:%(lineno)d"
+              handlers:
+                console:
+                  class: logging.StreamHandler
+                  formatter: default
+                  level: DEBUG
+              loggers:
+                kontiki:
+                  handlers: ["console"]
+                  level: DEBUG
+                  propagate: False
+              root:
+                handlers: ["console"]
+                level: DEBUG
             """
         When I call the raise_uncaught_exception method with the following parameters
             """
@@ -49,7 +105,37 @@ Feature: Automatic uncaught exception reporting
     # Default / enabled: RPC
     # ------------------------------------------------------------
     Scenario: uncaught RPC exception is reported by default
-        Given the registry test service is running
+        Given the registry test service is running with the following configuration
+            """
+            kontiki:
+              amqp:
+                url: amqp://guest:guest@localhost/
+              registration:
+                disable: false
+                delay: 0
+              heartbeat:
+                interval: 2
+
+            logging:
+              version: 1
+              disable_existing_loggers: True
+              formatters:
+                default:
+                  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(filename)s:%(lineno)d"
+              handlers:
+                console:
+                  class: logging.StreamHandler
+                  formatter: default
+                  level: DEBUG
+              loggers:
+                kontiki:
+                  handlers: ["console"]
+                  level: DEBUG
+                  propagate: False
+              root:
+                handlers: ["console"]
+                level: DEBUG
+            """
         When I call the raise_uncaught_exception method with the following parameters
             """
             {}
@@ -76,9 +162,36 @@ Feature: Automatic uncaught exception reporting
         Given the registry test service is running with the following configuration
             """
             kontiki:
+              amqp:
+                url: amqp://guest:guest@localhost/
+              registration:
+                disable: false
+                delay: 0
+              heartbeat:
+                interval: 2
               http:
                 address: "0.0.0.0"
                 port: 8080
+
+            logging:
+              version: 1
+              disable_existing_loggers: True
+              formatters:
+                default:
+                  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(filename)s:%(lineno)d"
+              handlers:
+                console:
+                  class: logging.StreamHandler
+                  formatter: default
+                  level: DEBUG
+              loggers:
+                kontiki:
+                  handlers: ["console"]
+                  level: DEBUG
+                  propagate: False
+              root:
+                handlers: ["console"]
+                level: DEBUG
             """
         When I send an HTTP GET request to "/raise_uncaught"
         Then the registry should publish the registry.exception.recorded event with the following payload
@@ -101,9 +214,36 @@ Feature: Automatic uncaught exception reporting
         Given the registry test service is running with the following configuration
             """
             kontiki:
+              amqp:
+                url: amqp://guest:guest@localhost/
+              registration:
+                disable: false
+                delay: 0
+              heartbeat:
+                interval: 2
               http:
                 address: "0.0.0.0"
                 port: 8080
+
+            logging:
+              version: 1
+              disable_existing_loggers: True
+              formatters:
+                default:
+                  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(filename)s:%(lineno)d"
+              handlers:
+                console:
+                  class: logging.StreamHandler
+                  formatter: default
+                  level: DEBUG
+              loggers:
+                kontiki:
+                  handlers: ["console"]
+                  level: DEBUG
+                  propagate: False
+              root:
+                handlers: ["console"]
+                level: DEBUG
             """
         When I send an HTTP GET request to "/raise_mapped"
         When I call the get_filtered_exceptions method with the following parameters
@@ -123,7 +263,37 @@ Feature: Automatic uncaught exception reporting
     # ------------------------------------------------------------
     @uncaught_task
     Scenario: uncaught task exception is reported when report_uncaught_exceptions is true
-        Given the registry test service is running
+        Given the registry test service is running with the following configuration
+            """
+            kontiki:
+              amqp:
+                url: amqp://guest:guest@localhost/
+              registration:
+                disable: false
+                delay: 0
+              heartbeat:
+                interval: 2
+
+            logging:
+              version: 1
+              disable_existing_loggers: True
+              formatters:
+                default:
+                  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(filename)s:%(lineno)d"
+              handlers:
+                console:
+                  class: logging.StreamHandler
+                  formatter: default
+                  level: DEBUG
+              loggers:
+                kontiki:
+                  handlers: ["console"]
+                  level: DEBUG
+                  propagate: False
+              root:
+                handlers: ["console"]
+                level: DEBUG
+            """
         When I wait for 3 seconds
         Then the registry should publish the registry.exception.recorded event with the following payload
             """

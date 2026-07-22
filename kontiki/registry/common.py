@@ -11,6 +11,7 @@ UNREGISTER_RKEY = "registry.unregister"
 HEARTBEAT_RKEY = "registry.heartbeat"
 EXCEPTION_RKEY = "registry.exception"
 HEARTBEAT_DEFAULT_INTERVAL = 60
+REGISTRATION_GROUP_DEFAULT = "business"
 
 
 def get_event_queue_name(service_name, event):
@@ -28,6 +29,21 @@ async def declare_registry_event_exchange(channel):
 def get_heartbeat_interval(config):
     return get_kontiki_parameter(
         config, "heartbeat.interval", HEARTBEAT_DEFAULT_INTERVAL
+    )
+
+
+def normalize_registration_group(value):
+    if not isinstance(value, str):
+        return REGISTRATION_GROUP_DEFAULT
+    stripped = value.strip()
+    if not stripped:
+        return REGISTRATION_GROUP_DEFAULT
+    return stripped
+
+
+def get_registration_group(config):
+    return normalize_registration_group(
+        get_kontiki_parameter(config, "registration.group", default="")
     )
 
 

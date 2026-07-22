@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.0] - 2026-07-22
+
+- Registration group: services send a first-class `group` field on registry `register` (`kontiki.registration.group`, default `business`). 
+- Documents `kontiki.registration.group` in `docs/configuration.md` and the example config.
+- Corrects `docs/features.md`: multi-file config merge does not override conflicting leaf values (complementary keys only; conflicts raise an error).
+
 ## [1.3.0] - 2026-07-19
 
 - Registry HTTP live probe: `GET /live/{service_name}` returns 200 when at least one instance is `active` or `degraded`, 503 otherwise. The registry's own name returns 200 without self-registration (orchestrator-friendly for bus-only services).

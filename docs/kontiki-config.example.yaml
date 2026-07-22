@@ -18,6 +18,7 @@ kontiki:
   registration:
     disable: false
     delay: 2
+    group: business  # or platform; blank → business
     report_uncaught_exceptions: true  # opt out with false
     # configuration:
     #   public_paths: ["app", "feature_flags"]
