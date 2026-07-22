@@ -2,8 +2,9 @@
 
 ## [1.4.0] - 2026-07-22
 
-- Registration group: services send a first-class `group` field on registry `register` (`kontiki.registration.group`, default `business`). Blank / whitespace is normalized to `business`; any other non-empty string is accepted. The registry stores the normalized value and includes it on `registry.instance.registered`. UIs can filter on `group` without changing live probes or `get_services` fleet visibility.
+- Registration group: services send a first-class `group` field on registry `register` (`kontiki.registration.group`, default `business`). 
 - Documents `kontiki.registration.group` in `docs/configuration.md` and the example config.
+- Corrects `docs/features.md`: multi-file config merge does not override conflicting leaf values (complementary keys only; conflicts raise an error).
 
 ## [1.3.0] - 2026-07-19
 
