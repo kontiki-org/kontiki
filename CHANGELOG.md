@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.4.0] - 2026-07-22
+
+- Registration group: services send a first-class `group` field on registry `register` (`kontiki.registration.group`, default `business`). Blank / whitespace is normalized to `business`; any other non-empty string is accepted. The registry stores the normalized value and includes it on `registry.instance.registered`. UIs can filter on `group` without changing live probes or `get_services` fleet visibility.
+- Documents `kontiki.registration.group` in `docs/configuration.md` and the example config.
+
 ## [1.3.0] - 2026-07-19
 
 - Registry HTTP live probe: `GET /live/{service_name}` returns 200 when at least one instance is `active` or `degraded`, 503 otherwise. The registry's own name returns 200 without self-registration (orchestrator-friendly for bus-only services).
