@@ -13,6 +13,7 @@ from kontiki.registry.common import (
     UNREGISTER_RKEY,
     declare_registry_admin_exchange,
     get_heartbeat_interval,
+    get_registration_group,
 )
 from kontiki.utils import log
 
@@ -131,6 +132,7 @@ class ServiceRegistryClient:
             "host": self.container.host,
             "service_version": self.container.version,
             "heartbeat_interval": heartbeat_interval,
+            "group": get_registration_group(self.container.config),
         }
 
         if filtered_config:

@@ -47,16 +47,9 @@ SERVICE_DEFINITIONS_BY_TAG = {
             "config_paths": ["tests/integration/config.yaml"],
         },
     ],
-    "registry": [
-        {
-            "name": "ServiceRegistry",
-            "service_class": "kontiki.registry.server.service.ServiceRegistry",
-            "config_paths": [
-                "tests/integration/config.yaml",
-                "tests/integration/config_registry_server.yaml",
-            ],
-        },
-    ],
+    # Registry process is started from the feature Given DocString
+    # (see registry_steps), not from this map.
+    "registry": [],
 }
 EXCLUSIVE_SUITE_TAGS = list(SERVICE_DEFINITIONS_BY_TAG.keys())
 
@@ -124,6 +117,9 @@ def before_all(context):
     context.service_managers = []
     context.active_suite_tag = None
     context.registry_test_manager = None
+    # Mutable bag on the root context layer so the registry process
+    # handle survives Behave's per-scenario context pop.
+    context.registry = {"manager": None, "config_text": None}
 
     # Setup and start the mock service manager and runner
     context.manager = MockServiceManager(log_file=str(LOG_DIR / "mock_services.log"))
@@ -181,5 +177,10 @@ def _start_test_suite(context, suite_tag):
 def after_all(context):
     if context.runner is not None:
         context.runner.stop()
+    manager = context.registry["manager"]
+    if manager is not None:
+        manager.stop(timeout=5)
+        context.registry["manager"] = None
+        context.registry["config_text"] = None
     for manager in reversed(context.service_managers):
         manager.stop(timeout=5)

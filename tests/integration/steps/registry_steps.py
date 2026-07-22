@@ -11,7 +11,7 @@ from runtime.registry_test_context import (
 )
 
 HEARTBEAT_INTERVAL_SECONDS = 2
-REGISTRY_TEST_CONFIG_PATHS = ["tests/integration/config_registry_test_service.yaml"]
+REGISTRY_SERVICE_CLASS = "kontiki.registry.server.service.ServiceRegistry"
 REGISTRY_TEST_SERVICE_CLASS = "tests.integration.services.RegistryTestService"
 REGISTRY_UNCAUGHT_TASK_SERVICE_CLASS = (
     "tests.integration.services.RegistryUncaughtTaskTestService"
@@ -25,21 +25,50 @@ def _registry_test_service_class(context):
     return REGISTRY_TEST_SERVICE_CLASS
 
 
+def _stop_registry_service(context):
+    manager = context.registry["manager"]
+    if manager is not None:
+        manager.stop(timeout=5)
+        context.registry["manager"] = None
+        context.registry["config_text"] = None
+
+
+def _start_registry_service(context, config_text):
+    normalized = config_text.strip()
+    manager = context.registry["manager"]
+    if manager is not None and context.registry["config_text"] == normalized:
+        if manager.process is not None and manager.process.poll() is None:
+            return
+        _stop_registry_service(context)
+
+    _stop_registry_service(context)
+    config_path = context.log_dir / "registry_service.yaml"
+    config_path.write_text(normalized + "\n", encoding="utf-8")
+    manager = ServiceProcessManager(
+        name="ServiceRegistry",
+        service_class=REGISTRY_SERVICE_CLASS,
+        config_paths=[str(config_path)],
+        log_dir=context.log_dir,
+    )
+    manager.start(timeout=25)
+    context.registry["manager"] = manager
+    context.registry["config_text"] = normalized
+
+
 def _stop_registry_test_service(context):
     if context.registry_test_manager is not None:
         context.registry_test_manager.stop(timeout=5)
         context.registry_test_manager = None
 
 
-def _start_registry_test_service(context, extra_config_paths=None):
+def _start_registry_test_service(context, config_text):
     _stop_registry_test_service(context)
-    config_paths = list(REGISTRY_TEST_CONFIG_PATHS)
-    if extra_config_paths:
-        config_paths.extend(extra_config_paths)
+    config_path = context.log_dir / "registry_test_service.yaml"
+    config_path.write_text(config_text.strip() + "\n", encoding="utf-8")
     manager = ServiceProcessManager(
         name="RegistryTestService-1",
         service_class=_registry_test_service_class(context),
-        config_paths=config_paths,
+        config_paths=[str(config_path)],
         log_dir=context.log_dir,
     )
     manager.start(timeout=25)
@@ -49,47 +78,21 @@ def _start_registry_test_service(context, extra_config_paths=None):
     time.sleep(0.5)
 
 
-@given("the registry service is running")
-def step_registry_service_running(context):
-    pass
-
-
-@given("the registry test service is running")
-@when("the registry test service is running")
-def step_registry_test_service_running(context):
-    _start_registry_test_service(context)
+@given("the registry service is running with the following configuration")
+def step_registry_service_running_with_config(context):
+    if not context.text or not context.text.strip():
+        raise AssertionError("Registry service configuration DocString is required.")
+    _start_registry_service(context, context.text)
 
 
 @given("the registry test service is running with the following configuration")
+@when("the registry test service is running with the following configuration")
 def step_registry_test_service_running_with_config(context):
-    overlay_path = context.log_dir / "registry_test_config_overlay.yaml"
-    overlay_path.write_text(context.text.strip() + "\n", encoding="utf-8")
-    _start_registry_test_service(context, extra_config_paths=[str(overlay_path)])
-
-
-@given("the registry test service is registered and active")
-def step_registry_test_service_registered_and_active(context):
-    _start_registry_test_service(context)
-    time.sleep(HEARTBEAT_INTERVAL_SECONDS + 1)
-
-
-@given("the registry test service is registered and degraded")
-def step_registry_test_service_registered_and_degraded(context):
-    _start_registry_test_service(context)
-    context.runner.call("RegistryTestService", "set_degraded", degraded=True)
-    time.sleep(HEARTBEAT_INTERVAL_SECONDS + 1)
-
-
-@given("the registry test service is registered and all its instances are down")
-def step_registry_test_service_registered_and_down(context):
-    _start_registry_test_service(context)
-    time.sleep(HEARTBEAT_INTERVAL_SECONDS + 1)
-    if context.registry_test_manager is None:
-        raise AssertionError("Registry test service is not running.")
-    context.registry_test_manager.kill()
-    context.registry_test_manager = None
-    for _ in range(4):
-        time.sleep(HEARTBEAT_INTERVAL_SECONDS + 1)
+    if not context.text or not context.text.strip():
+        raise AssertionError(
+            "Registry test service configuration DocString is required."
+        )
+    _start_registry_test_service(context, context.text)
 
 
 @when("I stop the registry test service")

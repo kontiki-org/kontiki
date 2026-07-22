@@ -37,6 +37,7 @@ Used when the service registers with a Kontiki registry.
 |-----|---------|-------------|
 | `kontiki.registration.disable` | `False` | Set to `true` to disable registration. |
 | `kontiki.registration.delay` | `2` | Delay in seconds before sending the first registration. |
+| `kontiki.registration.group` | `business` | Logical registration group exposed to UIs (e.g. `business`, `platform`). Blank / whitespace is normalized to `business`. |
 | `kontiki.registration.report_uncaught_exceptions` | `True` | When `true`, uncaught exceptions in RPC, HTTP (unmapped), and `@task` entrypoints are reported to the registry (same path as `publish_exception`). Set to `false` to opt out. |
 | `kontiki.registration.configuration.public_paths` | `None` | List of config paths to expose to the registry (e.g. for UI). If set, only those paths are sent; otherwise no config is sent. |
 

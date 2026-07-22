@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+from kontiki.registry.common import normalize_registration_group
+
 INSTANCE_REGISTERED = "registry.instance.registered"
 INSTANCE_DEREGISTERED = "registry.instance.deregistered"
 INSTANCE_STATUS_CHANGED = "registry.instance.status_changed"
@@ -18,6 +20,7 @@ def registered_payload(data):
         "pid": data.get("pid"),
         "service_version": data.get("service_version"),
         "heartbeat_interval": data.get("heartbeat_interval"),
+        "group": normalize_registration_group(data.get("group")),
         "timestamp": _utc_now_iso(),
     }
     if data.get("config"):
