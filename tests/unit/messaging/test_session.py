@@ -51,3 +51,17 @@ async def test_event_session_publish_without_extra_headers():
     assert event_type == "evt.123"
     session_key = get_kontiki_header_name("session_id")
     assert headers[session_key] == "999"
+
+
+@pytest.mark.asyncio
+async def test_event_session_publish_forwards_flow_id():
+    messenger = AsyncMock()
+    session = EventSession(
+        messenger, service_name="ServiceA", instance_id="inst-1", session_id="sess-42"
+    )
+
+    await session.publish("my_event", {"foo": "bar"}, flow_id="custom-flow")
+
+    messenger.publish.assert_awaited_once()
+    assert messenger.publish.call_args.kwargs["flow_id"] == "custom-flow"
+

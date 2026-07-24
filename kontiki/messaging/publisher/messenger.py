@@ -22,6 +22,7 @@ from kontiki.messaging.publisher.rpc import (
     RpcServerError,
     RpcTimeoutError,
 )
+from kontiki.messaging.flow import apply_outbound_flow_id
 from kontiki.messaging.publisher.session import EventSession
 from kontiki.messaging.rpc import RpcErrorType, RpcReturn
 from kontiki.messaging.serialization import DEFAULT_SERIALIZATION, Serializer
@@ -113,7 +114,9 @@ class Messenger(ServiceDelegate):
         self.callback_queue = None
         self._started = False
 
-    async def publish(self, event_type, obj, reply_to=None, extra_headers=None):
+    async def publish(
+        self, event_type, obj, reply_to=None, extra_headers=None, flow_id=None
+    ):
         if extra_headers is None:
             extra_headers = {}
 
@@ -124,6 +127,7 @@ class Messenger(ServiceDelegate):
             "reply_to": reply_to,
         }
         headers = self.get_service_headers() | event_headers | extra_headers
+        apply_outbound_flow_id(headers, flow_id=flow_id, extra_headers=extra_headers)
         message = self.serializer.dumps(obj)
 
         try:
@@ -140,7 +144,13 @@ class Messenger(ServiceDelegate):
         log.debug("Event published: %s -> %s", event_type, message)
 
     async def call(
-        self, service_name, method_name, *args, extra_headers=None, **kwargs
+        self,
+        service_name,
+        method_name,
+        *args,
+        extra_headers=None,
+        flow_id=None,
+        **kwargs,
     ):
         cid = str(uuid.uuid4())
         loop = asyncio.get_running_loop()
@@ -176,6 +186,7 @@ class Messenger(ServiceDelegate):
             extra_headers = {}
         remote_headers = {"remote_method": method_name}
         headers = self.get_service_headers() | remote_headers | extra_headers
+        apply_outbound_flow_id(headers, flow_id=flow_id, extra_headers=extra_headers)
 
         routing_key = f"{service_name}.{method_name}"
         request_body = self.serializer.dumps({"args": args, "kwargs": kwargs})

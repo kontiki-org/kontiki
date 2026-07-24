@@ -2,6 +2,7 @@ import asyncio
 
 from aio_pika import IncomingMessage
 
+from kontiki.messaging.flow import enter_flow_from_headers, reset_flow_id
 from kontiki.utils import log
 
 
@@ -71,36 +72,40 @@ class OnEventTask:
 
     async def run(self):
         async def consume_message(message: IncomingMessage):
+            flow_token = enter_flow_from_headers(message.headers)
             try:
-                log.debug(
-                    "Consuming event %s (redelivered=%s, headers=%s)",
-                    self.event_type,
-                    message.redelivered,
-                    message.headers,
-                )
-                async with message.process(
-                    requeue=self.requeue_on_error,
-                    reject_on_redelivered=self.reject_on_redelivered,
-                ):
-                    obj = self.serializer.loads(message.body)
-                    log.info(
-                        "Message received on %s: %s", self.event_type, message.body
+                try:
+                    log.debug(
+                        "Consuming event %s (redelivered=%s, headers=%s)",
+                        self.event_type,
+                        message.redelivered,
+                        message.headers,
                     )
+                    async with message.process(
+                        requeue=self.requeue_on_error,
+                        reject_on_redelivered=self.reject_on_redelivered,
+                    ):
+                        obj = self.serializer.loads(message.body)
+                        log.info(
+                            "Message received on %s: %s", self.event_type, message.body
+                        )
 
-                    headers = message.headers if self.include_headers else {}
-                    if asyncio.iscoroutinefunction(self.task):
-                        if headers:
-                            await self.task(obj, _headers=headers)
+                        headers = message.headers if self.include_headers else {}
+                        if asyncio.iscoroutinefunction(self.task):
+                            if headers:
+                                await self.task(obj, _headers=headers)
+                            else:
+                                await self.task(obj)
                         else:
-                            await self.task(obj)
-                    else:
-                        if headers:
-                            self.task(obj, _headers=headers)
-                        else:
-                            self.task(obj)
+                            if headers:
+                                self.task(obj, _headers=headers)
+                            else:
+                                self.task(obj)
 
-            except Exception as e:
-                log.error("Error occurred while consuming the event: %s", e)
-                await message.nack(requeue=False)
+                except Exception as e:
+                    log.error("Error occurred while consuming the event: %s", e)
+                    await message.nack(requeue=False)
+            finally:
+                reset_flow_id(flow_token)
 
         await self.queue.consume(consume_message)

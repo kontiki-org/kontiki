@@ -34,13 +34,15 @@ class RpcProxy:
                 f"Service name not set for {self.messenger.service_name}"
             )
 
-        async def _call(*args, extra_headers=None, **kwargs):
+        async def _call(*args, extra_headers=None, flow_id=None, **kwargs):
             kwargs.pop("extra_headers", None)
+            kwargs.pop("flow_id", None)
             return await self.messenger.call(
                 self.service_name,
                 method_name,
                 *args,
                 extra_headers=extra_headers,
+                flow_id=flow_id,
                 **kwargs,
             )
 

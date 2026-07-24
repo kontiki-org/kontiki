@@ -1,5 +1,6 @@
 from kontiki.messaging.consumer.event import on_event
 from kontiki.messaging.consumer.rpc import rpc, rpc_error
+from kontiki.messaging.flow import current_flow_id
 from kontiki.messaging.publisher.messenger import Messenger
 from kontiki.messaging.publisher.rpc import (
     RpcClientError,
@@ -16,6 +17,7 @@ __all__ = [
     "RpcProxy",
     "RpcServerError",
     "RpcTimeoutError",
+    "current_flow_id",
     "on_event",
     "rpc",
     "rpc_error",

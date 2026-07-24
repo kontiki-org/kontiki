@@ -2,6 +2,7 @@ import asyncio
 
 from aio_pika import Message
 
+from kontiki.messaging.flow import enter_flow_from_headers, reset_flow_id
 from kontiki.messaging.rpc import RpcErrorType, RpcReturn
 from kontiki.utils import log
 
@@ -43,81 +44,91 @@ class RpcTask:
 
     async def run(self):
         async def handle_rpc(message):
-            async with message.process():
-                # Identify each request/response pair.
-                cid = message.correlation_id
-                log.debug("Message received for correlation_id=%s", cid)
-                if cid in self.futures:
-                    log.error("Duplicate message (%s)", cid)
-                    return
+            flow_token = enter_flow_from_headers(message.headers)
+            try:
+                async with message.process():
+                    # Identify each request/response pair.
+                    cid = message.correlation_id
+                    log.debug("Message received for correlation_id=%s", cid)
+                    if cid in self.futures:
+                        log.error("Duplicate message (%s)", cid)
+                        return
 
-                loop = asyncio.get_running_loop()
-                future = loop.create_future()
-                self.futures[cid] = future
+                    loop = asyncio.get_running_loop()
+                    future = loop.create_future()
+                    self.futures[cid] = future
 
-                # Parse the request
-                try:
-                    request = self.serializer.loads(message.body)
-                    args = request.get("args", [])
-                    kwargs = request.get("kwargs", {})
-                    headers = message.headers if self.include_headers else None
-                except Exception as e:
-                    log.error("Invalid RPC message format: %s", e)
-                    del self.futures[cid]
-                    return
-
-                msg = "RPC request received: method=%s args=%s, kwargs=%s"
-                log.info(msg, self.name, args, kwargs)
-
-                # Call the handler
-                try:
-                    if headers:
-                        response_data = await self.task(
-                            self.container, *args, **kwargs, _headers=headers
-                        )
-                    else:
-                        response_data = await self.task(self.container, *args, **kwargs)
-
-                    if not isinstance(response_data, RpcReturn):
-                        response_data = RpcReturn(success=True, result=response_data)
-
-                    if response_data is None:
-                        response_data = ""
-                    if not future.done():
-                        future.set_result(response_data)
-
-                except Exception as e:
-                    msg = "Error while processing RPC method %s: %s"
-                    log.error(msg, self.name, e)
-                    await self.container.report_uncaught_exception(
-                        e,
-                        {"entrypoint": "rpc", "name": self.name},
-                    )
-                    if not future.done():
-                        future.set_result(
-                            RpcReturn(
-                                success=False,
-                                message=str(e),
-                                error_type=RpcErrorType.SERVER,
-                                error_code="INTERNAL_ERROR",
-                            )
-                        )
-
-                # Send the response
-                if message.reply_to:
+                    # Parse the request
                     try:
-                        response_data = await future
-                        serialized = self.serializer.dumps(response_data)
-                        log.debug("Reply %s to %s", serialized, message.reply_to)
-                        response_message = Message(body=serialized, correlation_id=cid)
-                        await self.reply_exchange.publish(
-                            response_message, routing_key=message.reply_to
-                        )
+                        request = self.serializer.loads(message.body)
+                        args = request.get("args", [])
+                        kwargs = request.get("kwargs", {})
+                        headers = message.headers if self.include_headers else None
                     except Exception as e:
-                        log.error("Failed to send response: %s", e)
-                    finally:
-                        if cid in self.futures:
-                            del self.futures[cid]
+                        log.error("Invalid RPC message format: %s", e)
+                        del self.futures[cid]
+                        return
+
+                    msg = "RPC request received: method=%s args=%s, kwargs=%s"
+                    log.info(msg, self.name, args, kwargs)
+
+                    # Call the handler
+                    try:
+                        if headers:
+                            response_data = await self.task(
+                                self.container, *args, **kwargs, _headers=headers
+                            )
+                        else:
+                            response_data = await self.task(
+                                self.container, *args, **kwargs
+                            )
+
+                        if not isinstance(response_data, RpcReturn):
+                            response_data = RpcReturn(
+                                success=True, result=response_data
+                            )
+
+                        if response_data is None:
+                            response_data = ""
+                        if not future.done():
+                            future.set_result(response_data)
+
+                    except Exception as e:
+                        msg = "Error while processing RPC method %s: %s"
+                        log.error(msg, self.name, e)
+                        await self.container.report_uncaught_exception(
+                            e,
+                            {"entrypoint": "rpc", "name": self.name},
+                        )
+                        if not future.done():
+                            future.set_result(
+                                RpcReturn(
+                                    success=False,
+                                    message=str(e),
+                                    error_type=RpcErrorType.SERVER,
+                                    error_code="INTERNAL_ERROR",
+                                )
+                            )
+
+                    # Send the response
+                    if message.reply_to:
+                        try:
+                            response_data = await future
+                            serialized = self.serializer.dumps(response_data)
+                            log.debug("Reply %s to %s", serialized, message.reply_to)
+                            response_message = Message(
+                                body=serialized, correlation_id=cid
+                            )
+                            await self.reply_exchange.publish(
+                                response_message, routing_key=message.reply_to
+                            )
+                        except Exception as e:
+                            log.error("Failed to send response: %s", e)
+                        finally:
+                            if cid in self.futures:
+                                del self.futures[cid]
+            finally:
+                reset_flow_id(flow_token)
 
         # Start consuming messages for RPC
         await self.queue.consume(handle_rpc)
