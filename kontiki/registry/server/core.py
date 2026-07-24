@@ -115,7 +115,7 @@ class ServiceRegistryCore(ServiceDelegate):
             EXCEPTION_RECORDED, exception_recorded_payload(exception_data)
         )
 
-    async def refresh_instance_status(self, service_name, instance_id):
+    async def refresh_instance_status(self, service_name, instance_id, reason=None):
         if not self.registry.has_service_instance(service_name, instance_id):
             return
 
@@ -134,7 +134,11 @@ class ServiceRegistryCore(ServiceDelegate):
         await self.publish_registry_event(
             INSTANCE_STATUS_CHANGED,
             status_changed_payload(
-                service_name, instance_id, previous_status, new_status
+                service_name,
+                instance_id,
+                previous_status,
+                new_status,
+                reason=reason,
             ),
         )
 

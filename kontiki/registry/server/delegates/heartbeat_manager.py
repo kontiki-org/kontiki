@@ -27,12 +27,15 @@ class HeartbeatManager:
                 service_name = data["service_name"]
                 instance_id = data["instance_id"]
                 degraded = data["degraded"]
-                await self.store_heartbeat(service_name, instance_id, degraded)
+                reason = data.get("reason")
+                await self.store_heartbeat(
+                    service_name, instance_id, degraded, reason=reason
+                )
 
             except Exception as e:
                 logging.error("Error processing heartbeat: %s", e)
 
-    async def store_heartbeat(self, service_name, instance_id, degraded):
+    async def store_heartbeat(self, service_name, instance_id, degraded, reason=None):
         logging.debug("Stored heartbeats = %s", self.heartbeats)
         try:
             service_str = f"{service_name}#{instance_id}"
@@ -41,7 +44,12 @@ class HeartbeatManager:
             if self.core.registry.has_service_instance(service_name, instance_id):
                 if degraded and service_instance not in self.degraded_services:
                     self.degraded_services.append(service_instance)
-                    logging.warning("%s enters degraded state.", service_str)
+                    if reason:
+                        logging.warning(
+                            "%s enters degraded state: %s", service_str, reason
+                        )
+                    else:
+                        logging.warning("%s enters degraded state.", service_str)
                 else:
                     if not degraded:
                         if service_instance in self.degraded_services:
@@ -49,9 +57,12 @@ class HeartbeatManager:
                                 "%s recovers from degraded state.", service_str
                             )
                             self.degraded_services.remove(service_instance)
+                        reason = None
                 self.heartbeats[service_instance] = datetime.now()
                 logging.debug("Heartbeat updated for %s.", service_str)
-                await self.core.refresh_instance_status(service_name, instance_id)
+                await self.core.refresh_instance_status(
+                    service_name, instance_id, reason=reason
+                )
             else:
                 # We dont ask for registering again when we just start. We might have
                 # received a heartbeat before the service registry is ready.

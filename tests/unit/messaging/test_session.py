@@ -64,4 +64,3 @@ async def test_event_session_publish_forwards_flow_id():
 
     messenger.publish.assert_awaited_once()
     assert messenger.publish.call_args.kwargs["flow_id"] == "custom-flow"
-

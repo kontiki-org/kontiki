@@ -135,12 +135,18 @@ class TaskConfigService:
 class RegistryTestServiceDelegate(ServiceDelegate):
     def __init__(self):
         self.degraded = False
+        self.degraded_reason = None
 
-    def set_degraded(self, degraded):
+    def set_degraded(self, degraded, reason=None):
         self.degraded = degraded
+        self.degraded_reason = reason if degraded else None
 
     def is_degraded(self):
-        return self.degraded
+        if not self.degraded:
+            return False
+        if self.degraded_reason is not None:
+            return True, self.degraded_reason
+        return True
 
 
 class RegistryMappedHttpError(Exception):
@@ -155,8 +161,8 @@ class RegistryTestService:
     }
 
     @rpc
-    async def set_degraded(self, degraded):
-        self.delegate.set_degraded(degraded)
+    async def set_degraded(self, degraded, reason=None):
+        self.delegate.set_degraded(degraded, reason=reason)
 
     @rpc
     async def report_test_exception(self):

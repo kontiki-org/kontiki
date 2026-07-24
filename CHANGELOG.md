@@ -3,6 +3,7 @@
 ## [1.5.0] - 2026-07-24
 
 - Automatic flow correlation: a short `flow_id` propagates on AMQP `publish` / RPC `call` (header `kontiki_flow_id`), is restored on inbound `@on_event` / `@rpc`, and appears on log lines (`[flow=…]` / `[no flow]`). Optional `flow_id=` override; otherwise ContextVar → header → generate. Logging filter injected at boot without YAML (`current_flow_id()` helper).
+- `@degraded_on` may return `(True, reason)`; on transition to `degraded`, `registry.instance.status_changed` includes optional `reason` for alerting (not stored for `get_services`).
 
 ## [1.4.0] - 2026-07-22
 

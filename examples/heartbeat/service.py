@@ -8,6 +8,7 @@ from kontiki.registry import degraded_on
 class HeartbeatExampleDelegate(ServiceDelegate):
     def __init__(self):
         self.degraded = False
+        self.degraded_reason = None
 
     async def setup(self):
         logging.info("Heartbeat are automatically published by the service.")
@@ -15,11 +16,16 @@ class HeartbeatExampleDelegate(ServiceDelegate):
             "You can configure the heartbeat interval in the service configuration."
         )
 
-    def set_degraded(self, degraded: bool):
+    def set_degraded(self, degraded, reason=None):
         self.degraded = degraded
+        self.degraded_reason = reason if degraded else None
 
     def is_degraded(self):
-        return self.degraded
+        if not self.degraded:
+            return False
+        if self.degraded_reason is not None:
+            return True, self.degraded_reason
+        return True
 
 
 class HeartbeatExampleService:
@@ -27,13 +33,13 @@ class HeartbeatExampleService:
     delegate = HeartbeatExampleDelegate()
 
     @rpc
-    async def set_degraded(self, degraded: bool):
-        self.delegate.set_degraded(degraded)
+    async def set_degraded(self, degraded, reason=None):
+        self.delegate.set_degraded(degraded, reason=reason)
 
     @degraded_on
     def is_degraded(self):
         logging.info(
             "This method is called at every heartbeat sent to the service registry to determine if the service is degraded."
         )
-        logging.info("If it returns True, the service will be marked as degraded.")
+        logging.info("Return True, or (True, reason), to mark the service as degraded.")
         return self.delegate.is_degraded()

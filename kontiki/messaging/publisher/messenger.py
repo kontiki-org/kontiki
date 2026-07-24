@@ -17,12 +17,12 @@ from kontiki.messaging.common import (
     get_amqp_url,
     get_rpc_timeout,
 )
+from kontiki.messaging.flow import apply_outbound_flow_id
 from kontiki.messaging.publisher.rpc import (
     RpcClientError,
     RpcServerError,
     RpcTimeoutError,
 )
-from kontiki.messaging.flow import apply_outbound_flow_id
 from kontiki.messaging.publisher.session import EventSession
 from kontiki.messaging.rpc import RpcErrorType, RpcReturn
 from kontiki.messaging.serialization import DEFAULT_SERIALIZATION, Serializer
