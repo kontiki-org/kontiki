@@ -36,14 +36,19 @@ def deregistered_payload(service_name, instance_id):
     }
 
 
-def status_changed_payload(service_name, instance_id, previous_status, new_status):
-    return {
+def status_changed_payload(
+    service_name, instance_id, previous_status, new_status, reason=None
+):
+    payload = {
         "service_name": service_name,
         "instance_id": instance_id,
         "previous_status": previous_status,
         "new_status": new_status,
         "timestamp": _utc_now_iso(),
     }
+    if new_status == "degraded":
+        payload["reason"] = reason
+    return payload
 
 
 def exception_recorded_payload(exception_data):

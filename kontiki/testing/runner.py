@@ -20,7 +20,7 @@ class MockServiceRunner(threading.Thread):
         self.ready_event = threading.Event()
         self.stop_event = threading.Event()
 
-    def publish(self, event_type, obj, reply_to=None, extra_headers=None):
+    def publish(self, event_type, obj, reply_to=None, extra_headers=None, flow_id=None):
         if extra_headers is None:
             extra_headers = {}
         # Use the runner asynchronous environment to publish input events for testing.
@@ -29,7 +29,9 @@ class MockServiceRunner(threading.Thread):
         def _publish_task():
             try:
                 asyncio.create_task(
-                    self.mock_manager.publish(event_type, obj, reply_to, extra_headers)
+                    self.mock_manager.publish(
+                        event_type, obj, reply_to, extra_headers, flow_id=flow_id
+                    )
                 )
                 logging.info("Publish task successfully scheduled.")
             except Exception as e:
@@ -41,7 +43,15 @@ class MockServiceRunner(threading.Thread):
 
         self.loop.call_soon_threadsafe(_publish_task)
 
-    def call(self, service_name, method_name, *args, extra_headers=None, **kwargs):
+    def call(
+        self,
+        service_name,
+        method_name,
+        *args,
+        extra_headers=None,
+        flow_id=None,
+        **kwargs,
+    ):
         logging.info(
             "Runner remote call %s.%s with args=%s, kwargs=%s and extra_headers=%s",
             service_name,
@@ -69,6 +79,7 @@ class MockServiceRunner(threading.Thread):
                     method_name,
                     *args,
                     extra_headers=extra_headers,
+                    flow_id=flow_id,
                     **kwargs,
                 )
             )

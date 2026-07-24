@@ -1,6 +1,7 @@
 import asyncio
 
 from kontiki.configuration.parameter import get_parameter
+from kontiki.messaging.flow import enter_flow_context, reset_flow_id
 from kontiki.utils import log
 
 # -----------------------------------------------------------------------------
@@ -38,21 +39,25 @@ class Task:
             await self._execute_user_task()
 
     async def _execute_user_task(self):
+        flow_token = enter_flow_context(None)
         try:
-            if asyncio.iscoroutinefunction(self.user_task):
-                await self.user_task()
-            else:
-                self.user_task()
-        except Exception as e:
-            log.error("Repeat task: Error executing user task: %s", e)
-            if self.container is not None:
-                await self.container.report_uncaught_exception(
-                    e,
-                    {
-                        "entrypoint": "task",
-                        "name": self.user_task.__name__,
-                    },
-                )
+            try:
+                if asyncio.iscoroutinefunction(self.user_task):
+                    await self.user_task()
+                else:
+                    self.user_task()
+            except Exception as e:
+                log.error("Repeat task: Error executing user task: %s", e)
+                if self.container is not None:
+                    await self.container.report_uncaught_exception(
+                        e,
+                        {
+                            "entrypoint": "task",
+                            "name": self.user_task.__name__,
+                        },
+                    )
+        finally:
+            reset_flow_id(flow_token)
 
 
 def resolve_task_interval(config, interval):

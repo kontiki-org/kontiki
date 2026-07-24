@@ -9,6 +9,7 @@ from kontiki.configuration.merge import merge
 from kontiki.configuration.parameter import get_kontiki_parameter
 from kontiki.delegate import ServiceDelegate
 from kontiki.messaging.consumer.core import Consumer
+from kontiki.messaging.flow import prepare_logging_config
 from kontiki.registry.client.heartbeat_publisher import HeartbeatPublisher
 from kontiki.registry.client.registry_client import ServiceRegistryClient
 from kontiki.task.task import Task, resolve_task_interval
@@ -55,9 +56,9 @@ class ServiceContainer:
             log.error("No service configuration provided.")
             raise RuntimeError("No service configuration provided.")
 
-        # Initialize logging system
+        # Initialize logging system (auto-inject flow_id filter, no user YAML needed)
         logging_config = self.config.get("logging", DEFAULT_LOGGING_CONFIGURATION)
-        logging.config.dictConfig(logging_config)
+        logging.config.dictConfig(prepare_logging_config(logging_config))
 
     def load_config_files(self, conf_files):
         try:

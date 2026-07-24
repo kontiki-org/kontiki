@@ -409,7 +409,8 @@ Feature: Service registry
         When I call the set_degraded method with the following parameters
             """
             {
-                "degraded": true
+                "degraded": true,
+                "reason": "dependency unreachable"
             }
             """
         And I wait for the next registry heartbeat
@@ -420,6 +421,7 @@ Feature: Service registry
                 "instance_id": "[REGISTRY_TEST_INSTANCE_ID]",
                 "previous_status": "active",
                 "new_status": "degraded",
+                "reason": "dependency unreachable",
                 "timestamp": "[TIMESTAMP]"
             }
             """

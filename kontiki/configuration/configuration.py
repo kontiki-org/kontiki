@@ -4,8 +4,8 @@ DEFAULT_LOGGING_CONFIGURATION = {
     "formatters": {
         "default": {
             "format": (
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s -"
-                " %(filename)s:%(lineno)d"
+                "%(asctime)s - %(name)s - %(levelname)s - %(flow_id)s -"
+                " %(message)s - %(filename)s:%(lineno)d"
             )
         },
     },

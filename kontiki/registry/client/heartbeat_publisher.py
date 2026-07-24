@@ -12,6 +12,20 @@ def degraded_on(func):
     return func
 
 
+def normalize_degraded_result(result):
+    # Accept bool (legacy) or (degraded, reason).
+    if isinstance(result, tuple) and len(result) == 2:
+        degraded, reason = result
+        if not degraded:
+            return False, None
+        if reason is None:
+            return True, None
+        return True, str(reason)
+    if result:
+        return True, None
+    return False, None
+
+
 # -----------------------------------------------------------------------------
 
 
@@ -55,19 +69,28 @@ class HeartbeatPublisher(ServiceDelegate):
         error_logged = False
         while True:
             try:
-                should_degrade = not self._should_send_heartbeat()
+                should_degrade, reason = self._evaluate_degraded()
 
                 # Normal state -> degraded state
                 if should_degrade and not self._is_degraded:
                     self._is_degraded = True
-                    log.info("Service entered degraded state.")
+                    if reason:
+                        log.info("Service entered degraded state: %s", reason)
+                    else:
+                        log.info("Service entered degraded state.")
 
                 # Degraded state -> Normal state
                 elif not should_degrade and self._is_degraded:
                     self._is_degraded = False
+                    reason = None
                     log.info("Service recovered from degraded state.")
 
-                await self.service_registry_client.heartbeat(self._is_degraded)
+                if not self._is_degraded:
+                    reason = None
+
+                await self.service_registry_client.heartbeat(
+                    self._is_degraded, reason=reason
+                )
 
                 if self.interval is not None:
                     await asyncio.sleep(self.interval)
@@ -84,7 +107,7 @@ class HeartbeatPublisher(ServiceDelegate):
                     log.error("Error in heartbeat task: %s", e)
                     error_logged = True
 
-    def _should_send_heartbeat(self):
+    def _evaluate_degraded(self):
         if not self.stop_condition:
-            return True
-        return not self.stop_condition()
+            return False, None
+        return normalize_degraded_result(self.stop_condition())

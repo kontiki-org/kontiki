@@ -7,11 +7,14 @@ log = logging.getLogger(KONTIKI)
 
 def setup_logger():
     if not log.handlers:
+        from kontiki.messaging.flow import FlowIdFilter
+
         handler = logging.StreamHandler()
         formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            "%(asctime)s - %(name)s - %(levelname)s - %(flow_id)s - %(message)s"
         )
         handler.setFormatter(formatter)
+        handler.addFilter(FlowIdFilter())
         log.addHandler(handler)
         log.setLevel(logging.INFO)
 

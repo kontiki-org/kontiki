@@ -148,12 +148,14 @@ class ServiceRegistryClient:
         return body
 
     @publish(HEARTBEAT_RKEY)
-    async def heartbeat(self, degraded):
+    async def heartbeat(self, degraded, reason=None):
         body = {
             "service_name": self.container.service_name,
             "instance_id": self.container.instance_id,
             "degraded": degraded,
         }
+        if reason is not None:
+            body["reason"] = reason
         return body
 
     @publish(EXCEPTION_RKEY)

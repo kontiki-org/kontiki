@@ -20,6 +20,7 @@
 
 
 For a detailed overview of all features, see `docs/features.md`.
+For patterns that are easy to miss (registry health, `flow_id`, delivery modes, testing, …), see `docs/advanced-features.md`.
 
 ---
 
@@ -102,6 +103,7 @@ my_service --config config.yaml
 ## Documentation
 
 - Features: `docs/features.md`
+- Advanced features (patterns & gotchas): `docs/advanced-features.md`
 - Configuration reference: `docs/configuration.md`
 - Example configuration: `docs/kontiki-config.example.yaml`
 - Contributing guidelines: `CONTRIBUTING.md`

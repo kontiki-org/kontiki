@@ -118,7 +118,9 @@ class MockServiceManager:
     def clean_remote_calls(self, mock_name):
         self.get_service(mock_name).clean_remote_calls()
 
-    async def publish(self, event_type, obj, reply_to=None, extra_headers=None):
+    async def publish(
+        self, event_type, obj, reply_to=None, extra_headers=None, flow_id=None
+    ):
         if extra_headers is None:
             extra_headers = {}
         if not self._setup:
@@ -126,14 +128,22 @@ class MockServiceManager:
             self._setup = True
         logging.info("Publishing message %s - %s", event_type, obj)
         try:
-            await self.messenger.publish(event_type, obj, reply_to, extra_headers)
+            await self.messenger.publish(
+                event_type, obj, reply_to, extra_headers, flow_id=flow_id
+            )
             logging.info("Message published successfully.")
         except Exception as e:
             logging.error("Error while publishing message: %s", e)
             raise
 
     async def call(
-        self, service_name, method_name, *args, extra_headers=None, **kwargs
+        self,
+        service_name,
+        method_name,
+        *args,
+        extra_headers=None,
+        flow_id=None,
+        **kwargs,
     ):
         if not self._setup:
             await self.messenger.setup()
@@ -143,7 +153,12 @@ class MockServiceManager:
             if extra_headers is None:
                 extra_headers = {}
             return await self.messenger.call(
-                service_name, method_name, *args, extra_headers=extra_headers, **kwargs
+                service_name,
+                method_name,
+                *args,
+                extra_headers=extra_headers,
+                flow_id=flow_id,
+                **kwargs,
             )
         except Exception as e:
             logging.error("Error while calling RPC: %s", e)

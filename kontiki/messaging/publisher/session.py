@@ -8,7 +8,7 @@ class EventSession:
         self.instance_id = str(instance_id)
         self.session_id = str(session_id)
 
-    async def publish(self, event_type, obj, extra_headers=None):
+    async def publish(self, event_type, obj, extra_headers=None, flow_id=None):
         if extra_headers is None:
             extra_headers = {}
 
@@ -17,4 +17,6 @@ class EventSession:
             get_kontiki_header_name("session_id"): self.session_id,
             **extra_headers,
         }
-        await self._messenger.publish(routing_key, obj, extra_headers=headers)
+        await self._messenger.publish(
+            routing_key, obj, extra_headers=headers, flow_id=flow_id
+        )
