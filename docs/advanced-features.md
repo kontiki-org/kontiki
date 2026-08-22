@@ -22,6 +22,8 @@ features** that are easy to miss and worth knowing early.
 | Route by business field | encode it in `event_type` |
 | Env-specific event names | `@on_event(..., use_config=True)` |
 | One handler, several exact types | `@on_event([...])` or config list |
+| Same binary, distinct RPC / registry identity | `kontiki.service_name` |
+| RPC peer from deployment config | `RpcProxy(..., peer="…")` → `kontiki.peers` |
 | Tests on the bus | `kontiki.testing` |
 | Consistent logs / shared defaults | multi `--config` merge |
 | Uniform process entrypoint | `kontiki.runner.cli.run` |
@@ -166,7 +168,7 @@ async def get_user(self, user_id):
 ```python
 from kontiki.messaging import RpcClientError, RpcServerError, RpcProxy
 
-users = RpcProxy(messenger, "user-service")
+users = RpcProxy(messenger, service_name="user-service")
 
 try:
     user = await users.get_user(user_id)
@@ -190,6 +192,45 @@ except RpcServerError as e:
 **Gotcha:** Raising a domain exception without mapping still becomes a **server**
 error. Use `rpc_error` for anything the caller is expected to handle. Keep codes
 stable (`NOT_FOUND`, `VALIDATION_ERROR`, …) — they are your RPC API contract.
+
+---
+
+### Deployment identity — `kontiki.service_name` and `RpcProxy(peer=…)`
+
+**When:** The same binary must run as several logical services on one mesh
+(plans, regions, blast-radius splits) without cloning the codebase.
+
+**Host** — set the identity in YAML (priority: config > class `name` > class name):
+
+```yaml
+kontiki:
+  service_name: alert-engine-earth
+```
+
+RPC queues become `{service_name}.{method}`; the registry sees that name. Do
+**not** use this for simple HA (keep the same name, multiple instances).
+
+**Caller** — prefer a peer key over a hardcoded name so deploys stay config-only:
+
+```yaml
+kontiki:
+  peers:
+    alert_engine: alert-engine-earth
+```
+
+```python
+alerts = RpcProxy(messenger, peer="alert_engine")  # → kontiki.peers.alert_engine
+await alerts.compute(...)
+```
+
+Use `RpcProxy(messenger, service_name="ServiceRegistry")` for **fixed** platform
+targets. `peer` and `service_name` are mutually exclusive; missing
+`kontiki.peers.<peer>` fails fast when the proxy resolves. Standalone messengers
+have no container conf — bind a service messenger (or pass `service_name`) for
+`peer`.
+
+**Gotcha:** Host override and caller peers must agree on the same logical name.
+Changing either side requires a restart so queues / resolution pick up the value.
 
 ---
 
@@ -756,7 +797,7 @@ async with Messenger(
     client_name="edge-api",
 ) as messenger:
     await messenger.publish("alert.normalized", alert)
-    subscription = RpcProxy(messenger, "subscription-service")
+    subscription = RpcProxy(messenger, service_name="subscription-service")
     recipients = await subscription.get_recipients_for_alert(alert=alert)
 ```
 

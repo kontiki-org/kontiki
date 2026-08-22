@@ -47,9 +47,10 @@ SERVICE_DEFINITIONS_BY_TAG = {
             "config_paths": ["tests/integration/config.yaml"],
         },
     ],
-    # Registry process is started from the feature Given DocString
-    # (see registry_steps), not from this map.
+    # Registry / service_name processes are started from feature Given DocStrings
+    # (see registry_steps / service_name_steps), not from this map.
     "registry": [],
+    "service_name": [],
 }
 EXCLUSIVE_SUITE_TAGS = list(SERVICE_DEFINITIONS_BY_TAG.keys())
 
@@ -125,6 +126,8 @@ def before_all(context):
     context.service_managers = []
     context.active_suite_tag = None
     context.registry_test_manager = None
+    context.service_name_manager = None
+    context.rpc_proxy_caller_manager = None
     # Mutable bag on the root context layer so the registry process
     # handle survives Behave's per-scenario context pop.
     context.registry = {"manager": None, "config_text": None}
@@ -159,6 +162,12 @@ def after_scenario(context, scenario):
     if context.registry_test_manager is not None:
         context.registry_test_manager.stop(timeout=5)
         context.registry_test_manager = None
+    if context.rpc_proxy_caller_manager is not None:
+        context.rpc_proxy_caller_manager.stop(timeout=5)
+        context.rpc_proxy_caller_manager = None
+    if context.service_name_manager is not None:
+        context.service_name_manager.stop(timeout=5)
+        context.service_name_manager = None
 
 
 def _start_test_suite(context, suite_tag):

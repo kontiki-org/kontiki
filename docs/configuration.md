@@ -6,6 +6,39 @@ An example file with every option is in [kontiki-config.example.yaml](kontiki-co
 
 ---
 
+## `kontiki.service_name`
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `kontiki.service_name` | *(unset)* | Logical service identity for RPC queues and the registry. When unset: class `name` attribute, else the Python class name. |
+
+---
+
+## `kontiki.peers`
+
+Map of peer keys to logical service names for `RpcProxy(..., peer="…")`.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `kontiki.peers.<peer>` | *(required if used)* | Target `service_name` for that peer. Missing or empty → fail fast when the proxy resolves. |
+
+Example:
+
+```yaml
+kontiki:
+  peers:
+    alert_engine: alert-engine-earth
+```
+
+```python
+RpcProxy(messenger, peer="alert_engine")
+```
+
+Prefer `peer` for deployment-specific identities; keep `service_name=` on
+`RpcProxy` for fixed platform targets.
+
+---
+
 ## `kontiki.amqp`
 
 | Key | Default | Description |

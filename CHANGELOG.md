@@ -1,8 +1,10 @@
 # Changelog
 
-## Unreleased
+## [1.6.0] - 2026-08-22
 
 - `@on_event` accepts a list of exact event types (literal or via `use_config=True` as string or list). One queue and bind per type; empty list fails fast at startup. Documented in `docs/features.md` and `docs/advanced-features.md`.
+- `kontiki.service_name` overrides the logical service identity (RPC queues, registry). Priority: config > class `name` > class name.
+- `RpcProxy(..., peer="…")` resolves `kontiki.peers.<peer>` (preferred for deployment-specific targets); `service_name=` remains for fixed platform identities. Documented in `docs/features.md`, `docs/configuration.md`, and `docs/advanced-features.md`.
 
 ## [1.5.0] - 2026-07-24
 

@@ -45,7 +45,7 @@ class MyDelegate(ServiceDelegate):
 
 
 class MyService:
-    name = "compute-api"  # optional: if omitted, the class name "MyService" is used
+    name = "compute-api"  # optional; overridden by kontiki.service_name when set
     delegate = MyDelegate()
     messenger = Messenger()  # delegate: publish events, RPC to other services
 
@@ -65,8 +65,17 @@ class MyService:
 
 RPC in Kontiki is a **synchronous request/reply call over AMQP**: the caller waits for a response, while Kontiki handles routing, correlation, timeouts, and error mapping.
 
+- **Logical service name** : RPC queues and registry identity use, in order,
+  `kontiki.service_name` (config), the class `name` attribute, then the Python
+  class name. Use config when the same binary must expose distinct deployment
+  identities on one mesh.
 - **Server** : Decorate methods with `@rpc` or `@rpc(include_headers=True)` to expose them. Use `rpc_error("CODE", "message")` to return a client error; let exceptions raise for server errors.
-- **Client** : Create a `Messenger` (standalone or from a container), then use `RpcProxy(messenger, service_name="ServiceName")` and call methods on the proxy, or `messenger.call(service_name, method_name, *args, **kwargs)`. Exceptions: `RpcClientError`, `RpcServerError`, `RpcTimeoutError`.
+- **Client** : Create a `Messenger` (standalone or from a container), then use
+  `RpcProxy`. Prefer `RpcProxy(messenger, peer="alert_engine")`, which resolves
+  `kontiki.peers.alert_engine`. Use `service_name="…"` for fixed platform
+  targets (e.g. the registry). Or call
+  `messenger.call(service_name, method_name, *args, **kwargs)`. Exceptions:
+  `RpcClientError`, `RpcServerError`, `RpcTimeoutError`.
 - **Headers** : With `include_headers=True`, the handler receives a `_headers` argument containing AMQP headers.
 
 ---

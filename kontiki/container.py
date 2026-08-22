@@ -19,6 +19,24 @@ from kontiki.web.web import HttpServer
 # -----------------------------------------------------------------------------
 
 
+def resolve_service_name(service_cls, config):
+    """Resolve logical service name: kontiki.service_name > class.name > class name."""
+    default_name = service_cls.__name__
+    for cls in service_cls.__mro__:
+        if "name" in cls.__dict__:
+            default_name = cls.__dict__["name"]
+            break
+    configured = get_kontiki_parameter(config, "service_name", None)
+    if configured is None:
+        return default_name
+    if not isinstance(configured, str) or not configured:
+        raise ValueError(
+            "kontiki.service_name must be a non-empty string, "
+            f"got {configured!r}"
+        )
+    return configured
+
+
 class ServiceContainer:
     def __init__(
         self,
@@ -30,11 +48,6 @@ class ServiceContainer:
     ):
         self.service_cls = service_cls
         self.service_instance = service_cls()
-        self.service_name = (
-            service_cls.name
-            if hasattr(service_cls, "name")
-            else self.service_instance.__class__.__name__
-        )
         self.http_server = None
         # Unique ID for each instance of the service
         self.instance_id = str(uuid.uuid4())
@@ -55,6 +68,8 @@ class ServiceContainer:
         else:
             log.error("No service configuration provided.")
             raise RuntimeError("No service configuration provided.")
+
+        self.service_name = resolve_service_name(service_cls, self.config)
 
         # Initialize logging system (auto-inject flow_id filter, no user YAML needed)
         logging_config = self.config.get("logging", DEFAULT_LOGGING_CONFIGURATION)
