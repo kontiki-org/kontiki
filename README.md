@@ -127,7 +127,13 @@ Examples can be run via the `Makefile` (see targets such as `run-rpc-service`, `
 | Heartbeats & degraded mode                   | `examples/heartbeat/`                                            |
 | HTTP entrypoints                             | `examples/http/simple/`                                          |
 
-You can also have a look at the following repository [**kontiki-scheduler**](https://github.com/kontiki-org/kontiki-scheduler). It's an example scheduler service built with Kontiki.
+### Suite services
+
+| Service | Role |
+|---------|------|
+| [**kontiki-scheduler**](https://github.com/kontiki-org/kontiki-scheduler) | Declarative cron on the bus — static YAML schedules publish `{name}.schedule_task.requested` (replaces external crontab). |
+| [**kontiki-tui**](https://github.com/kontiki-org/kontiki-tui) | Terminal UI over the registry and local logs. |
+| [**kontiki-monitor**](https://github.com/kontiki-org/kontiki-monitor) | Fleet checks, registry signals, and host disk alerts. |
 
 ---
 

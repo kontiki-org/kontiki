@@ -114,6 +114,8 @@ Tasks in Kontiki are **scheduled coroutines**: the container runs them on a fixe
 - **`@task(interval, immediate=True|False)`** : Registers a method to be run periodically. `immediate=True` runs it once at startup, then on the interval. The method can be async.
 - **Interval** : a number of seconds (literal), or a **config key string** resolved at service start (e.g. `@task("app.cleanup.interval")`). Use your own config namespace, not `kontiki.*`.
 
+For **cross-service calendar triggers** (cron in configuration, events on the bus), use [**kontiki-scheduler**](https://github.com/kontiki-org/kontiki-scheduler). Use `@task` for periodic work **inside** a service.
+
 ---
 
 ## Running a service
@@ -207,10 +209,8 @@ Kontiki ships with lightweight testing utilities under `kontiki.testing` to help
   - **HTTP**: record received requests and optionally pre-program responses (`manager.get_http_requests("my-mock")`, `manager.add_http_response("my-mock", response)`).
   - **RPC**: record incoming call arguments and optionally pre-program return values (`manager.get_remote_calls("my-mock")`, `manager.add_remote_return_value("my-mock", value)`), and call your system via `runner.call("service-name", "method_name", ...)`.
 
-For an example of Behave integration tests using these helpers, see [**kontiki-scheduler**](https://github.com/kontiki-org/kontiki-scheduler).
-
-For this repository's integration test suite, see `tests/integration/` and run:
+For Behave integration tests using these helpers, see this repository's suite in `tests/integration/` and run:
 
 - `make integration-test` (runs `@single_instance`, `@multi_instance`, `@task_service`, `@task_config_service`, and `@registry`)
 
-The suite demonstrates config merge for multi-instance services with a shared base config and complementary per-instance settings (e.g. separate HTTP ports in different files, without conflicting leaf keys).
+The suite covers RPC, events, tasks, registry, and multi-instance config merge (e.g. separate HTTP ports in complementary config files, without conflicting leaf keys).
