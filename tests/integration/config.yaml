@@ -29,6 +29,9 @@ logging:
 tests:
   event:
     name: "dynamic_event_name"
+    list:
+      - multi_event_c
+      - multi_event_d
   http:
     entrypoint: "/test_http_entrypoint"
   task:

@@ -13,7 +13,7 @@ from kontiki.messaging.common import (
     declare_rpc_exchange,
     get_amqp_url,
 )
-from kontiki.messaging.consumer.event import OnEventTask
+from kontiki.messaging.consumer.event import OnEventTask, normalize_event_types
 from kontiki.messaging.consumer.rpc import RpcTask
 from kontiki.messaging.serialization import Serializer
 from kontiki.utils import log
@@ -90,50 +90,52 @@ class Consumer:
             broadcast = task_data.get("broadcast", False)
 
             # if use_config, search for the event_type in the conf from the path
-            event_type = resolve_parameter_path(
+            resolved = resolve_parameter_path(
                 self.container.config, event_type_or_key, use_config
             )
+            event_types = normalize_event_types(resolved)
 
             # Explicitly bind the task to the service instance
             # pylint: disable=unnecessary-dunder-call
-            task = task.__get__(self.container.service_instance)
+            bound_task = task.__get__(self.container.service_instance)
 
-            # Declare queue
-            if broadcast:
-                # One queue per instance so that all instances receive the event.
-                qname = (
-                    f"{self.service_name}.{event_type}."
-                    f"{self.container.instance_id}.queue"
+            for event_type in event_types:
+                # Declare queue — one queue and bind per event type
+                if broadcast:
+                    # One queue per instance so that all instances receive the event.
+                    qname = (
+                        f"{self.service_name}.{event_type}."
+                        f"{self.container.instance_id}.queue"
+                    )
+                else:
+                    # Single queue per service (competing consumers within the service).
+                    qname = f"{self.service_name}.{event_type}.queue"
+                queue = await self.channel.declare_queue(qname, durable=True)
+
+                # Define routing key regarding the target_instance param.
+                # For per-instance (session) handlers we suffix with the
+                # service instance_id.
+                routing_key = (
+                    f"{event_type}.{self.container.instance_id}"
+                    if target_instance
+                    else event_type
                 )
-            else:
-                # Single queue per service (competing consumers within the service).
-                qname = f"{self.service_name}.{event_type}.queue"
-            queue = await self.channel.declare_queue(qname, durable=True)
+                # Bind queue to exchange with event type as the routing key
+                await queue.bind(self.event_exchange, routing_key=routing_key)
+                log.debug("Queue %s bound with routing key %s", qname, routing_key)
 
-            # Define routing key regarding the target_instance param.
-            # For per-instance (session) handlers we suffix with the
-            # service instance_id.
-            routing_key = (
-                f"{event_type}.{self.container.instance_id}"
-                if target_instance
-                else event_type
-            )
-            # Bind queue to exchange with event type as the routing key
-            await queue.bind(self.event_exchange, routing_key=routing_key)
-            log.debug("Queue %s bound with routing key %s", qname, routing_key)
-
-            # Declare and register the task
-            on_event_task = OnEventTask(
-                event_type,
-                task,
-                queue,
-                self.serializer,
-                include_headers,
-                requeue_on_error,
-                reject_on_redelivered,
-            )
-            self.on_event_tasks.append(on_event_task)
-            log.debug("On event task registered for event: %s", event_type)
+                # Declare and register the task
+                on_event_task = OnEventTask(
+                    event_type,
+                    bound_task,
+                    queue,
+                    self.serializer,
+                    include_headers,
+                    requeue_on_error,
+                    reject_on_redelivered,
+                )
+                self.on_event_tasks.append(on_event_task)
+                log.debug("On event task registered for event: %s", event_type)
 
     async def add_rpc_tasks(self, tasks):
         for task in tasks:

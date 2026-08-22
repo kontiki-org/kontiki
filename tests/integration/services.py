@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 from kontiki.delegate import ServiceDelegate
 from kontiki.messaging import Messenger, on_event, rpc, rpc_error
+from kontiki.messaging.publisher.rpc import RpcProxy
 from kontiki.registry import degraded_on
 from kontiki.task.task import task
 from kontiki.web import http
@@ -57,6 +58,14 @@ class TestService:
     async def on_dynamic_event_name(self, payload):
         await self.messenger.publish("dynamic_event_name_processed", payload)
 
+    @on_event(["multi_event_a", "multi_event_b"])
+    async def on_multi_event_literal(self, payload):
+        await self.messenger.publish("multi_event_literal_processed", payload)
+
+    @on_event("tests.event.list", use_config=True)
+    async def on_multi_event_from_config(self, payload):
+        await self.messenger.publish("multi_event_config_processed", payload)
+
     @on_event("retry_ok", requeue_on_error=True, reject_on_redelivered=True)
     async def on_retry_ok(self, payload):
         if not self.delegate._retry:
@@ -101,6 +110,29 @@ class TestService:
     @http("/test_http_fail", "GET", errors=[TestHttpExampleError])
     async def test_http_fail(self, request):
         raise TestHttpExampleError()
+
+
+class ServiceNameTestService:
+    """Minimal service for kontiki.service_name override checks."""
+
+    messenger = Messenger()
+
+    @rpc
+    async def rpc_example(self, feature):
+        if feature == "standard_case":
+            return "Standard case"
+        raise RuntimeError(f"Unexpected feature: {feature}")
+
+
+class RpcProxyCallerService:
+    """Calls a peer via RpcProxy(peer=...) resolved from kontiki.peers."""
+
+    messenger = Messenger()
+
+    @rpc
+    async def call_peer_rpc_example(self, feature):
+        peer = RpcProxy(self.messenger, peer="target")
+        return await peer.rpc_example(feature)
 
 
 class TaskService:

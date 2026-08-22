@@ -21,6 +21,9 @@ features** that are easy to miss and worth knowing early.
 | Cross-service debug | `flow_id` → filter in KontikiTUI Logs |
 | Route by business field | encode it in `event_type` |
 | Env-specific event names | `@on_event(..., use_config=True)` |
+| One handler, several exact types | `@on_event([...])` or config list |
+| Same binary, distinct RPC / registry identity | `kontiki.service_name` |
+| RPC peer from deployment config | `RpcProxy(..., peer="…")` → `kontiki.peers` |
 | Tests on the bus | `kontiki.testing` |
 | Consistent logs / shared defaults | multi `--config` merge |
 | Uniform process entrypoint | `kontiki.runner.cli.run` |
@@ -165,7 +168,7 @@ async def get_user(self, user_id):
 ```python
 from kontiki.messaging import RpcClientError, RpcServerError, RpcProxy
 
-users = RpcProxy(messenger, "user-service")
+users = RpcProxy(messenger, service_name="user-service")
 
 try:
     user = await users.get_user(user_id)
@@ -189,6 +192,45 @@ except RpcServerError as e:
 **Gotcha:** Raising a domain exception without mapping still becomes a **server**
 error. Use `rpc_error` for anything the caller is expected to handle. Keep codes
 stable (`NOT_FOUND`, `VALIDATION_ERROR`, …) — they are your RPC API contract.
+
+---
+
+### Deployment identity — `kontiki.service_name` and `RpcProxy(peer=…)`
+
+**When:** The same binary must run as several logical services on one mesh
+(plans, regions, blast-radius splits) without cloning the codebase.
+
+**Host** — set the identity in YAML (priority: config > class `name` > class name):
+
+```yaml
+kontiki:
+  service_name: alert-engine-earth
+```
+
+RPC queues become `{service_name}.{method}`; the registry sees that name. Do
+**not** use this for simple HA (keep the same name, multiple instances).
+
+**Caller** — prefer a peer key over a hardcoded name so deploys stay config-only:
+
+```yaml
+kontiki:
+  peers:
+    alert_engine: alert-engine-earth
+```
+
+```python
+alerts = RpcProxy(messenger, peer="alert_engine")  # → kontiki.peers.alert_engine
+await alerts.compute(...)
+```
+
+Use `RpcProxy(messenger, service_name="ServiceRegistry")` for **fixed** platform
+targets. `peer` and `service_name` are mutually exclusive; missing
+`kontiki.peers.<peer>` fails fast when the proxy resolves. Standalone messengers
+have no container conf — bind a service messenger (or pass `service_name`) for
+`peer`.
+
+**Gotcha:** Host override and caller peers must agree on the same logical name.
+Changing either side requires a restart so queues / resolution pick up the value.
 
 ---
 
@@ -297,10 +339,47 @@ A typo in the prefix is a silent miss — no consumer, no error on publish.
 This is routing, not filtering inside one handler: prefer distinct event types
 over one event + `if payload.channel == ...`.
 
+#### Several exact event types on one handler
+
+**When:** One handler should react to a small set of related types (or the set
+varies by environment) without wildcards or a shared catch-all queue.
+
+```python
+@on_event(["order.created", "order.updated"])
+async def on_order_change(self, payload):
+    ...
+
+@on_event("app.events", use_config=True)
+async def on_configured_events(self, payload):
+    ...
+```
+
+```yaml
+app:
+  events:
+    - order.created
+    - order.updated
+```
+
+**Use case (list from config):** same image, several deployments — each YAML
+lists only the types that pool should consume (e.g. orders vs billing). No
+rebuild; pools do not compete on each other’s messages.
+
+Pass a **list of exact type strings**, or resolve one from config (`use_config=True`
+→ string or list). Kontiki declares **one durable queue and one TOPIC bind per
+type**; options (`broadcast`, `in_session`, `requeue_on_error`, …) apply to every
+type in the list.
+
+**Gotcha:** Empty list → fail fast at startup. No TOPIC wildcards (`*`, `#`) and
+no application-level regexp — only exact types. Two handlers on the **same**
+`service_name` must not subscribe to the same type (they would compete on one
+queue).
+
 #### Event type from configuration (`use_config=True`)
 
 **When:** The routing key must be environment-specific (prefix, tenant, stage)
-without rebuilding the image — put it in YAML and resolve at bind time.
+without rebuilding the image — put it in YAML and resolve at bind time. The
+resolved value may be a **single string** or a **list of strings** (see above).
 
 ```python
 @on_event("app.events.order_created", use_config=True)
@@ -321,12 +400,12 @@ app:
 ```
 
 The first argument is a **config path** (dot-separated), not the literal event
-name. At startup Kontiki reads that path and binds the queue to the resolved
-string. Same pattern exists for `@http(..., use_config=True)` (path from config)
+name. At startup Kontiki reads that path and binds the queue(s) to the resolved
+value. Same pattern exists for `@http(..., use_config=True)` (path from config)
 and config-driven `@task` intervals.
 
 **Gotcha:** Missing path → startup failure (`ConfigParameterError`). Publishers
-must use the **same** resolved name (share the key, or document the contract).
+must use the **same** resolved name(s) (share the key, or document the contract).
 Changing the YAML value requires a **restart** so the queue is rebound.
 
 ---
@@ -718,7 +797,7 @@ async with Messenger(
     client_name="edge-api",
 ) as messenger:
     await messenger.publish("alert.normalized", alert)
-    subscription = RpcProxy(messenger, "subscription-service")
+    subscription = RpcProxy(messenger, service_name="subscription-service")
     recipients = await subscription.get_recipients_for_alert(alert=alert)
 ```
 

@@ -3,6 +3,14 @@
 # See docs/configuration.md for the full reference.
 
 kontiki:
+  # Host identity for this process (optional; else class name / name attribute):
+  # service_name: alert-engine-earth
+
+  # Outbound RPC targets for RpcProxy(peer="…") — other services, not self:
+  # peers:
+  #   billing: billing-engine-earth
+  #   catalog: catalog-service
+
   amqp:
     url: "amqp://guest:guest@localhost/"
     rpc:
