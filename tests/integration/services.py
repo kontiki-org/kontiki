@@ -57,6 +57,14 @@ class TestService:
     async def on_dynamic_event_name(self, payload):
         await self.messenger.publish("dynamic_event_name_processed", payload)
 
+    @on_event(["multi_event_a", "multi_event_b"])
+    async def on_multi_event_literal(self, payload):
+        await self.messenger.publish("multi_event_literal_processed", payload)
+
+    @on_event("tests.event.list", use_config=True)
+    async def on_multi_event_from_config(self, payload):
+        await self.messenger.publish("multi_event_config_processed", payload)
+
     @on_event("retry_ok", requeue_on_error=True, reject_on_redelivered=True)
     async def on_retry_ok(self, payload):
         if not self.delegate._retry:

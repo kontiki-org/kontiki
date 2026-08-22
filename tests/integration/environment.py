@@ -75,6 +75,14 @@ class TestMockService(MockService):
     async def on_broadcast_on_processed(self, payload):
         self.event_manager.store_event(payload)
 
+    @on_event("multi_event_literal_processed")
+    async def on_multi_event_literal_processed(self, payload):
+        self.event_manager.store_event(payload)
+
+    @on_event("multi_event_config_processed")
+    async def on_multi_event_config_processed(self, payload):
+        self.event_manager.store_event(payload)
+
 
 class TaskMockService(MockService):
     @on_event("task_immediate_processed")

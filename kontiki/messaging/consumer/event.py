@@ -6,6 +6,28 @@ from kontiki.messaging.flow import enter_flow_from_headers, reset_flow_id
 from kontiki.utils import log
 
 
+def normalize_event_types(value):
+    """Normalize a string or list of strings to a non-empty list of event types."""
+    if isinstance(value, str):
+        event_types = [value]
+    elif isinstance(value, list):
+        event_types = value
+    else:
+        raise ValueError(
+            "on_event(): event type must be a string or a list of strings, "
+            f"got {type(value).__name__}"
+        )
+    if not event_types:
+        raise ValueError("on_event(): event type list must not be empty")
+    for event_type in event_types:
+        if not isinstance(event_type, str) or not event_type:
+            raise ValueError(
+                "on_event(): each event type must be a non-empty string, "
+                f"got {event_type!r}"
+            )
+    return event_types
+
+
 def on_event(
     event_type_or_key,
     use_config: bool = False,
@@ -19,7 +41,9 @@ def on_event(
     """Declare an event handler for a Kontiki service.
 
     Args:
-        event_type_or_key: Static event name or configuration key.
+        event_type_or_key: Static event name, list of event names, or configuration
+            key when use_config is True. Resolved config values may be a string or
+            a list of strings. An empty list fails fast at startup.
         use_config: When True, resolve event_type_or_key from configuration.
         include_headers: When True, pass AMQP headers to the handler via _headers.
         requeue_on_error: When True, requeue messages on handler error.
@@ -36,6 +60,8 @@ def on_event(
             raise ValueError(
                 "on_event(): 'in_session' and 'broadcast' cannot both be True."
             )
+        if not use_config:
+            normalize_event_types(event_type_or_key)
         handler._on_event_endpoint = {
             "event_type_or_key": event_type_or_key,
             "use_config": use_config,

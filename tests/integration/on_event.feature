@@ -105,3 +105,71 @@ Feature: Events
                 }
             ]
             """
+
+    # ------------------------------------------------------------
+    # Event type list — literal
+    # ------------------------------------------------------------
+    @single_instance
+    Scenario: multi_event_a and multi_event_b are handled by one literal list
+        When I publish the multi_event_a event with the following payload
+            """
+            {
+                "message": "multi_event_a"
+            }
+            """
+        Then the mock TestMockService should receive 1 event
+            """
+            [
+                {
+                    "message": "multi_event_a"
+                }
+            ]
+            """
+        When I publish the multi_event_b event with the following payload
+            """
+            {
+                "message": "multi_event_b"
+            }
+            """
+        Then the mock TestMockService should receive 1 event
+            """
+            [
+                {
+                    "message": "multi_event_b"
+                }
+            ]
+            """
+
+    # ------------------------------------------------------------
+    # Event type list — configuration list
+    # ------------------------------------------------------------
+    @single_instance
+    Scenario: tests.event.list is handled for each configured event type
+        When I publish the multi_event_c event with the following payload
+            """
+            {
+                "message": "multi_event_c"
+            }
+            """
+        Then the mock TestMockService should receive 1 event
+            """
+            [
+                {
+                    "message": "multi_event_c"
+                }
+            ]
+            """
+        When I publish the multi_event_d event with the following payload
+            """
+            {
+                "message": "multi_event_d"
+            }
+            """
+        Then the mock TestMockService should receive 1 event
+            """
+            [
+                {
+                    "message": "multi_event_d"
+                }
+            ]
+            """

@@ -75,7 +75,11 @@ RPC in Kontiki is a **synchronous request/reply call over AMQP**: the caller wai
 
 Events in Kontiki are **asynchronous messages over AMQP**: publishers fire-and-forget, and one or more consumers handle the event depending on the delivery mode (per-service, broadcast, or session-targeted).
 
-- **Handler** : `@on_event("event_type")` or `@on_event("config.key", use_config=True)`. Options:
+- **Handler** : `@on_event("event_type")`, `@on_event(["type_a", "type_b"])`, or
+  `@on_event("config.key", use_config=True)`. With `use_config=True`, the resolved
+  value is a string or a list of strings. An empty list fails fast at startup.
+  A list declares **one queue and one bind per type**; the same handler and
+  options apply to every type. Options:
   - `include_headers=True` : pass message headers to the handler.
   - `requeue_on_error=True` : requeue the message on handler failure.
   - `reject_on_redelivered=True` : reject messages that are redelivered (e.g. after a requeue).
