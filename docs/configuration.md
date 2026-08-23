@@ -16,11 +16,12 @@ An example file with every option is in [kontiki-config.example.yaml](kontiki-co
 
 ## `kontiki.peers`
 
-Map of peer keys to logical service names for `RpcProxy(..., peer="…")`.
+Map of peer keys to logical service names for `RpcProxy(..., peer="…")` and
+`messenger.open_session(peer="…")`.
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `kontiki.peers.<peer>` | *(required if used)* | Target `service_name` for that peer. Missing or empty → fail fast when the proxy resolves. |
+| `kontiki.peers.<peer>` | *(required if used)* | Target `service_name` for that peer. Missing or empty → fail fast when resolved. |
 
 Example:
 
@@ -32,10 +33,11 @@ kontiki:
 
 ```python
 RpcProxy(messenger, peer="alert_engine")
+await messenger.open_session(peer="alert_engine")
 ```
 
-Prefer `peer` for deployment-specific identities; keep `service_name=` on
-`RpcProxy` for fixed platform targets.
+Prefer `peer` for deployment-specific identities; keep a literal `service_name`
+for fixed platform targets.
 
 ---
 

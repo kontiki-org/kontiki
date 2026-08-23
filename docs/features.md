@@ -113,7 +113,9 @@ HTTP entrypoints are a **built-in façade**: they let you expose and document a 
 
 To send events to a **specific service instance** without managing reply_to and instance ids yourself:
 
-1. **Open a session** : `session = await messenger.open_session("ServiceName")`. This performs an internal RPC handshake and returns an `EventSession`.
+1. **Open a session** : `session = await messenger.open_session("ServiceName")` or
+   `await messenger.open_session(peer="ui_gateway")` (resolves `kontiki.peers.…`).
+   This performs an internal RPC handshake and returns an `EventSession`.
 2. **Publish in session** : `await session.publish("event_type", payload)`. Events are routed to that instance and carry a session id in headers.
 
 Handlers that should receive session-scoped events use `@on_event("event_type", in_session=True, include_headers=True)`.

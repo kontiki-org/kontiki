@@ -134,6 +134,11 @@ class RpcProxyCallerService:
         peer = RpcProxy(self.messenger, peer="target")
         return await peer.rpc_example(feature)
 
+    @rpc
+    async def open_session_peer(self):
+        session = await self.messenger.open_session(peer="target")
+        return session.service_name
+
 
 class TaskService:
     messenger = Messenger()

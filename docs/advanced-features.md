@@ -23,7 +23,7 @@ features** that are easy to miss and worth knowing early.
 | Env-specific event names | `@on_event(..., use_config=True)` |
 | One handler, several exact types | `@on_event([...])` or config list |
 | Same binary, distinct RPC / registry identity | `kontiki.service_name` |
-| RPC peer from deployment config | `RpcProxy(..., peer="…")` → `kontiki.peers` |
+| RPC / session peer from deployment config | `RpcProxy(..., peer="…")` / `open_session(peer="…")` → `kontiki.peers` |
 | Tests on the bus | `kontiki.testing` |
 | Consistent logs / shared defaults | multi `--config` merge |
 | Uniform process entrypoint | `kontiki.runner.cli.run` |
@@ -195,7 +195,7 @@ stable (`NOT_FOUND`, `VALIDATION_ERROR`, …) — they are your RPC API contract
 
 ---
 
-### Deployment identity — `kontiki.service_name` and `RpcProxy(peer=…)`
+### Deployment identity — `kontiki.service_name` and peers
 
 **When:** The same binary must run as several logical services on one mesh
 (plans, regions, blast-radius splits) without cloning the codebase.
@@ -221,13 +221,15 @@ kontiki:
 ```python
 alerts = RpcProxy(messenger, peer="alert_engine")  # → kontiki.peers.alert_engine
 await alerts.compute(...)
+
+session = await messenger.open_session(peer="alert_engine")
 ```
 
-Use `RpcProxy(messenger, service_name="ServiceRegistry")` for **fixed** platform
-targets. `peer` and `service_name` are mutually exclusive; missing
-`kontiki.peers.<peer>` fails fast when the proxy resolves. Standalone messengers
-have no container conf — bind a service messenger (or pass `service_name`) for
-`peer`.
+Use `RpcProxy(messenger, service_name="ServiceRegistry")` or
+`open_session("ServiceRegistry")` for **fixed** platform targets. `peer` and
+`service_name` are mutually exclusive; missing `kontiki.peers.<peer>` fails
+fast when resolved. Standalone messengers have no container conf — bind a
+service messenger (or pass `service_name`) for `peer`.
 
 **Gotcha:** Host override and caller peers must agree on the same logical name.
 Changing either side requires a restart so queues / resolution pick up the value.
@@ -562,7 +564,8 @@ competing queue.
 #### `in_session=True` — talk to one specific instance
 
 **What it does:** The handler queue binds to `event_type.<instance_id>`.
-Clients first `open_session(service_name)` (RPC), then publish through the
+Clients first `open_session(service_name)` or `open_session(peer="…")` (RPC),
+then publish through the
 returned `EventSession`, which routes to **that instance of that service** and
 attaches a `kontiki_session_id` header.
 
@@ -584,7 +587,7 @@ async def on_ui_progress(self, payload):
 
 
 # Client — pin to one instance, then publish into that session
-session = await messenger.open_session("ui-gateway-service")
+session = await messenger.open_session(peer="ui_gateway")  # or open_session("ui-gateway-service")
 await session.publish("ui.progress", {"pct": 40})
 ```
 

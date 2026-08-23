@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.6.1] - 2026-08-23
+
+- `messenger.open_session(peer="…")` resolves `kontiki.peers.<peer>` (same XOR contract as `RpcProxy`). Documented in `docs/features.md`, `docs/configuration.md`, and `docs/advanced-features.md`.
+
 ## [1.6.0] - 2026-08-22
 
 - `@on_event` accepts a list of exact event types (literal or via `use_config=True` as string or list). One queue and bind per type; empty list fails fast at startup. Documented in `docs/features.md` and `docs/advanced-features.md`.
