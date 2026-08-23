@@ -18,6 +18,7 @@ from kontiki.messaging.common import (
     get_rpc_timeout,
 )
 from kontiki.messaging.flow import apply_outbound_flow_id
+from kontiki.configuration.parameter import get_kontiki_parameter
 from kontiki.messaging.publisher.rpc import (
     RpcClientError,
     RpcServerError,
@@ -220,9 +221,30 @@ class Messenger(ServiceDelegate):
 
         return response
 
-    async def open_session(self, service_name):
+    async def open_session(self, service_name=None, *, peer=None):
         # Open an event session with a given service.
-        # Calls the internal Kontiki RPC to open a session.
+        # service_name= for fixed identities; peer= → kontiki.peers.<peer>.
+        if service_name is not None and peer is not None:
+            raise ValueError("open_session(): pass service_name or peer, not both")
+        if peer is not None:
+            if not isinstance(peer, str) or not peer:
+                raise ValueError(
+                    f"open_session(): peer must be a non-empty string, got {peer!r}"
+                )
+            if self.container is None:
+                raise RuntimeError(
+                    f"open_session(peer={peer!r}) requires a messenger "
+                    "bound to a service container"
+                )
+            resolved = get_kontiki_parameter(self.container.config, f"peers.{peer}")
+            if not isinstance(resolved, str) or not resolved:
+                raise ValueError(
+                    f"kontiki.peers.{peer} must be a non-empty string, "
+                    f"got {resolved!r}"
+                )
+            service_name = resolved
+        elif service_name is None:
+            raise ValueError("open_session(): pass service_name or peer")
         instance_id, session_id = await self.call(
             service_name, KONTIKI_SESSION_OPEN_RPC
         )

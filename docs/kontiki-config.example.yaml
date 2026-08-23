@@ -6,7 +6,7 @@ kontiki:
   # Host identity for this process (optional; else class name / name attribute):
   # service_name: alert-engine-earth
 
-  # Outbound RPC targets for RpcProxy(peer="…") — other services, not self:
+  # Outbound targets for RpcProxy(peer="…") / open_session(peer="…"):
   # peers:
   #   billing: billing-engine-earth
   #   catalog: catalog-service
