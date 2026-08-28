@@ -16,6 +16,11 @@ routing, delivery, fleet health, configuration, and testing. Services talk
 through a message mesh (AMQP via aio-pika and asyncio); you express **intentions
 in Kontiki terms**, not broker topology by hand.
 
+Kontiki turns **recurring distributed-service decisions into platform conventions**.
+Configuration, service identity, RPC, event delivery, fleet health, flow correlation,
+and testing follow the same model across services, so **each new service does not have to
+redesign the same plumbing.**
+
 - **One model from dev to production**: merged YAML config, `cli.run`, and the
   same entrypoint decorators in tests (`kontiki.testing` mocks on the bus) and
   in production.
