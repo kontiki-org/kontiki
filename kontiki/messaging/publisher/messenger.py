@@ -44,6 +44,7 @@ class Messenger(ServiceDelegate):
         self.channel = None
         self.futures = {}
         self.callback_queue = None
+        self._callback_consumer_tag = None
         self.event_exchange_name = event_exchange
         self.serializer = None
         self.serialization = serialization
@@ -74,9 +75,12 @@ class Messenger(ServiceDelegate):
             self.channel, self.event_exchange_name
         )
         self.rpc_exchange = await declare_rpc_exchange(self.channel)
-        # Declare shared callback queue
+        # Declare shared callback queue and a single consumer for all RPC replies
         self.callback_queue = await self.channel.declare_queue(
             exclusive=True, auto_delete=True
+        )
+        self._callback_consumer_tag = await self.callback_queue.consume(
+            self._on_response
         )
         # Sets serializer
         self.serializer = Serializer(config, serialization=self.serialization)
@@ -113,7 +117,31 @@ class Messenger(ServiceDelegate):
         self.connection = None
         self.channel = None
         self.callback_queue = None
+        self._callback_consumer_tag = None
         self._started = False
+
+    async def _on_response(self, message):
+        # Ack every delivered reply, including unknown / post-timeout correlation ids.
+        async with message.process():
+            cid = message.correlation_id
+            if cid in self.futures:
+                future = self.futures.pop(cid)
+                if not future.done():
+                    try:
+                        response = self.serializer.loads(message.body)
+                        future.set_result(response)
+                        log.debug(
+                            "Response received for correlation_id=%s: %s",
+                            cid,
+                            response,
+                        )
+                    except Exception as e:
+                        future.set_exception(e)
+                        log.error("Error processing response: %s", e)
+                else:
+                    log.warning("Response for %s already handled.", cid)
+            else:
+                log.warning("Unknown correlation_id: %s", cid)
 
     async def publish(
         self, event_type, obj, reply_to=None, extra_headers=None, flow_id=None
@@ -160,29 +188,6 @@ class Messenger(ServiceDelegate):
         future = loop.create_future()
         self.futures[cid] = future
 
-        async def on_response(message):
-            cid = message.correlation_id
-            if cid in self.futures:
-                future = self.futures.pop(cid)
-                if not future.done():
-                    try:
-                        response = self.serializer.loads(message.body)
-                        future.set_result(response)
-                        log.debug(
-                            "Response received for correlation_id=%s: %s", cid, response
-                        )
-                    except Exception as e:
-                        future.set_exception(e)
-                        log.error("Error processing response: %s", e)
-                else:
-                    log.warning("Response for %s already handled.", cid)
-            else:
-                log.warning("Unknown correlation_id: %s", cid)
-
-        # Start consuming messages from the temporary queue
-        await self.callback_queue.consume(on_response)
-
-        # Sends the sync request
         if extra_headers is None:
             extra_headers = {}
         remote_headers = {"remote_method": method_name}
@@ -191,15 +196,23 @@ class Messenger(ServiceDelegate):
 
         routing_key = f"{service_name}.{method_name}"
         request_body = self.serializer.dumps({"args": args, "kwargs": kwargs})
-        request_message = Message(
-            body=request_body,
-            correlation_id=cid,
-            reply_to=self.callback_queue.name,
-            headers=headers,
-        )
 
-        log.debug("Call: %s(args=%s, kwargs=%s)", method_name, args, kwargs)
-        await self.rpc_exchange.publish(request_message, routing_key=routing_key)
+        async def publish_request():
+            request_message = Message(
+                body=request_body,
+                correlation_id=cid,
+                reply_to=self.callback_queue.name,
+                headers=headers,
+            )
+            log.debug("Call: %s(args=%s, kwargs=%s)", method_name, args, kwargs)
+            await self.rpc_exchange.publish(request_message, routing_key=routing_key)
+
+        try:
+            await publish_request()
+        except ChannelInvalidStateError:
+            log.info("Channel is in an invalid state. Attempting to reconnect...")
+            await self.reconnect()
+            await publish_request()
 
         try:
             # Wait for the response with a timeout
@@ -258,6 +271,11 @@ class Messenger(ServiceDelegate):
             log.info("Reconnecting to AMQP server...")
             if self.connection:
                 await self.connection.close()
+            self.connection = None
+            self.channel = None
+            self.callback_queue = None
+            self._callback_consumer_tag = None
+            self._started = False
             await self.setup()
             log.info("Reconnected successfully.")
         finally:
