@@ -3,6 +3,7 @@
 ## [1.7.0] - 2026-08-29
 
 - Graceful shutdown: three-phase `ServiceContainer.stop()` (stop accepting → drain in-flight work → force close). Configurable via `kontiki.shutdown.grace_seconds` (default 25). HTTP, AMQP consumers, `@task`, registry unregister/heartbeat follow the shutdown spec.
+- Logs a deprecation warning when `kontiki.amqp.serialization` is `json`; `pickle` remains the supported AMQP format.
 
 ## [1.6.2] - 2026-08-29
 

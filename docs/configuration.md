@@ -47,7 +47,7 @@ for fixed platform targets.
 |-----|---------|-------------|
 | `kontiki.amqp.url` | `amqp://guest:guest@localhost/` | AMQP connection URL. |
 | `kontiki.amqp.rpc.timeout` | `10` | RPC call timeout in seconds. |
-| `kontiki.amqp.serialization` | `pickle` | Serialization for messages: `pickle` or `json`. |
+| `kontiki.amqp.serialization` | `pickle` | AMQP message format: `pickle` (supported). `json` is deprecated — logs a warning at startup; removal planned in a future major release. |
 | `kontiki.amqp.max_pending_messages` | `10` | Consumer prefetch (QoS): max unacknowledged messages per consumer. Limits how many messages a single instance can hold before acknowledging; useful for load balancing and backpressure. |
 | `kontiki.amqp.tls` | `{}` | Optional TLS. See below. |
 

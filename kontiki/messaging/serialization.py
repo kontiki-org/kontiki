@@ -10,7 +10,18 @@ from kontiki.utils import log
 DEFAULT_SERIALIZATION = "pickle"
 SUPPORTED_SERIALIZATIONS = ["pickle", "json"]
 
-# -----------------------------------------------------------------------------
+_json_deprecation_warned = False
+
+
+def _warn_json_serialization_deprecated():
+    global _json_deprecation_warned
+    if _json_deprecation_warned:
+        return
+    _json_deprecation_warned = True
+    log.warning(
+        "kontiki.amqp.serialization=json is deprecated; pickle is the supported "
+        "AMQP format. JSON bus serialization will be removed in a future major release."
+    )
 
 
 class Serializer:
@@ -22,6 +33,8 @@ class Serializer:
             msg = f"{self.serialization} serializer not supported."
             log.error(msg)
             raise RuntimeError(msg)
+        if self.serialization == "json":
+            _warn_json_serialization_deprecated()
 
     def _rpcreturn_object_hook(self, obj):
         if obj.get("__rpcreturn__") is True:
