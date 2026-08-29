@@ -15,7 +15,7 @@ kontiki:
     url: "amqp://guest:guest@localhost/"
     rpc:
       timeout: 10
-    serialization: "pickle"   # or "json"
+    serialization: "pickle"   # json is deprecated (startup warning); removal planned in a future major release
     max_pending_messages: 10  # prefetch: limits unacknowledged messages per consumer (load balancing, backpressure)
     # tls:
     #   enabled: true
