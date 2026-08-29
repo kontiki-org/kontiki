@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 import logging.config
 import os
@@ -8,6 +9,7 @@ from kontiki.configuration.configuration import DEFAULT_LOGGING_CONFIGURATION
 from kontiki.configuration.merge import merge
 from kontiki.configuration.parameter import get_kontiki_parameter
 from kontiki.delegate import ServiceDelegate
+from kontiki.messaging.common import get_grace_seconds
 from kontiki.messaging.consumer.core import Consumer
 from kontiki.messaging.flow import prepare_logging_config
 from kontiki.registry.client.heartbeat_publisher import HeartbeatPublisher
@@ -31,8 +33,7 @@ def resolve_service_name(service_cls, config):
         return default_name
     if not isinstance(configured, str) or not configured:
         raise ValueError(
-            "kontiki.service_name must be a non-empty string, "
-            f"got {configured!r}"
+            "kontiki.service_name must be a non-empty string, " f"got {configured!r}"
         )
     return configured
 
@@ -49,7 +50,6 @@ class ServiceContainer:
         self.service_cls = service_cls
         self.service_instance = service_cls()
         self.http_server = None
-        # Unique ID for each instance of the service
         self.instance_id = str(uuid.uuid4())
         self.pid = os.getpid()
         self.host = socket.gethostname()
@@ -59,6 +59,9 @@ class ServiceContainer:
         self.delegates = {}
         self.tasks = []
         self.disable_service_registration = disable_service_registration
+        self.shutting_down = False
+        self._stop_started = False
+        self.amqp_consumer = None
 
         self.service_registry_client = None
         if config_paths:
@@ -71,7 +74,6 @@ class ServiceContainer:
 
         self.service_name = resolve_service_name(service_cls, self.config)
 
-        # Initialize logging system (auto-inject flow_id filter, no user YAML needed)
         logging_config = self.config.get("logging", DEFAULT_LOGGING_CONFIGURATION)
         logging.config.dictConfig(prepare_logging_config(logging_config))
 
@@ -89,7 +91,6 @@ class ServiceContainer:
     # --------------------------------------------------------------------------
 
     async def setup(self):
-        # Inject configuration into the service
         if hasattr(self.service_instance, "config"):
             self.service_instance.config = self.config
 
@@ -110,26 +111,21 @@ class ServiceContainer:
 
     async def setup_amqp_endpoints(self):
         if self.has_endpoints("on_event") or self.has_endpoints("rpc"):
-            # Setup AMQP consumer
             await self.amqp_consumer.setup()
 
-            # Setup on_event endpoints
             on_event_tasks = self.get_endpoints("on_event")
             await self.amqp_consumer.add_on_event_tasks(on_event_tasks)
 
-            # Setup rpc endpoints
             remote_tasks = self.get_endpoints("rpc")
             await self.amqp_consumer.add_rpc_tasks(remote_tasks)
 
     async def setup_delegates(self):
-        # Bind delegates
         for attr_name, delegate in self.get_delegates().items():
             delegate.bind(self, attr_name)
             log.debug("Binding %s and %s", self, attr_name)
             self.delegates[attr_name] = delegate
             setattr(self, attr_name, delegate)
 
-        # Setup delegates
         for delegate in self.delegates.values():
             await delegate.setup()
 
@@ -149,7 +145,7 @@ class ServiceContainer:
     async def start(self):
         if self.http_server is not None:
             await self.http_server.start()
-        if self.amqp_consumer is not None:
+        if self._amqp_ready():
             await self.amqp_consumer.start()
 
         await self.start_tasks()
@@ -170,25 +166,100 @@ class ServiceContainer:
                 task.start()
 
     # --------------------------------------------------------------------------
-    # Stop
+    # Stop: stop accepting → drain in-flight → force close
     # --------------------------------------------------------------------------
 
     async def stop(self):
-        log.info("Stopping the service...")
-        for delegate in self.delegates.values():
-            await delegate.stop()
+        if self._stop_started:
+            return
+        self._stop_started = True
+        self.shutting_down = True  # blocks Messenger reconnect; gates AMQP prefetch
+
+        grace_seconds = get_grace_seconds(self.config)
+
+        # Stop accepting — no new work; unregister early so fleet sees us as gone
+        log.info("Shutdown: stop accepting")
+        await self._stop_accepting()
+
+        # Drain in-flight — finish handlers already running (HTTP, AMQP, @task)
+        log.info("Shutdown: draining in-flight work (grace_seconds=%s)", grace_seconds)
+        try:
+            await asyncio.wait_for(self._drain_in_flight(), timeout=grace_seconds)
+            log.info("Shutdown: drain complete")
+        except asyncio.TimeoutError:
+            remaining = self._in_flight_summary()
+            log.warning(
+                "Shutdown: grace period exceeded, forcing close (%s)", remaining
+            )
+
+        # Force close — cancel remainder, close connections, stop delegates
+        await self._force_close()
+        log.info("Service stopped")
+
+    async def _stop_accepting(self):
+        if self.http_server:
+            await self.http_server.stop_accepting()
+
+        if self._amqp_ready():
+            # cancel consumers; keep connection
+            await self.amqp_consumer.stop_accepting()
 
         for task in self.tasks:
-            task.stop()
+            task.stop_accepting()  # no new iteration after the current one
 
-        if self.http_server:
-            await self.http_server.stop()
+        # Heartbeat only: business delegates (Messenger, etc.) stay up during drain
+        heartbeat = self.delegates.get("_kontiki_heartbeat")
+        if heartbeat is not None:
+            await heartbeat.stop()
 
         if self.service_registry_client:
+            await self.service_registry_client.stop_accepting()
             await self.service_registry_client.unregister()
+
+    async def _drain_in_flight(self):
+        drain_tasks = []
+
+        if self.http_server:
+            drain_tasks.append(self.http_server.drain())
+
+        if self._amqp_ready():
+            drain_tasks.append(self.amqp_consumer.drain())
+
+        for task in self.tasks:
+            drain_tasks.append(task.drain())
+
+        if drain_tasks:
+            await asyncio.gather(*drain_tasks)
+
+    async def _force_close(self):
+        if self._amqp_ready():
+            # nack+requeue prefetch not yet handled
+            await self.amqp_consumer.force_close()
+
+        for task in self.tasks:
+            await task.force_stop()
+
+        for attr_name in sorted(self.delegates.keys()):
+            if attr_name == "_kontiki_heartbeat":
+                continue
+            await self.delegates[attr_name].stop()
+
+        if self.service_registry_client:
             await self.service_registry_client.stop()
-        if self.amqp_consumer:
-            await self.amqp_consumer.stop()
+
+        if self.http_server:
+            await self.http_server.drain()  # no-op if drain in-flight already ran
+
+    def _amqp_ready(self):
+        return (
+            self.amqp_consumer is not None and self.amqp_consumer.connection is not None
+        )
+
+    def _in_flight_summary(self):
+        parts = []
+        if self._amqp_ready():
+            parts.append(f"amqp_in_flight={self.amqp_consumer.work_in_flight.count}")
+        return ", ".join(parts) if parts else "none"
 
     async def report_exception(self, exception, context=None):
         if context is None:

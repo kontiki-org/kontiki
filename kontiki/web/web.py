@@ -105,13 +105,21 @@ class HttpServer:
         await self.site.start()
         log.info("Service running on http://%s:%s", address, port)
 
+    async def stop_accepting(self):
+        if self.site:
+            await self.site.stop()
+            self.site = None
+
+    async def drain(self):
+        if self.runner:
+            await self.runner.cleanup()
+            self.runner = None
+
     async def stop(self):
         log.info("Stopping HTTP server...")
         try:
-            if self.site:
-                await self.site.stop()
-            if self.runner:
-                await self.runner.cleanup()
+            await self.stop_accepting()
+            await self.drain()
             log.info("HTTP server stopped.")
         except Exception as e:
             log.error("Error while stopping HTTP server: %s", e)

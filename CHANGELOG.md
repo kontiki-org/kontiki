@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.7.0] - 2026-08-29
+
+- Graceful shutdown: three-phase `ServiceContainer.stop()` (stop accepting → drain in-flight work → force close). Configurable via `kontiki.shutdown.grace_seconds` (default 25). HTTP, AMQP consumers, `@task`, registry unregister/heartbeat follow the shutdown spec.
+
 ## [1.6.2] - 2026-08-29
 
 - Fixes Messenger RPC callback handling: acknowledge every reply (including unknown / post-timeout correlation ids), consume the callback queue once at setup, retry `call()` once after `ChannelInvalidStateError`, and make `reconnect()` recreate the channel and callback queue.

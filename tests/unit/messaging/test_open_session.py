@@ -68,8 +68,6 @@ async def test_open_session_peer_missing_config():
 
 @pytest.mark.asyncio
 async def test_open_session_peer_empty_config_value():
-    messenger = _messenger_with_container(
-        {"kontiki": {"peers": {"target": ""}}}
-    )
+    messenger = _messenger_with_container({"kontiki": {"peers": {"target": ""}}})
     with pytest.raises(ValueError, match="kontiki.peers.target"):
         await messenger.open_session(peer="target")

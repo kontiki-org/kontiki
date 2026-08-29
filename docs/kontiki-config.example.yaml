@@ -34,6 +34,9 @@ kontiki:
   heartbeat:
     interval: 60
 
+  shutdown:
+    grace_seconds: 25
+
   http:
     address: "0.0.0.0"
     port: 8080
