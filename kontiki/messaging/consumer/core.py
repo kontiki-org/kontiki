@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 
 from aio_pika import connect_robust
@@ -19,6 +20,30 @@ from kontiki.messaging.serialization import Serializer
 from kontiki.utils import log
 
 
+class WorkInFlight:
+    def __init__(self):
+        self._count = 0
+        self._empty = asyncio.Event()
+        self._empty.set()
+
+    @property
+    def count(self):
+        return self._count
+
+    def begin(self):
+        self._count += 1
+        if self._count == 1:
+            self._empty.clear()
+
+    def end(self):
+        self._count -= 1
+        if self._count == 0:
+            self._empty.set()
+
+    async def wait_empty(self):
+        await self._empty.wait()
+
+
 class Consumer:
     def __init__(self, container):
         self.container = container
@@ -27,25 +52,26 @@ class Consumer:
         self.rpc_tasks = []
         self.service_name = self.container.service_name
         self.connection = None
+        self.work_in_flight = WorkInFlight()
+        self._handler_tasks = set()
+
+    def register_handler_task(self, task):
+        self._handler_tasks.add(task)
+
+    def unregister_handler_task(self, task):
+        self._handler_tasks.discard(task)
 
     async def setup(self):
-        # Connect to RabbitMQ
-        # Create SSL context if configured.
         tls_ctx = create_tls_context(self.container.config)
         self.connection = await connect_robust(self.amqp_url, ssl_context=tls_ctx)
         self.channel = await self.connection.channel()
-        # Set QoS for AMQP channel
         prefetch_count = get_kontiki_parameter(
             self.container.config, "amqp.max_pending_messages", 10
         )
         await self.channel.set_qos(prefetch_count=prefetch_count)
         self.event_exchange = await declare_event_exchange(self.channel)
         self.rpc_exchange = await declare_rpc_exchange(self.channel)
-
-        # Sets serializer
         self.serializer = Serializer(self.container.config)
-
-        # Register internal Kontiki RPCs
         await self._add_internal_session_rpc()
 
     async def start(self):
@@ -54,13 +80,31 @@ class Consumer:
         for task in self.rpc_tasks:
             await task.run()
 
-    async def stop(self):
+    async def stop_accepting(self):
+        for task in self.on_event_tasks:
+            await task.stop_accepting()
+        for task in self.rpc_tasks:
+            await task.stop_accepting()
+
+    async def drain(self):
+        await self.work_in_flight.wait_empty()
+
+    async def force_close(self):
+        for task in list(self._handler_tasks):
+            if not task.done():
+                task.cancel()
+        if self._handler_tasks:
+            await asyncio.gather(*self._handler_tasks, return_exceptions=True)
+        self._handler_tasks.clear()
         if self.connection:
             await self.connection.close()
+            self.connection = None
+
+    async def stop(self):
+        await self.stop_accepting()
+        await self.force_close()
 
     async def _add_internal_session_rpc(self):
-        """Register the internal Kontiki RPC used to open sessions."""
-
         async def _session_open_handler(container, _headers=None, **kwargs):
             session_id = str(uuid.uuid4())
             instance_id = str(container.instance_id)
@@ -89,42 +133,31 @@ class Consumer:
             reject_on_redelivered = task_data["reject_on_redelivered"]
             broadcast = task_data.get("broadcast", False)
 
-            # if use_config, search for the event_type in the conf from the path
             resolved = resolve_parameter_path(
                 self.container.config, event_type_or_key, use_config
             )
             event_types = normalize_event_types(resolved)
 
-            # Explicitly bind the task to the service instance
-            # pylint: disable=unnecessary-dunder-call
             bound_task = task.__get__(self.container.service_instance)
 
             for event_type in event_types:
-                # Declare queue — one queue and bind per event type
                 if broadcast:
-                    # One queue per instance so that all instances receive the event.
                     qname = (
                         f"{self.service_name}.{event_type}."
                         f"{self.container.instance_id}.queue"
                     )
                 else:
-                    # Single queue per service (competing consumers within the service).
                     qname = f"{self.service_name}.{event_type}.queue"
                 queue = await self.channel.declare_queue(qname, durable=True)
 
-                # Define routing key regarding the target_instance param.
-                # For per-instance (session) handlers we suffix with the
-                # service instance_id.
                 routing_key = (
                     f"{event_type}.{self.container.instance_id}"
                     if target_instance
                     else event_type
                 )
-                # Bind queue to exchange with event type as the routing key
                 await queue.bind(self.event_exchange, routing_key=routing_key)
                 log.debug("Queue %s bound with routing key %s", qname, routing_key)
 
-                # Declare and register the task
                 on_event_task = OnEventTask(
                     event_type,
                     bound_task,
@@ -133,6 +166,7 @@ class Consumer:
                     include_headers,
                     requeue_on_error,
                     reject_on_redelivered,
+                    self.container,
                 )
                 self.on_event_tasks.append(on_event_task)
                 log.debug("On event task registered for event: %s", event_type)
@@ -143,16 +177,13 @@ class Consumer:
             task_name = endpoint["name"]
             include_headers = endpoint["include_headers"]
 
-            # Declare queue
             routing_key = f"{self.service_name}.{task_name}"
             qname = f"{routing_key}.queue"
             queue = await self.channel.declare_queue(qname, durable=True)
 
-            # Bind queue to exchange with event type as the routing key
             await queue.bind(self.rpc_exchange, routing_key=routing_key)
             log.debug("Queue %s bound with routing key %s", qname, routing_key)
 
-            # Declare and register the task
             reply_exchange = self.channel.default_exchange
             rpc_task = RpcTask(
                 task_name,

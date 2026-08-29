@@ -64,6 +64,14 @@ If `enabled` is `false` or missing, or if `amqp.tls` is not a dict, no TLS conte
 
 ---
 
+## `kontiki.shutdown`
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `kontiki.shutdown.grace_seconds` | `25` | Maximum time (seconds) to drain in-flight HTTP handlers, AMQP RPC/event handlers, and the current `@task` iteration before force-close on shutdown. |
+
+---
+
 ## `kontiki.registration`
 
 Used when the service registers with a Kontiki registry.

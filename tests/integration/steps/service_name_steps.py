@@ -55,9 +55,7 @@ def step_caller_service_running_with_config(context):
     context.rpc_proxy_caller_manager = manager
 
 
-@when(
-    "I call the {rpc_method} method of {service_name} with the following parameters"
-)
+@when("I call the {rpc_method} method of {service_name} with the following parameters")
 def step_call_rpc_of_service(context, rpc_method, service_name):
     payload_str = context.text.strip() if context.text else ""
     params = json.loads(payload_str) if payload_str else {}

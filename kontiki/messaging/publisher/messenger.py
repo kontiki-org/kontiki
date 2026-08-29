@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from aio_pika import Message, connect_robust
 from aio_pika.exceptions import ChannelInvalidStateError
 
+from kontiki.configuration.parameter import get_kontiki_parameter
 from kontiki.delegate import ServiceDelegate
 from kontiki.messaging.common import (
     AMQP_DEFAULT_URL,
@@ -18,7 +19,6 @@ from kontiki.messaging.common import (
     get_rpc_timeout,
 )
 from kontiki.messaging.flow import apply_outbound_flow_id
-from kontiki.configuration.parameter import get_kontiki_parameter
 from kontiki.messaging.publisher.rpc import (
     RpcClientError,
     RpcServerError,
@@ -264,6 +264,9 @@ class Messenger(ServiceDelegate):
         return EventSession(self, service_name, instance_id, session_id)
 
     async def reconnect(self):
+        if self.container and self.container.shutting_down:
+            log.info("Shutdown in progress; skipping AMQP reconnect.")
+            return
         if self._reconnecting:
             return
         self._reconnecting = True

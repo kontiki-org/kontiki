@@ -29,6 +29,10 @@ def get_rpc_timeout(config):
     return get_kontiki_parameter(config, "amqp.rpc.timeout", 10)
 
 
+def get_grace_seconds(config):
+    return get_kontiki_parameter(config, "shutdown.grace_seconds", 25)
+
+
 def create_tls_context(config):
     config = get_kontiki_parameter(config, "amqp.tls", {})
 

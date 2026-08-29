@@ -15,6 +15,7 @@ class Task:
         self.container = container
         self.running = False
         self.timer_loop_task = None
+        self._current_iteration = None
 
     def start(self):
         if self.running:
@@ -24,8 +25,34 @@ class Task:
         self.running = True
         self.timer_loop_task = asyncio.create_task(self._run())
 
-    def stop(self):
+    def stop_accepting(self):
         self.running = False
+
+    async def drain(self):
+        if self._current_iteration is not None:
+            try:
+                await self._current_iteration
+            except asyncio.CancelledError:
+                pass
+
+    async def force_stop(self):
+        if self.timer_loop_task and not self.timer_loop_task.done():
+            self.timer_loop_task.cancel()
+            try:
+                await self.timer_loop_task
+            except asyncio.CancelledError:
+                pass
+            self.timer_loop_task = None
+
+        if self._current_iteration is not None and not self._current_iteration.done():
+            self._current_iteration.cancel()
+            try:
+                await self._current_iteration
+            except asyncio.CancelledError:
+                pass
+
+    def stop(self):
+        self.stop_accepting()
         if self.timer_loop_task:
             self.timer_loop_task.cancel()
             self.timer_loop_task = None
@@ -36,9 +63,12 @@ class Task:
 
         while self.running:
             await asyncio.sleep(self.interval)
+            if not self.running:
+                break
             await self._execute_user_task()
 
     async def _execute_user_task(self):
+        self._current_iteration = asyncio.current_task()
         flow_token = enter_flow_context(None)
         try:
             try:
@@ -58,6 +88,7 @@ class Task:
                     )
         finally:
             reset_flow_id(flow_token)
+            self._current_iteration = None
 
 
 def resolve_task_interval(config, interval):
