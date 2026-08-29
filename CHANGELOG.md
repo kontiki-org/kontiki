@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.6.2] - 2026-08-29
+
+- Fixes Messenger RPC callback handling: acknowledge every reply (including unknown / post-timeout correlation ids), consume the callback queue once at setup, retry `call()` once after `ChannelInvalidStateError`, and make `reconnect()` recreate the channel and callback queue.
+
 ## [1.6.1] - 2026-08-23
 
 - `messenger.open_session(peer="…")` resolves `kontiki.peers.<peer>` (same XOR contract as `RpcProxy`). Documented in `docs/features.md`, `docs/configuration.md`, and `docs/advanced-features.md`.
