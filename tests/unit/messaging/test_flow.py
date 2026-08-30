@@ -144,8 +144,7 @@ async def test_task_tick_resets_flow_between_invocations():
     seen = []
 
     async def user_task():
-        assert current_flow_id() is None
-        resolve_flow_id()
+        assert current_flow_id() is not None
         seen.append(current_flow_id())
 
     task = Task(interval=0.01, user_task=user_task, immediate=True)

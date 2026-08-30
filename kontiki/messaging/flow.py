@@ -1,41 +1,42 @@
 import copy
 import logging
-import secrets
-from contextvars import ContextVar
 
-from kontiki.utils import get_kontiki_header_name
+from kontiki.runtime.handler_scope import (
+    FLOW_ID_LENGTH,
+    FLOW_ID_UNSET,
+    current_flow_id,
+    flow_id_header_name,
+    format_flow_id_for_log,
+    generate_flow_id,
+    reset_handler_context,
+    set_flow_id,
+    set_handler_context,
+)
 
-FLOW_ID_LENGTH = 12
-FLOW_ID_UNSET = "[no flow]"
-
-
-def format_flow_id_for_log(flow_id=None):
-    if flow_id is None:
-        return FLOW_ID_UNSET
-    return f"[flow={flow_id}]"
-
-
-_flow_id_var = ContextVar("kontiki_flow_id", default=None)
-
-
-def flow_id_header_name():
-    return get_kontiki_header_name("flow_id")
-
-
-def current_flow_id():
-    return _flow_id_var.get()
-
-
-def generate_flow_id():
-    return secrets.token_hex(6)
+# Re-export for existing callers / tests.
+__all__ = [
+    "FLOW_ID_LENGTH",
+    "FLOW_ID_UNSET",
+    "FlowIdFilter",
+    "apply_outbound_flow_id",
+    "current_flow_id",
+    "enter_flow_context",
+    "enter_flow_from_headers",
+    "flow_id_header_name",
+    "format_flow_id_for_log",
+    "generate_flow_id",
+    "prepare_logging_config",
+    "reset_flow_id",
+    "resolve_flow_id",
+]
 
 
 def enter_flow_context(flow_id=None):
-    return _flow_id_var.set(flow_id)
+    return set_handler_context(kind=None, operation=None, flow_id=flow_id)
 
 
 def reset_flow_id(token):
-    _flow_id_var.reset(token)
+    reset_handler_context(token)
 
 
 def enter_flow_from_headers(headers):
@@ -56,8 +57,7 @@ def resolve_flow_id(flow_id=None, extra_headers=None):
         if value is None:
             value = generate_flow_id()
 
-    _flow_id_var.set(value)
-    return value
+    return set_flow_id(value)
 
 
 def apply_outbound_flow_id(headers, flow_id=None, extra_headers=None):

@@ -2,7 +2,11 @@ import asyncio
 
 from aio_pika import IncomingMessage
 
-from kontiki.messaging.flow import enter_flow_from_headers, reset_flow_id
+from kontiki.runtime.handler_scope import (
+    enter_handler_scope,
+    registry_exception_context,
+    reset_handler_scope,
+)
 from kontiki.utils import log
 
 
@@ -120,9 +124,12 @@ class OnEventTask:
         self._consumer_tag = await self.queue.consume(consume_message)
 
     async def _consume_message(self, message):
-        work_in_flight = self.container.amqp_consumer.work_in_flight
-        work_in_flight.begin()
-        flow_token = enter_flow_from_headers(message.headers)
+        scope = enter_handler_scope(
+            "event",
+            self.event_type,
+            headers=message.headers,
+            work_in_flight=self.container.amqp_consumer.work_in_flight,
+        )
         try:
             try:
                 log.debug(
@@ -154,7 +161,10 @@ class OnEventTask:
 
             except Exception as e:
                 log.error("Error occurred while consuming the event: %s", e)
+                await self.container.report_uncaught_exception(
+                    e,
+                    registry_exception_context(),
+                )
                 await message.nack(requeue=False)
         finally:
-            work_in_flight.end()
-            reset_flow_id(flow_token)
+            reset_handler_scope(scope)
