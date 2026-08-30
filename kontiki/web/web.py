@@ -6,12 +6,28 @@ from kontiki.configuration.parameter import (
     get_kontiki_parameter,
     resolve_parameter_path,
 )
+from kontiki.messaging.flow import flow_id_header_name
+from kontiki.runtime.handler_scope import (
+    current_flow_id,
+    enter_handler_scope,
+    registry_exception_context,
+    reset_handler_scope,
+)
 from kontiki.utils import log
 from kontiki.web.documentation import (
     get_http_documentation,
     register_auto_docs_endpoints,
 )
 from kontiki.web.utils import extract_schema, parse_with_model
+
+# -----------------------------------------------------------------------------
+
+
+def prepare_http_response(response, flow_id):
+    if flow_id is not None:
+        response.headers[flow_id_header_name()] = flow_id
+    return response
+
 
 # -----------------------------------------------------------------------------
 
@@ -105,13 +121,21 @@ class HttpServer:
         await self.site.start()
         log.info("Service running on http://%s:%s", address, port)
 
+    async def stop_accepting(self):
+        if self.site:
+            await self.site.stop()
+            self.site = None
+
+    async def drain(self):
+        if self.runner:
+            await self.runner.cleanup()
+            self.runner = None
+
     async def stop(self):
         log.info("Stopping HTTP server...")
         try:
-            if self.site:
-                await self.site.stop()
-            if self.runner:
-                await self.runner.cleanup()
+            await self.stop_accepting()
+            await self.drain()
             log.info("HTTP server stopped.")
         except Exception as e:
             log.error("Error while stopping HTTP server: %s", e)
@@ -155,67 +179,81 @@ class HttpServer:
             validate_request = bool(doc.get("validate_request"))
             request_model = doc.get("request_model")
             parsed_body = None
+            operation = f"{method.upper()} {path}"
+            scope = enter_handler_scope("http", operation)
 
             try:
-                if (
-                    validate_request
-                    and request_model
-                    and method.upper() in ("POST", "PUT", "PATCH")
-                ):
-                    if inspect.isclass(request_model):
-                        try:
-                            data = await request.json()
-                            parsed_body = parse_with_model(request_model, data)
-                        except Exception as e:
-                            log.warning("Invalid request body: %s", e)
-                            raise web.HTTPUnprocessableEntity(
-                                reason="Invalid request body"
-                            )
-                    elif isinstance(request_model, dict):
-                        # No validation required for dict-based models
-                        parsed_body = await request.json()
+                try:
+                    if (
+                        validate_request
+                        and request_model
+                        and method.upper() in ("POST", "PUT", "PATCH")
+                    ):
+                        if inspect.isclass(request_model):
+                            try:
+                                data = await request.json()
+                                parsed_body = parse_with_model(request_model, data)
+                            except Exception as e:
+                                log.warning("Invalid request body: %s", e)
+                                raise web.HTTPUnprocessableEntity(
+                                    reason="Invalid request body"
+                                )
+                        elif isinstance(request_model, dict):
+                            # No validation required for dict-based models
+                            parsed_body = await request.json()
 
-                call_kwargs = dict(request.match_info)
-                if parsed_body is not None:
-                    call_kwargs["body"] = parsed_body
+                    call_kwargs = dict(request.match_info)
+                    if parsed_body is not None:
+                        call_kwargs["body"] = parsed_body
 
-                response = await bound_handler(request, **call_kwargs)
-                if isinstance(response, web.StreamResponse):
+                    response = await bound_handler(request, **call_kwargs)
+                    if isinstance(response, web.StreamResponse):
+                        return prepare_http_response(response, current_flow_id())
+
+                    if isinstance(response, (dict, list)):
+                        response = web.json_response(
+                            response, status=doc.get("status_code", 200)
+                        )
+                        return prepare_http_response(response, current_flow_id())
+
+                    if response is not None:
+                        return prepare_http_response(response, current_flow_id())
                     return response
+                except Exception as e:
+                    flow_id = current_flow_id()
+                    mapped = self._resolve_http_error_mapping(type(e), error_handlers)
+                    if mapped is not None:
+                        status, message_override = mapped
+                        body = (
+                            message_override
+                            if message_override is not None
+                            else getattr(e, "message", None) or str(e)
+                        )
+                        log.warning(
+                            "Mapped exception in handler for %s %s: %s",
+                            method,
+                            path,
+                            e,
+                        )
+                        return prepare_http_response(
+                            web.json_response({"message": body}, status=status),
+                            flow_id,
+                        )
 
-                if isinstance(response, (dict, list)):
-                    return web.json_response(
-                        response, status=doc.get("status_code", 200)
+                    if isinstance(e, web.HTTPException):
+                        prepare_http_response(e, flow_id)
+                        raise
+
+                    log.error("Error in handler for %s %s: %s", method, path, e)
+                    await self.container.report_uncaught_exception(
+                        e,
+                        registry_exception_context(),
                     )
-
-                return response
-            except Exception as e:
-                mapped = self._resolve_http_error_mapping(type(e), error_handlers)
-                if mapped is not None:
-                    status, message_override = mapped
-                    body = (
-                        message_override
-                        if message_override is not None
-                        else getattr(e, "message", None) or str(e)
-                    )
-                    log.warning(
-                        "Mapped exception in handler for %s %s: %s", method, path, e
-                    )
-                    return web.json_response({"message": body}, status=status)
-
-                if isinstance(e, web.HTTPException):
-                    raise
-
-                log.error("Error in handler for %s %s: %s", method, path, e)
-                await self.container.report_uncaught_exception(
-                    e,
-                    {
-                        "entrypoint": "http",
-                        "method": method,
-                        "path": path,
-                    },
-                )
-                raise web.HTTPInternalServerError(reason="Internal Server Error") from e
+                    error = web.HTTPInternalServerError(reason="Internal Server Error")
+                    prepare_http_response(error, flow_id)
+                    raise error from e
+            finally:
+                reset_handler_scope(scope)
 
         return handler
 

@@ -2,7 +2,11 @@ import asyncio
 
 from aio_pika import IncomingMessage
 
-from kontiki.messaging.flow import enter_flow_from_headers, reset_flow_id
+from kontiki.runtime.handler_scope import (
+    enter_handler_scope,
+    registry_exception_context,
+    reset_handler_scope,
+)
 from kontiki.utils import log
 
 
@@ -87,6 +91,7 @@ class OnEventTask:
         include_headers,
         requeue_on_error,
         reject_on_redelivered,
+        container,
     ):
         self.event_type = event_type
         self.task = task
@@ -95,43 +100,71 @@ class OnEventTask:
         self.include_headers = include_headers
         self.requeue_on_error = requeue_on_error
         self.reject_on_redelivered = reject_on_redelivered
+        self.container = container
+        self._consumer_tag = None
+
+    async def stop_accepting(self):
+        if self._consumer_tag:
+            await self.queue.cancel(self._consumer_tag)
+            self._consumer_tag = None
 
     async def run(self):
         async def consume_message(message: IncomingMessage):
-            flow_token = enter_flow_from_headers(message.headers)
+            if self.container.shutting_down:
+                await message.nack(requeue=True)
+                return
+
+            handler_task = asyncio.create_task(self._consume_message(message))
+            self.container.amqp_consumer.register_handler_task(handler_task)
             try:
-                try:
-                    log.debug(
-                        "Consuming event %s (redelivered=%s, headers=%s)",
-                        self.event_type,
-                        message.redelivered,
-                        message.headers,
-                    )
-                    async with message.process(
-                        requeue=self.requeue_on_error,
-                        reject_on_redelivered=self.reject_on_redelivered,
-                    ):
-                        obj = self.serializer.loads(message.body)
-                        log.info(
-                            "Message received on %s: %s", self.event_type, message.body
-                        )
-
-                        headers = message.headers if self.include_headers else {}
-                        if asyncio.iscoroutinefunction(self.task):
-                            if headers:
-                                await self.task(obj, _headers=headers)
-                            else:
-                                await self.task(obj)
-                        else:
-                            if headers:
-                                self.task(obj, _headers=headers)
-                            else:
-                                self.task(obj)
-
-                except Exception as e:
-                    log.error("Error occurred while consuming the event: %s", e)
-                    await message.nack(requeue=False)
+                await handler_task
             finally:
-                reset_flow_id(flow_token)
+                self.container.amqp_consumer.unregister_handler_task(handler_task)
 
-        await self.queue.consume(consume_message)
+        self._consumer_tag = await self.queue.consume(consume_message)
+
+    async def _consume_message(self, message):
+        scope = enter_handler_scope(
+            "event",
+            self.event_type,
+            headers=message.headers,
+            work_in_flight=self.container.amqp_consumer.work_in_flight,
+        )
+        try:
+            try:
+                log.debug(
+                    "Consuming event %s (redelivered=%s, headers=%s)",
+                    self.event_type,
+                    message.redelivered,
+                    message.headers,
+                )
+                async with message.process(
+                    requeue=self.requeue_on_error,
+                    reject_on_redelivered=self.reject_on_redelivered,
+                ):
+                    obj = self.serializer.loads(message.body)
+                    log.info(
+                        "Message received on %s: %s", self.event_type, message.body
+                    )
+
+                    headers = message.headers if self.include_headers else {}
+                    if asyncio.iscoroutinefunction(self.task):
+                        if headers:
+                            await self.task(obj, _headers=headers)
+                        else:
+                            await self.task(obj)
+                    else:
+                        if headers:
+                            self.task(obj, _headers=headers)
+                        else:
+                            self.task(obj)
+
+            except Exception as e:
+                log.error("Error occurred while consuming the event: %s", e)
+                await self.container.report_uncaught_exception(
+                    e,
+                    registry_exception_context(),
+                )
+                await message.nack(requeue=False)
+        finally:
+            reset_handler_scope(scope)

@@ -5,6 +5,8 @@ kontiki:
     disable: true
   heartbeat:
     interval: 600
+  shutdown:
+    grace_seconds: 2
 
 logging:
   version: 1

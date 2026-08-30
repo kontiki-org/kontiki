@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.0] - 2026-08-29
+
+- Graceful shutdown: three-phase `ServiceContainer.stop()` (stop accepting → drain in-flight work → force close). Configurable via `kontiki.shutdown.grace_seconds` (default 25). HTTP, AMQP consumers, `@task`, registry unregister/heartbeat follow the shutdown spec.
+- Handler scope: unified execution context on `@http`, `@rpc`, `@on_event`, and `@task` (single ContextVar for `flow_id`, `kind`, and `operation`). `@http` and `@task` generate a `flow_id` at handler entry; `@http` responses include header `kontiki_flow_id`. Uncaught exceptions in `@on_event` handlers are reported to the registry when `kontiki.registration.report_uncaught_exceptions` is enabled (same path as RPC / HTTP / task).
+- Logs a deprecation warning when `kontiki.amqp.serialization` is `json`; `pickle` remains the supported AMQP format.
+
 ## [1.6.2] - 2026-08-29
 
 - Fixes Messenger RPC callback handling: acknowledge every reply (including unknown / post-timeout correlation ids), consume the callback queue once at setup, retry `call()` once after `ChannelInvalidStateError`, and make `reconnect()` recreate the channel and callback queue.

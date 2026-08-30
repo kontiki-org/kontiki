@@ -3,6 +3,8 @@ from urllib import error, request
 
 from behave import then, when
 
+from kontiki.messaging.flow import FLOW_ID_LENGTH
+
 BASE_URL = "http://127.0.0.1:8080"
 
 
@@ -21,10 +23,15 @@ def _parse_response_body(body):
         return body
 
 
+def _response_headers(response):
+    return {name.lower(): value for name, value in response.headers.items()}
+
+
 def _store_http_response(context, response):
     body = response.read().decode("utf-8")
     context.http_status = response.status
     context.http_body = _parse_response_body(body)
+    context.http_headers = _response_headers(response)
 
 
 def _perform_request(context, req):
@@ -78,3 +85,19 @@ def step_check_http_body_contains(context, content):
         else json.dumps(context.http_body, ensure_ascii=True)
     )
     assert content in body, f'Expected "{content}" in HTTP response body: {body}'
+
+
+@then('the HTTP response header "{header_name}" is a 12-character hex flow id')
+def step_check_http_header_flow_id(context, header_name):
+    headers = context.http_headers
+    value = headers.get(header_name.lower())
+    assert value, (
+        f'Expected HTTP response header "{header_name}", ' f"got headers: {headers}"
+    )
+    assert len(value) == FLOW_ID_LENGTH, (
+        f'Expected header "{header_name}" to be {FLOW_ID_LENGTH} characters, '
+        f"got {len(value)}: {value!r}"
+    )
+    assert all(
+        c in "0123456789abcdef" for c in value
+    ), f'Expected header "{header_name}" to be lowercase hex, got {value!r}'

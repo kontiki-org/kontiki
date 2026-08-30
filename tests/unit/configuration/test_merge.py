@@ -33,7 +33,7 @@ def test_merge_conflicting_values_raises(tmp_path):
         merge([str(file1), str(file2)])
 
 
-def test_merge_duplicate_same_value_logs_warning(tmp_path, caplog):
+def test_merge_duplicate_same_value_logs_warning(tmp_path, monkeypatch):
     config1 = {"a": 1}
     config2 = {"a": 1}
 
@@ -43,14 +43,16 @@ def test_merge_duplicate_same_value_logs_warning(tmp_path, caplog):
     file1.write_text(yaml.dump(config1), encoding="utf-8")
     file2.write_text(yaml.dump(config2), encoding="utf-8")
 
-    with caplog.at_level("WARNING"):
-        result = merge([str(file1), str(file2)])
+    warnings = []
+    monkeypatch.setattr(
+        "kontiki.configuration.merge.log.warning",
+        lambda msg, param: warnings.append((msg, param)),
+    )
+
+    result = merge([str(file1), str(file2)])
 
     assert result == {"a": 1}
-    assert any(
-        "defined twice with the same value" in rec.getMessage()
-        for rec in caplog.records
-    )
+    assert warnings == [("%s is defined twice with the same value.", "a")]
 
 
 def test_merge_with_empty_file(tmp_path):

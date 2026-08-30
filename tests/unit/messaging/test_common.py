@@ -2,6 +2,7 @@ from kontiki.messaging.common import (
     AMQP_DEFAULT_URL,
     create_tls_context,
     get_amqp_url,
+    get_grace_seconds,
     get_rpc_timeout,
 )
 from kontiki.messaging.publisher.messenger import Messenger
@@ -68,6 +69,16 @@ def test_create_tls_context_minimal(monkeypatch):
 
     ctx = create_tls_context(config)
     assert ctx is fake_ctx
+
+
+def test_get_grace_seconds_without_config_uses_default():
+    config = {}
+    assert get_grace_seconds(config) == 25
+
+
+def test_get_grace_seconds_with_config():
+    config = {"kontiki": {"shutdown": {"grace_seconds": 5}}}
+    assert get_grace_seconds(config) == 5
 
 
 def test_messenger_service_headers_timestamp_is_utc_iso_string():

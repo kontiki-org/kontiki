@@ -47,7 +47,7 @@ for fixed platform targets.
 |-----|---------|-------------|
 | `kontiki.amqp.url` | `amqp://guest:guest@localhost/` | AMQP connection URL. |
 | `kontiki.amqp.rpc.timeout` | `10` | RPC call timeout in seconds. |
-| `kontiki.amqp.serialization` | `pickle` | Serialization for messages: `pickle` or `json`. |
+| `kontiki.amqp.serialization` | `pickle` | AMQP message format: `pickle` (supported). `json` is deprecated — logs a warning at startup; removal planned in a future major release. |
 | `kontiki.amqp.max_pending_messages` | `10` | Consumer prefetch (QoS): max unacknowledged messages per consumer. Limits how many messages a single instance can hold before acknowledging; useful for load balancing and backpressure. |
 | `kontiki.amqp.tls` | `{}` | Optional TLS. See below. |
 
@@ -64,6 +64,14 @@ If `enabled` is `false` or missing, or if `amqp.tls` is not a dict, no TLS conte
 
 ---
 
+## `kontiki.shutdown`
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `kontiki.shutdown.grace_seconds` | `25` | Maximum time (seconds) to drain in-flight HTTP handlers, AMQP RPC/event handlers, and the current `@task` iteration before force-close on shutdown. |
+
+---
+
 ## `kontiki.registration`
 
 Used when the service registers with a Kontiki registry.
@@ -73,7 +81,7 @@ Used when the service registers with a Kontiki registry.
 | `kontiki.registration.disable` | `False` | Set to `true` to disable registration. |
 | `kontiki.registration.delay` | `2` | Delay in seconds before sending the first registration. |
 | `kontiki.registration.group` | `business` | Logical registration group exposed to UIs (e.g. `business`, `platform`). Blank / whitespace is normalized to `business`. |
-| `kontiki.registration.report_uncaught_exceptions` | `True` | When `true`, uncaught exceptions in RPC, HTTP (unmapped), and `@task` entrypoints are reported to the registry (same path as `publish_exception`). Set to `false` to opt out. |
+| `kontiki.registration.report_uncaught_exceptions` | `True` | When `true`, uncaught exceptions in RPC, HTTP (unmapped), `@on_event`, and `@task` entrypoints are reported to the registry (same path as `publish_exception`). Set to `false` to opt out. |
 | `kontiki.registration.configuration.public_paths` | `None` | List of config paths to expose to the registry (e.g. for UI). If set, only those paths are sent; otherwise no config is sent. |
 
 ---

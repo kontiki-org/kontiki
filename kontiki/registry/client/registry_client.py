@@ -77,6 +77,8 @@ class ServiceRegistryClient:
         self.connection = None
         self.channel = None
         self.registry_admin_exchange = None
+        self._register_again_queue = None
+        self._register_again_consumer_tag = None
 
     async def setup(self):
         log.debug("ServiceRegistryClient Setup")
@@ -91,12 +93,18 @@ class ServiceRegistryClient:
         self.serializer = Serializer(self.container.config)
 
         queue_name = "register_again.queue"
-        queue = await self.channel.declare_queue(queue_name, durable=True)
+        self._register_again_queue = await self.channel.declare_queue(
+            queue_name, durable=True
+        )
         service_name = self.container.service_name
         instance_id = self.container.instance_id
         routing_key = f"{service_name}.{instance_id}.register_again"
-        await queue.bind(self.registry_admin_exchange, routing_key=routing_key)
-        await queue.consume(self._register_again)
+        await self._register_again_queue.bind(
+            self.registry_admin_exchange, routing_key=routing_key
+        )
+        self._register_again_consumer_tag = await self._register_again_queue.consume(
+            self._register_again
+        )
 
         # Delay registration to ensure the ServiceRegistry is fully ready to
         # receive messages. This helps avoid lost registration messages during startup.
@@ -108,9 +116,15 @@ class ServiceRegistryClient:
         await asyncio.sleep(delay)
         await self.register()
 
+    async def stop_accepting(self):
+        if self._register_again_queue and self._register_again_consumer_tag:
+            await self._register_again_queue.cancel(self._register_again_consumer_tag)
+            self._register_again_consumer_tag = None
+
     async def stop(self):
         if self.connection:
             await self.connection.close()
+            self.connection = None
 
     def _get_config(self):
         config = self.container.config
@@ -171,6 +185,9 @@ class ServiceRegistryClient:
         return body
 
     async def _register_again(self, message):
+        if self.container.shutting_down:
+            await message.nack(requeue=True)
+            return
         async with message.process():
             try:
                 service_name = self.container.service_name

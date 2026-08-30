@@ -1,10 +1,13 @@
 @registry
 Feature: Automatic uncaught exception reporting
 
-    Uncaught exceptions in RPC, HTTP and @task entrypoints are
-    reported to the registry automatically when
+    Uncaught exceptions in RPC, HTTP, @on_event and @task
+    entrypoints are reported to the registry automatically when
     kontiki.registration.report_uncaught_exceptions is true
     (the default). Set it to false to opt out.
+
+    Event reporting is covered by unit tests in v1 (no simple
+    AMQP publisher in the @registry harness).
 
     Reporting uses the same path as publish_exception /
     register_exception, so the registry still publishes

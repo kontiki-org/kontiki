@@ -121,7 +121,7 @@ Returning plain `True` still works; `reason` is then `null` on the event.
 
 ### Uncaught exceptions → registry
 
-**When:** You want failures on HTTP / RPC / tasks to be visible fleet-wide without
+**When:** You want failures on HTTP / RPC / events / tasks to be visible fleet-wide without
 hand-rolling error publishers.
 
 Kontiki can report uncaught exceptions to the registry (`registry.exception` /
@@ -417,6 +417,11 @@ Changing the YAML value requires a **restart** so the queue is rebound.
 **When:** You need to follow one business flow across services without opening
 every log file by hand.
 
+**Origins:** `@http` and `@task` handlers always get a `flow_id` at entry (even
+with no outbound AMQP). `@rpc` and `@on_event` reuse inbound header
+`kontiki_flow_id` when present, otherwise generate on first outbound.
+`@http` responses expose the same id in header `kontiki_flow_id`.
+
 ```python
 await messenger.publish("alert.normalized", alert, flow_id=alert.alert_id)
 # or omit flow_id → Kontiki generates a 12-hex id and propagates it
@@ -436,7 +441,8 @@ lnav aggregates the files under `logs.directory`, so you see the whole path in
 one place.
 
 **Gotcha:** Custom logging YAML is not rewritten — add `%(flow_id)s` yourself if
-you want it visible. Until a flow starts (idle `@task`), lines show `[no flow]`.
+you want it visible. Lines outside any handler (setup, reconnect, code between
+ticks) show `[no flow]`.
 
 ---
 

@@ -45,7 +45,7 @@ class ServiceProcessManager:
             f"Check logs: {self.log_file_path}"
         )
 
-    def stop(self, timeout=5):
+    def stop(self, timeout=30):
         if self.process is None:
             return
 
