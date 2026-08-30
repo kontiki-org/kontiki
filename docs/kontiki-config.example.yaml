@@ -27,7 +27,7 @@ kontiki:
     disable: false
     delay: 2
     group: business  # or platform; blank → business
-    report_uncaught_exceptions: true  # opt out with false
+    report_uncaught_exceptions: true  # RPC, HTTP, @on_event, @task; opt out with false
     # configuration:
     #   public_paths: ["app", "feature_flags"]
 

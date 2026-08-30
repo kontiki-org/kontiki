@@ -1,7 +1,11 @@
 import asyncio
 
 from kontiki.configuration.parameter import get_parameter
-from kontiki.messaging.flow import enter_flow_context, reset_flow_id
+from kontiki.runtime.handler_scope import (
+    enter_handler_scope,
+    registry_exception_context,
+    reset_handler_scope,
+)
 from kontiki.utils import log
 
 # -----------------------------------------------------------------------------
@@ -69,7 +73,7 @@ class Task:
 
     async def _execute_user_task(self):
         self._current_iteration = asyncio.current_task()
-        flow_token = enter_flow_context(None)
+        scope = enter_handler_scope("task", self.user_task.__name__)
         try:
             try:
                 if asyncio.iscoroutinefunction(self.user_task):
@@ -81,13 +85,10 @@ class Task:
                 if self.container is not None:
                     await self.container.report_uncaught_exception(
                         e,
-                        {
-                            "entrypoint": "task",
-                            "name": self.user_task.__name__,
-                        },
+                        registry_exception_context(),
                     )
         finally:
-            reset_flow_id(flow_token)
+            reset_handler_scope(scope)
             self._current_iteration = None
 
 

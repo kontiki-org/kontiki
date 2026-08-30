@@ -2,8 +2,12 @@ import asyncio
 
 from aio_pika import Message
 
-from kontiki.messaging.flow import enter_flow_from_headers, reset_flow_id
 from kontiki.messaging.rpc import RpcErrorType, RpcReturn
+from kontiki.runtime.handler_scope import (
+    enter_handler_scope,
+    registry_exception_context,
+    reset_handler_scope,
+)
 from kontiki.utils import log
 
 
@@ -64,9 +68,12 @@ class RpcTask:
         self._consumer_tag = await self.queue.consume(handle_rpc)
 
     async def _handle_rpc(self, message):
-        work_in_flight = self.container.amqp_consumer.work_in_flight
-        work_in_flight.begin()
-        flow_token = enter_flow_from_headers(message.headers)
+        scope = enter_handler_scope(
+            "rpc",
+            self.name,
+            headers=message.headers,
+            work_in_flight=self.container.amqp_consumer.work_in_flight,
+        )
         try:
             async with message.process():
                 cid = message.correlation_id
@@ -113,7 +120,7 @@ class RpcTask:
                     log.error(msg, self.name, e)
                     await self.container.report_uncaught_exception(
                         e,
-                        {"entrypoint": "rpc", "name": self.name},
+                        registry_exception_context(),
                     )
                     if not future.done():
                         future.set_result(
@@ -140,5 +147,4 @@ class RpcTask:
                         if cid in self.futures:
                             del self.futures[cid]
         finally:
-            work_in_flight.end()
-            reset_flow_id(flow_token)
+            reset_handler_scope(scope)
