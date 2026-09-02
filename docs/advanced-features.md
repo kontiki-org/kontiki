@@ -569,11 +569,14 @@ competing queue.
 
 #### `in_session=True` — talk to one specific instance
 
-**What it does:** The handler queue binds to `event_type.<instance_id>`.
+**What it does:** Each instance declares its **own** queue
+(`{service}.{event}.{instance_id}.queue`) bound to `event_type.<instance_id>`.
 Clients first `open_session(service_name)` or `open_session(peer="…")` (RPC),
 then publish through the
 returned `EventSession`, which routes to **that instance of that service** and
-attaches a `kontiki_session_id` header.
+attaches a `kontiki_session_id` header. Other replicas do not compete on the
+target’s queue (same per-instance queue pattern as `broadcast`, different
+binding).
 
 **Use cases:**
 

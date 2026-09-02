@@ -92,12 +92,14 @@ class ServiceRegistryClient:
         )
         self.serializer = Serializer(self.container.config)
 
-        queue_name = "register_again.queue"
+        service_name = self.container.service_name
+        instance_id = self.container.instance_id
+        # Per-instance queue: a shared register_again.queue would let any
+        # Kontiki process on the vhost consume another instance's signal.
+        queue_name = f"{service_name}.{instance_id}.register_again.queue"
         self._register_again_queue = await self.channel.declare_queue(
             queue_name, durable=True
         )
-        service_name = self.container.service_name
-        instance_id = self.container.instance_id
         routing_key = f"{service_name}.{instance_id}.register_again"
         await self._register_again_queue.bind(
             self.registry_admin_exchange, routing_key=routing_key
