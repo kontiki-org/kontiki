@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.1] - 2026-09-02
+
+- Fixes `@on_event(..., in_session=True)` queue topology: each instance declares `{service}.{event}.{instance_id}.queue` (same naming pattern as `broadcast`) so session-targeted events are not competed for by other replicas. See `docs/fix-in-session-queue-topology.md`.
+- Fixes registry `register_again` signal: each instance declares `{service}.{instance_id}.register_again.queue` instead of a shared `register_again.queue` for the whole vhost. See `docs/fix-register-again-queue-topology.md`.
+- Session example publishes repeatedly on one session so multi-instance pinning can be checked with two `run-session-service` terminals.
+
 ## [1.7.0] - 2026-08-29
 
 - Graceful shutdown: three-phase `ServiceContainer.stop()` (stop accepting → drain in-flight work → force close). Configurable via `kontiki.shutdown.grace_seconds` (default 25). HTTP, AMQP consumers, `@task`, registry unregister/heartbeat follow the shutdown spec.

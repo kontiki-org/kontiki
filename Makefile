@@ -95,6 +95,8 @@ run-task-service: run-amqp
 # -----------------------------------------------------------------------------
 # Session Service
 # -----------------------------------------------------------------------------
+# Note: Launch twice (two terminals) then run-session-example: the loop of
+# publishes for one session must all land on a single pane (instance pin).
 run-session-service: run-amqp
 	@echo "Starting SessionService..."
 	$(PY) -m kontiki.runner.__main__ examples.events.session.service.SessionService --config examples/common.yaml

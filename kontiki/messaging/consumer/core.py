@@ -141,7 +141,11 @@ class Consumer:
             bound_task = task.__get__(self.container.service_instance)
 
             for event_type in event_types:
-                if broadcast:
+                # broadcast and in_session both need a per-instance queue so
+                # consumers of different replicas do not compete on one shared
+                # queue. Bindings differ: broadcast → {event}, in_session →
+                # {event}.{instance_id}.
+                if broadcast or target_instance:
                     qname = (
                         f"{self.service_name}.{event_type}."
                         f"{self.container.instance_id}.queue"

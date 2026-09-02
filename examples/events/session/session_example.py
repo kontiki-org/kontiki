@@ -9,12 +9,20 @@ async def main():
         print("Opening session with SessionService...")
         session = await messenger.open_session("SessionService")
         print(
-            f"Session opened: service={session.service_name}, session_id={session.session_id}"
+            f"Session opened: service={session.service_name}, "
+            f"session_id={session.session_id}"
         )
 
-        print("Publishing session_event within the session...")
-        await session.publish("session_event", {"message": "Hello from session"})
-        print("session_event published.")
+        # Same session, many publishes: with 2 SessionService terminals, all
+        # events must land on one pane. Split across panes = shared-queue bug.
+        n = 20
+        print(f"Publishing session_event {n} times within the same session...")
+        for i in range(n):
+            await session.publish(
+                "session_event", {"message": "Hello from session", "n": i}
+            )
+            await asyncio.sleep(0.2)
+        print("Done.")
 
 
 if __name__ == "__main__":
