@@ -176,7 +176,7 @@ def test_filter_prevents_keyerror_in_format():
     assert formatted == f"{FLOW_ID_UNSET} hello"
 
 
-def test_prepare_logging_config_injects_filter_only():
+def test_prepare_logging_config_injects_filters():
     config = {
         "version": 1,
         "formatters": {"default": {"format": "%(message)s"}},
@@ -188,9 +188,19 @@ def test_prepare_logging_config_injects_filter_only():
         },
         "root": {"handlers": ["console"]},
     }
-    prepared = prepare_logging_config(config)
+    prepared = prepare_logging_config(
+        config, service_name="OrderService", instance_id="a1b2c3d4-e5f6-7890-abcd-ef12"
+    )
     assert "kontiki_flow_id" in prepared["filters"]
+    assert "kontiki_service_identity" in prepared["filters"]
+    assert prepared["filters"]["kontiki_service_identity"]["service_name"] == (
+        "OrderService"
+    )
+    assert prepared["filters"]["kontiki_service_identity"]["short_instance_id"] == (
+        "a1b2c3d4e5f6"
+    )
     assert "kontiki_flow_id" in prepared["handlers"]["console"]["filters"]
+    assert "kontiki_service_identity" in prepared["handlers"]["console"]["filters"]
     assert prepared["formatters"]["default"]["format"] == "%(message)s"
     # Original unchanged
     assert "filters" not in config

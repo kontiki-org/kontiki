@@ -19,13 +19,14 @@ features** that are easy to miss and worth knowing early.
 | Expected RPC failures | `rpc_error` + `RpcClientError.code` |
 | Retry event once then stop | `requeue_on_error` + `reject_on_redelivered` |
 | Cross-service debug | `flow_id` → filter in KontikiTUI Logs |
+| Predictable per-instance log files (TUI / replicas) | `logging.directory` (recommended) |
 | Route by business field | encode it in `event_type` |
 | Env-specific event names | `@on_event(..., use_config=True)` |
 | One handler, several exact types | `@on_event([...])` or config list |
 | Same binary, distinct RPC / registry identity | `kontiki.service_name` |
 | RPC / session peer from deployment config | `RpcProxy(..., peer="…")` / `open_session(peer="…")` → `kontiki.peers` |
 | Tests on the bus | `kontiki.testing` |
-| Consistent logs / shared defaults | multi `--config` merge |
+| Consistent logs / shared defaults | multi `--config` merge + `logging.directory` |
 | Uniform process entrypoint | `kontiki.runner.cli.run` |
 | Call Kontiki from FastAPI / etc. | standalone `Messenger` |
 
@@ -437,12 +438,14 @@ Logs then carry something like (filter sets the whole field, including brackets)
 
 **Day to day:** in [KontikiTUI](https://github.com/kontiki-org/kontiki-tui) →
 **Logs** tab, filter on the id (e.g. `a1b2c3d4e5f6` or `[flow=a1b2c3d4e5f6]`).
-lnav aggregates the files under `logs.directory`, so you see the whole path in
+lnav aggregates the files under `logging.directory`, so you see the whole path in
 one place.
 
-**Gotcha:** Custom logging YAML is not rewritten — add `%(flow_id)s` yourself if
-you want it visible. Lines outside any handler (setup, reconnect, code between
-ticks) show `[no flow]`.
+**Gotcha:** If you declare your own `formatters`, Kontiki does not rewrite them —
+include `%(flow_id)s` (and `%(service_name)s` / `%(short_instance_id)s` if you
+want identity in the line). When `formatters` is omitted, the default Kontiki
+format already includes those fields. Lines outside any handler context show
+`[no flow]`.
 
 ---
 
@@ -688,16 +691,86 @@ that over silent fallbacks in production paths.
 
 ---
 
+### `logging.directory` — one log file per instance
+
+**When:** You run services (often replicas) on a shared volume and browse logs
+with [KontikiTUI](https://github.com/kontiki-org/kontiki-tui) / lnav.
+
+**Recommended:** set `logging.directory` and omit `handlers.*.filename`.
+
+**Why this mode:**
+
+- **Replicas** — one YAML for every instance; Kontiki derives a unique path from
+  `service_name` + a 12-hex prefix of `instance_id`, so two processes never
+  overwrite the same file by accident.
+- **TUI / lnav** — predictable names
+  (`OrderService-a1b2c3d4e5f6.log`) so tooling can resolve service + instance and
+  join the registry (e.g. group filter) without per-service path conventions.
+- **Aggregated streams** — the default line format includes
+  `service#short_instance_id` and `flow_id`, so a mixed lnav view stays readable
+  when several files are tailed together.
+- **Less YAML** — share handlers in a common config; service files keep real
+  knobs (`http.port`, `registration.group`, `heartbeat.interval`), not
+  copy-pasted filenames.
+
+Path Kontiki writes:
+
+```text
+{logging.directory}/{service_name}-{short_instance_id}.log
+```
+
+```yaml
+# common.services.yaml
+kontiki:
+  amqp:
+    url: amqp://guest:guest@rabbitmq/
+
+logging:
+  directory: logs
+  handlers:
+    file:
+      class: logging.handlers.RotatingFileHandler
+      level: INFO
+      maxBytes: 10485760
+      backupCount: 5
+  root:
+    handlers: [file]
+    level: INFO
+```
+
+```yaml
+# alert_engine.yaml — no filename
+kontiki:
+  http:
+    port: 8005
+  registration:
+    group: business
+```
+
+Default line shape when you omit `formatters`:
+
+```text
+%(asctime)s - %(service_name)s#%(short_instance_id)s - %(levelname)s - %(flow_id)s - %(message)s
+```
+
+**Gotcha:** `directory` alone does not create a file handler — declare a
+`FileHandler` / `RotatingFileHandler` / … yourself. Without `directory`, an
+explicit `filename` still works (legacy). Unsafe characters in `service_name`
+become `_` in the path. Contract detail:
+[kontiki-logging-filename.md](kontiki-logging-filename.md).
+
+---
+
 ### Config file merge — one logging style, many services
 
-**When:** You run several services and want identical log format / handlers,
+**When:** You run several services and want identical log handlers / levels,
 without copy-pasting a `logging:` block into every YAML.
 
 Pass multiple `--config` files; Kontiki deep-merges them (nested dicts overlay;
 conflicting leaf values fail at startup).
 
-Put the shared logging shape in a common file. In each service file, set **only**
-the log filename (and any true per-service knobs).
+Put the shared logging shape (including `logging.directory`) in a common file.
+In each service file, set only true per-service knobs.
 
 ```yaml
 # common.services.yaml — used by every service
@@ -706,31 +779,25 @@ kontiki:
     url: amqp://guest:guest@rabbitmq/
 
 logging:
-  version: 1
-  disable_existing_loggers: true
-  formatters:
-    default:
-      format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  directory: logs
   handlers:
     file:
-      class: logging.FileHandler
-      formatter: default
-      level: DEBUG
+      class: logging.handlers.RotatingFileHandler
+      level: INFO
+      maxBytes: 10485760
+      backupCount: 5
   root:
-    handlers: ["file"]
-    level: DEBUG
+    handlers: [file]
+    level: INFO
 ```
 
 ```yaml
 # alert_engine.yaml — service-specific
-logging:
-  handlers:
-    file:
-      filename: /data/alert_engine_service.log
-
 kontiki:
   http:
     port: 8005
+  heartbeat:
+    interval: 5
 ```
 
 ```bash
@@ -743,8 +810,9 @@ Same pattern for AMQP URL, registration defaults, etc.: declare once in common,
 override leaves only where a service truly differs.
 
 **Gotcha:** Redefining the same leaf with a *different* value in two files raises
-`ConfigMergeError`. Prefer “common owns the structure; service owns the path”.
-Do not duplicate the full formatter block in every service file “just in case”.
+`ConfigMergeError`. Prefer “common owns logging shape + `directory`; service owns
+ports / intervals / group”. Do not duplicate the full formatter block in every
+service file “just in case”.
 
 ---
 
