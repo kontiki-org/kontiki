@@ -75,7 +75,13 @@ class ServiceContainer:
         self.service_name = resolve_service_name(service_cls, self.config)
 
         logging_config = self.config.get("logging", DEFAULT_LOGGING_CONFIGURATION)
-        logging.config.dictConfig(prepare_logging_config(logging_config))
+        logging.config.dictConfig(
+            prepare_logging_config(
+                logging_config,
+                service_name=self.service_name,
+                instance_id=self.instance_id,
+            )
+        )
 
     def load_config_files(self, conf_files):
         try:

@@ -47,10 +47,12 @@ SERVICE_DEFINITIONS_BY_TAG = {
             "config_paths": ["tests/integration/config.yaml"],
         },
     ],
-    # Registry / service_name processes are started from feature Given DocStrings
-    # (see registry_steps / service_name_steps), not from this map.
+    # Registry / service_name / logging processes are started from feature
+    # Given DocStrings (see registry_steps / service_name_steps / logging_steps),
+    # not from this map.
     "registry": [],
     "service_name": [],
+    "logging": [],
 }
 EXCLUSIVE_SUITE_TAGS = list(SERVICE_DEFINITIONS_BY_TAG.keys())
 

@@ -50,6 +50,7 @@ integration-test: run-amqp
 	@$(MAKE) integration-test-task
 	@$(MAKE) integration-test-registry
 	@$(MAKE) integration-test-service-name
+	@$(MAKE) integration-test-logging
 
 integration-test-single: run-amqp
 	@echo "Running integration tests (single_instance suite)..."
@@ -72,6 +73,10 @@ integration-test-registry: run-amqp
 integration-test-service-name: run-amqp
 	@echo "Running integration tests (service_name suite)..."
 	$(PY) -m behave tests/integration --tags @service_name --stop --no-skipped
+
+integration-test-logging: run-amqp
+	@echo "Running integration tests (logging suite)..."
+	$(PY) -m behave tests/integration --tags @logging --stop --no-skipped
 
 # EXAMPLES
 # -----------------------------------------------------------------------------

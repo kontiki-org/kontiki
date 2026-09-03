@@ -1,6 +1,8 @@
 # Kontiki configuration reference
 
-All framework options live under the **`kontiki`** key. Use your own top-level keys (e.g. `app`) for application settings.
+Framework options live under the **`kontiki`** key. Logging uses a top-level
+**`logging`** block (Python dictConfig + Kontiki extensions). Use your own
+top-level keys (e.g. `app`) for application settings.
 
 An example file with every option is in [kontiki-config.example.yaml](kontiki-config.example.yaml).
 
@@ -106,6 +108,23 @@ For services that expose HTTP entrypoints (`@http`).
 | `kontiki.http.documentation.path_template` | `/api/{version}/docs` | URL path template for docs; `{version}` is replaced by the endpoint version. |
 | `kontiki.http.documentation.title` | service name | Title used in OpenAPI. |
 | `kontiki.http.documentation.description` | `API documentation for <service name>` | Description used in OpenAPI. |
+
+---
+
+## `logging` (top-level)
+
+Python [`dictConfig`](https://docs.python.org/3/library/logging.config.html)
+schema, with Kontiki extensions stripped before `dictConfig` runs.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `logging.directory` | *(unset)* | **Recommended** for file logs. When set, every `FileHandler` subclass gets filename `{directory}/{service_name}-{short_instance_id}.log` (omit `handlers.*.filename`). Without it, explicit `filename` remains valid (legacy). |
+| `logging.version` | `1` (injected if omitted) | dictConfig version. |
+| `logging.disable_existing_loggers` | `true` (injected if omitted) | Explicit `false` is preserved. |
+| `logging.formatters` / `handlers` / `root` | see defaults | Standard dictConfig. If `formatters` is omitted, Kontiki injects a default format with `service#short` and `flow_id`. |
+
+See [advanced-features.md](advanced-features.md) (`logging.directory`) and
+[kontiki-logging-filename.md](kontiki-logging-filename.md) for the full contract.
 
 ---
 
