@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.8.0] - 2026-09-03
+
+- Logging file naming (opt-in): set `logging.directory` to have Kontiki impose
+  `{directory}/{service_name}-{short_instance_id}.log` on every `FileHandler`
+  subclass (replicas-safe, KontikiTUI / lnav friendly). Without `directory`,
+  explicit `filename` remains valid (legacy).
+- Logging defaults when omitted from YAML: `version`, `disable_existing_loggers`,
+  default formatter
+  (`service#short` + `flow_id`), and a propagating `kontiki` logger so framework
+  logs stay visible. Service identity filter on all handlers.
+- Documents the recommended mode in `docs/advanced-features.md`; contract in
+  `docs/kontiki-logging-filename.md`; example and reference in
+  `docs/kontiki-config.example.yaml` and `docs/configuration.md`. Integration
+  suite `@logging`.
+
 ## [1.7.1] - 2026-09-02
 
 - Fixes `@on_event(..., in_session=True)` queue topology: each instance declares `{service}.{event}.{instance_id}.queue` (same naming pattern as `broadcast`) so session-targeted events are not competed for by other replicas. See `docs/fix-in-session-queue-topology.md`.
