@@ -442,10 +442,10 @@ lnav aggregates the files under `logging.directory`, so you see the whole path i
 one place.
 
 **Gotcha:** If you declare your own `formatters`, Kontiki does not rewrite them —
-include `%(flow_id)s` (and `%(service_name)s` / `%(short_instance_id)s` if you
-want identity in the line). When `formatters` is omitted, the default Kontiki
-format already includes those fields. Lines outside any handler context show
-`[no flow]`.
+include `%(flow_id)s` (and `%(short_instance_id)s` / `%(service_name)s` if you
+want them in the line). When `formatters` is omitted, the default Kontiki
+format already includes `short_instance_id` and `flow_id`. Lines outside any
+handler context show `[no flow]`.
 
 ---
 
@@ -706,9 +706,10 @@ with [KontikiTUI](https://github.com/kontiki-org/kontiki-tui) / lnav.
 - **TUI / lnav** — predictable names
   (`OrderService-a1b2c3d4e5f6.log`) so tooling can resolve service + instance and
   join the registry (e.g. group filter) without per-service path conventions.
-- **Aggregated streams** — the default line format includes
-  `service#short_instance_id` and `flow_id`, so a mixed lnav view stays readable
-  when several files are tailed together.
+- **Aggregated streams** — the default line format includes a fixed-width
+  `short_instance_id` (process instance) and padded `flow_id` / `levelname`, so a
+  mixed lnav view stays columnar. The **service** name stays in the log
+  **filename** (and registry / TUI).
 - **Less YAML** — share handlers in a common config; service files keep real
   knobs (`http.port`, `registration.group`, `heartbeat.interval`), not
   copy-pasted filenames.
@@ -750,7 +751,7 @@ kontiki:
 Default line shape when you omit `formatters`:
 
 ```text
-%(asctime)s - %(service_name)s#%(short_instance_id)s - %(levelname)s - %(flow_id)s - %(message)s
+%(asctime)s - %(short_instance_id)s - %(levelname)-8s - %(flow_id)-20s - %(message)s
 ```
 
 **Gotcha:** `directory` alone does not create a file handler — declare a

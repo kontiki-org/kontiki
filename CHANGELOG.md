@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.8.1] - 2026-09-03
+
+- Default log format: `short_instance_id` only (no `service_name` in the line),
+  with padded columns for lnav —
+  `%(asctime)s - %(short_instance_id)s - %(levelname)-8s - %(flow_id)-20s - %(message)s`.
+  Service name stays in the log filename; `service_name` / `short_instance_id`
+  remain on records for custom formatters.
+
 ## [1.8.0] - 2026-09-03
 
 - Logging file naming (opt-in): set `logging.directory` to have Kontiki impose
@@ -7,9 +15,9 @@
   subclass (replicas-safe, KontikiTUI / lnav friendly). Without `directory`,
   explicit `filename` remains valid (legacy).
 - Logging defaults when omitted from YAML: `version`, `disable_existing_loggers`,
-  default formatter
-  (`service#short` + `flow_id`), and a propagating `kontiki` logger so framework
-  logs stay visible. Service identity filter on all handlers.
+  default formatter, and a propagating `kontiki` logger so framework logs stay
+  visible. Service identity filter on all handlers (`service_name` /
+  `short_instance_id` available to custom formatters).
 - Documents the recommended mode in `docs/advanced-features.md`; contract in
   `docs/kontiki-logging-filename.md`; example and reference in
   `docs/kontiki-config.example.yaml` and `docs/configuration.md`. Integration
