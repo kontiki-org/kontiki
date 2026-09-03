@@ -1,6 +1,6 @@
 DEFAULT_LOG_FORMAT = (
-    "%(asctime)s - %(service_name)s#%(short_instance_id)s - %(levelname)s - "
-    "%(flow_id)s - %(message)s"
+    "%(asctime)s - %(short_instance_id)s - %(levelname)-8s - %(flow_id)-20s - "
+    "%(message)s"
 )
 
 DEFAULT_LOGGING_CONFIGURATION = {
