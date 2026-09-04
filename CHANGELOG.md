@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.9.0] - 2026-09-04
+
+- Registry `get_services` (RPC and `GET /services`) includes `last_heartbeat`
+  (ISO-8601 UTC of the last heartbeat received, or `null`) and `degraded_reason`
+  (last non-empty reason while the instance is degraded, otherwise `null`).
+
 ## [1.8.1] - 2026-09-03
 
 - Default log format: `short_instance_id` only (no `service_name` in the line),
