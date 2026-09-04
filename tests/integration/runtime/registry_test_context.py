@@ -84,6 +84,24 @@ def payload_matches(actual, expected, placeholders):
     return True
 
 
+def matches_with_timestamps(actual, expected):
+    if expected == "[TIMESTAMP]":
+        return bool(actual)
+    if isinstance(expected, dict):
+        if not isinstance(actual, dict) or actual.keys() != expected.keys():
+            return False
+        return all(
+            matches_with_timestamps(actual[key], expected[key]) for key in expected
+        )
+    if isinstance(expected, list):
+        if not isinstance(actual, list) or len(actual) != len(expected):
+            return False
+        return all(
+            matches_with_timestamps(item, exp) for item, exp in zip(actual, expected)
+        )
+    return actual == expected
+
+
 def wait_for_registry_event(context, expected, timeout=30):
     placeholders = getattr(context, "registry_test_placeholders", None)
     if not placeholders:

@@ -1,6 +1,6 @@
 import logging
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 
 from aio_pika import connect_robust
@@ -163,12 +163,14 @@ class ServiceRegistryCore(ServiceDelegate):
         last_heartbeat = self.heartbeat_manager.get_last_heartbeat(
             service_name, instance_id
         )
-        is_degraded = self.heartbeat_manager.is_degraded(service_name, instance_id)
-
-        is_late = datetime.now() - last_heartbeat > timedelta(seconds=timeout)
-        if not last_heartbeat or is_late:
+        if not last_heartbeat:
             return ServiceStatus.DOWN.value
-        if is_degraded:
+        is_late = datetime.now(timezone.utc) - last_heartbeat > timedelta(
+            seconds=timeout
+        )
+        if is_late:
+            return ServiceStatus.DOWN.value
+        if self.heartbeat_manager.is_degraded(service_name, instance_id):
             return ServiceStatus.DEGRADED.value
         return ServiceStatus.ACTIVE.value
 
@@ -189,8 +191,18 @@ class ServiceRegistryCore(ServiceDelegate):
                         instance_id, service_name, self._get_timeout(heartbeat_interval)
                     )
                     if not status or current_status == status:
+                        last_heartbeat = self.heartbeat_manager.get_last_heartbeat(
+                            service_name, instance_id
+                        )
+                        if last_heartbeat:
+                            last_heartbeat = last_heartbeat.isoformat()
+                        degraded_reason = self.heartbeat_manager.get_degraded_reason(
+                            service_name, instance_id
+                        )
                         filtered_services[service_name][instance_id] = {
                             "status": current_status,
+                            "last_heartbeat": last_heartbeat,
+                            "degraded_reason": degraded_reason,
                             "metadata": data,
                         }
         except Exception as e:

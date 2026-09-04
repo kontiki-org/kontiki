@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from aio_pika import Message
 
@@ -13,6 +13,7 @@ class HeartbeatManager:
         self.core = core
         self.heartbeats = {}
         self.degraded_services = []
+        self.degraded_reasons = {}
         self.started_at = datetime.now()
 
     async def setup(self):
@@ -42,23 +43,24 @@ class HeartbeatManager:
 
             service_instance = (service_name, instance_id)
             if self.core.registry.has_service_instance(service_name, instance_id):
-                if degraded and service_instance not in self.degraded_services:
-                    self.degraded_services.append(service_instance)
-                    if reason:
-                        logging.warning(
-                            "%s enters degraded state: %s", service_str, reason
-                        )
-                    else:
-                        logging.warning("%s enters degraded state.", service_str)
-                else:
-                    if not degraded:
-                        if service_instance in self.degraded_services:
-                            logging.info(
-                                "%s recovers from degraded state.", service_str
+                if degraded:
+                    if service_instance not in self.degraded_services:
+                        self.degraded_services.append(service_instance)
+                        if reason:
+                            logging.warning(
+                                "%s enters degraded state: %s", service_str, reason
                             )
-                            self.degraded_services.remove(service_instance)
-                        reason = None
-                self.heartbeats[service_instance] = datetime.now()
+                        else:
+                            logging.warning("%s enters degraded state.", service_str)
+                    if reason:
+                        self.degraded_reasons[service_instance] = reason
+                else:
+                    if service_instance in self.degraded_services:
+                        logging.info("%s recovers from degraded state.", service_str)
+                        self.degraded_services.remove(service_instance)
+                    self.degraded_reasons.pop(service_instance, None)
+                    reason = None
+                self.heartbeats[service_instance] = datetime.now(timezone.utc)
                 logging.debug("Heartbeat updated for %s.", service_str)
                 await self.core.refresh_instance_status(
                     service_name, instance_id, reason=reason
@@ -91,3 +93,8 @@ class HeartbeatManager:
 
     def is_degraded(self, service_name, instance_id):
         return (service_name, instance_id) in self.degraded_services
+
+    def get_degraded_reason(self, service_name, instance_id):
+        if not self.is_degraded(service_name, instance_id):
+            return None
+        return self.degraded_reasons.get((service_name, instance_id))

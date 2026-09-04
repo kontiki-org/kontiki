@@ -8,6 +8,11 @@ Feature: Service registry
     The group is a first-class register field and appears in
     get_services metadata and on registry.instance.registered.
 
+    Each instance in get_services carries status, last_heartbeat
+    (ISO-8601 UTC of the last heartbeat received by the registry,
+    or null if none), degraded_reason (last non-empty reason while
+    degraded, otherwise null), and registration metadata.
+
     Background:
         Given the registry service is running with the following configuration
             """
@@ -83,6 +88,8 @@ Feature: Service registry
                 "RegistryTestService": {
                     "[REGISTRY_TEST_INSTANCE_ID]": {
                         "status": "active",
+                        "last_heartbeat": "[TIMESTAMP]",
+                        "degraded_reason": null,
                         "metadata": {
                             "service_name": "RegistryTestService",
                             "instance_id": "[REGISTRY_TEST_INSTANCE_ID]",
@@ -115,6 +122,85 @@ Feature: Service registry
                 "RegistryTestService": {
                     "[REGISTRY_TEST_INSTANCE_ID]": {
                         "status": "degraded",
+                        "last_heartbeat": "[TIMESTAMP]",
+                        "degraded_reason": null,
+                        "metadata": {
+                            "service_name": "RegistryTestService",
+                            "instance_id": "[REGISTRY_TEST_INSTANCE_ID]",
+                            "host": "[REGISTRY_TEST_HOST]",
+                            "pid": "[REGISTRY_TEST_PID]",
+                            "service_version": "1.0.0",
+                            "heartbeat_interval": 2,
+                            "group": "business"
+                        }
+                    }
+                }
+            }
+            """
+
+    Scenario: degraded heartbeat with reason is exposed on get_services
+        When I call the set_degraded method with the following parameters
+            """
+            {
+                "degraded": true,
+                "reason": "dependency unreachable"
+            }
+            """
+        And I wait for the next registry heartbeat
+        When I call the get_services method with the following parameters
+            """
+            {}
+            """
+        Then the registry service should return the result
+            """
+            {
+                "RegistryTestService": {
+                    "[REGISTRY_TEST_INSTANCE_ID]": {
+                        "status": "degraded",
+                        "last_heartbeat": "[TIMESTAMP]",
+                        "degraded_reason": "dependency unreachable",
+                        "metadata": {
+                            "service_name": "RegistryTestService",
+                            "instance_id": "[REGISTRY_TEST_INSTANCE_ID]",
+                            "host": "[REGISTRY_TEST_HOST]",
+                            "pid": "[REGISTRY_TEST_PID]",
+                            "service_version": "1.0.0",
+                            "heartbeat_interval": 2,
+                            "group": "business"
+                        }
+                    }
+                }
+            }
+            """
+
+    Scenario: recovering from degraded clears degraded_reason
+        When I call the set_degraded method with the following parameters
+            """
+            {
+                "degraded": true,
+                "reason": "dependency unreachable"
+            }
+            """
+        And I wait for the next registry heartbeat
+        When I call the set_degraded method with the following parameters
+            """
+            {
+                "degraded": false
+            }
+            """
+        And I wait for the next registry heartbeat
+        When I call the get_services method with the following parameters
+            """
+            {}
+            """
+        Then the registry service should return the result
+            """
+            {
+                "RegistryTestService": {
+                    "[REGISTRY_TEST_INSTANCE_ID]": {
+                        "status": "active",
+                        "last_heartbeat": "[TIMESTAMP]",
+                        "degraded_reason": null,
                         "metadata": {
                             "service_name": "RegistryTestService",
                             "instance_id": "[REGISTRY_TEST_INSTANCE_ID]",
@@ -213,6 +299,8 @@ Feature: Service registry
                 "RegistryTestService": {
                     "[REGISTRY_TEST_INSTANCE_ID]": {
                         "status": "active",
+                        "last_heartbeat": "[TIMESTAMP]",
+                        "degraded_reason": null,
                         "metadata": {
                             "service_name": "RegistryTestService",
                             "instance_id": "[REGISTRY_TEST_INSTANCE_ID]",
@@ -283,6 +371,8 @@ Feature: Service registry
                 "RegistryTestService": {
                     "[REGISTRY_TEST_INSTANCE_ID]": {
                         "status": "active",
+                        "last_heartbeat": "[TIMESTAMP]",
+                        "degraded_reason": null,
                         "metadata": {
                             "service_name": "RegistryTestService",
                             "instance_id": "[REGISTRY_TEST_INSTANCE_ID]",
@@ -353,6 +443,8 @@ Feature: Service registry
                 "RegistryTestService": {
                     "[REGISTRY_TEST_INSTANCE_ID]": {
                         "status": "active",
+                        "last_heartbeat": "[TIMESTAMP]",
+                        "degraded_reason": null,
                         "metadata": {
                             "service_name": "RegistryTestService",
                             "instance_id": "[REGISTRY_TEST_INSTANCE_ID]",
@@ -458,5 +550,30 @@ Feature: Service registry
                 "previous_status": "active",
                 "new_status": "down",
                 "timestamp": "[TIMESTAMP]"
+            }
+            """
+        When I call the get_services method with the following parameters
+            """
+            {}
+            """
+        Then the registry service should return the result
+            """
+            {
+                "RegistryTestService": {
+                    "[REGISTRY_TEST_INSTANCE_ID]": {
+                        "status": "down",
+                        "last_heartbeat": "[TIMESTAMP]",
+                        "degraded_reason": null,
+                        "metadata": {
+                            "service_name": "RegistryTestService",
+                            "instance_id": "[REGISTRY_TEST_INSTANCE_ID]",
+                            "host": "[REGISTRY_TEST_HOST]",
+                            "pid": "[REGISTRY_TEST_PID]",
+                            "service_version": "1.0.0",
+                            "heartbeat_interval": 2,
+                            "group": "business"
+                        }
+                    }
+                }
             }
             """

@@ -4,6 +4,7 @@ import time
 from behave import given, step, then, when
 from runtime.process_manager import ServiceProcessManager
 from runtime.registry_test_context import (
+    matches_with_timestamps,
     placeholders_from_registration,
     read_registration_from_log,
     resolve_placeholders,
@@ -126,7 +127,7 @@ def step_registry_return_result(context):
         json.loads(context.text.strip()),
         context.registry_test_placeholders,
     )
-    assert context.result == expected, (
+    assert matches_with_timestamps(context.result, expected), (
         f"Expected:\n{json.dumps(expected, indent=2, ensure_ascii=True)}\n"
         f"Actual:\n{json.dumps(context.result, indent=2, ensure_ascii=True)}"
     )
