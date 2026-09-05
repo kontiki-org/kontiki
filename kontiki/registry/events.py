@@ -19,6 +19,7 @@ def registered_payload(data):
         "host": data.get("host"),
         "pid": data.get("pid"),
         "service_version": data.get("service_version"),
+        "kontiki_version": data.get("kontiki_version"),
         "heartbeat_interval": data.get("heartbeat_interval"),
         "group": normalize_registration_group(data.get("group")),
         "timestamp": _utc_now_iso(),

@@ -7,6 +7,10 @@ Feature: Service registry
     string after strip is accepted (no allow-list in V1).
     The group is a first-class register field and appears in
     get_services metadata and on registry.instance.registered.
+    Each registration includes service_version (application)
+    and kontiki_version (framework version at register()).
+    Both appear in get_services metadata and on
+    registry.instance.registered.
 
     Each instance in get_services carries status, last_heartbeat
     (ISO-8601 UTC of the last heartbeat received by the registry,
@@ -96,6 +100,7 @@ Feature: Service registry
                             "host": "[REGISTRY_TEST_HOST]",
                             "pid": "[REGISTRY_TEST_PID]",
                             "service_version": "1.0.0",
+                            "kontiki_version": "1.10.0",
                             "heartbeat_interval": 2,
                             "group": "business"
                         }
@@ -130,6 +135,7 @@ Feature: Service registry
                             "host": "[REGISTRY_TEST_HOST]",
                             "pid": "[REGISTRY_TEST_PID]",
                             "service_version": "1.0.0",
+                            "kontiki_version": "1.10.0",
                             "heartbeat_interval": 2,
                             "group": "business"
                         }
@@ -165,6 +171,7 @@ Feature: Service registry
                             "host": "[REGISTRY_TEST_HOST]",
                             "pid": "[REGISTRY_TEST_PID]",
                             "service_version": "1.0.0",
+                            "kontiki_version": "1.10.0",
                             "heartbeat_interval": 2,
                             "group": "business"
                         }
@@ -207,6 +214,7 @@ Feature: Service registry
                             "host": "[REGISTRY_TEST_HOST]",
                             "pid": "[REGISTRY_TEST_PID]",
                             "service_version": "1.0.0",
+                            "kontiki_version": "1.10.0",
                             "heartbeat_interval": 2,
                             "group": "business"
                         }
@@ -250,6 +258,7 @@ Feature: Service registry
                 "host": "[REGISTRY_TEST_HOST]",
                 "pid": "[REGISTRY_TEST_PID]",
                 "service_version": "1.0.0",
+                "kontiki_version": "1.10.0",
                 "heartbeat_interval": 2,
                 "group": "business",
                 "timestamp": "[TIMESTAMP]"
@@ -307,6 +316,7 @@ Feature: Service registry
                             "host": "[REGISTRY_TEST_HOST]",
                             "pid": "[REGISTRY_TEST_PID]",
                             "service_version": "1.0.0",
+                            "kontiki_version": "1.10.0",
                             "heartbeat_interval": 2,
                             "group": "platform"
                         }
@@ -322,6 +332,7 @@ Feature: Service registry
                 "host": "[REGISTRY_TEST_HOST]",
                 "pid": "[REGISTRY_TEST_PID]",
                 "service_version": "1.0.0",
+                "kontiki_version": "1.10.0",
                 "heartbeat_interval": 2,
                 "group": "platform",
                 "timestamp": "[TIMESTAMP]"
@@ -379,6 +390,7 @@ Feature: Service registry
                             "host": "[REGISTRY_TEST_HOST]",
                             "pid": "[REGISTRY_TEST_PID]",
                             "service_version": "1.0.0",
+                            "kontiki_version": "1.10.0",
                             "heartbeat_interval": 2,
                             "group": "business"
                         }
@@ -394,6 +406,7 @@ Feature: Service registry
                 "host": "[REGISTRY_TEST_HOST]",
                 "pid": "[REGISTRY_TEST_PID]",
                 "service_version": "1.0.0",
+                "kontiki_version": "1.10.0",
                 "heartbeat_interval": 2,
                 "group": "business",
                 "timestamp": "[TIMESTAMP]"
@@ -451,6 +464,7 @@ Feature: Service registry
                             "host": "[REGISTRY_TEST_HOST]",
                             "pid": "[REGISTRY_TEST_PID]",
                             "service_version": "1.0.0",
+                            "kontiki_version": "1.10.0",
                             "heartbeat_interval": 2,
                             "group": "ops-mesh"
                         }
@@ -466,6 +480,7 @@ Feature: Service registry
                 "host": "[REGISTRY_TEST_HOST]",
                 "pid": "[REGISTRY_TEST_PID]",
                 "service_version": "1.0.0",
+                "kontiki_version": "1.10.0",
                 "heartbeat_interval": 2,
                 "group": "ops-mesh",
                 "timestamp": "[TIMESTAMP]"
@@ -570,6 +585,7 @@ Feature: Service registry
                             "host": "[REGISTRY_TEST_HOST]",
                             "pid": "[REGISTRY_TEST_PID]",
                             "service_version": "1.0.0",
+                            "kontiki_version": "1.10.0",
                             "heartbeat_interval": 2,
                             "group": "business"
                         }

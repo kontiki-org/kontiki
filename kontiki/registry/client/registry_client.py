@@ -3,6 +3,7 @@ from datetime import datetime
 
 from aio_pika import Message, connect_robust
 
+from kontiki import __version__
 from kontiki.configuration.parameter import get_kontiki_parameter
 from kontiki.messaging.common import create_tls_context, get_amqp_url
 from kontiki.messaging.serialization import Serializer
@@ -147,6 +148,7 @@ class ServiceRegistryClient:
             "pid": self.container.pid,
             "host": self.container.host,
             "service_version": self.container.version,
+            "kontiki_version": __version__,
             "heartbeat_interval": heartbeat_interval,
             "group": get_registration_group(self.container.config),
         }
