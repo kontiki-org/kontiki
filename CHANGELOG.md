@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.10.0] - 2026-09-05
+
+- Registry registration includes `kontiki_version` (framework version at
+  `register()`), distinct from `service_version`. Exposed in `get_services`
+  metadata and `registry.instance.registered`.
+
 ## [1.9.0] - 2026-09-04
 
 - Registry `get_services` (RPC and `GET /services`) includes `last_heartbeat`
