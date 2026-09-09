@@ -30,15 +30,14 @@
   default formatter, and a propagating `kontiki` logger so framework logs stay
   visible. Service identity filter on all handlers (`service_name` /
   `short_instance_id` available to custom formatters).
-- Documents the recommended mode in `docs/advanced-features.md`; contract in
-  `docs/kontiki-logging-filename.md`; example and reference in
-  `docs/kontiki-config.example.yaml` and `docs/configuration.md`. Integration
-  suite `@logging`.
+- Documents the recommended mode in `docs/advanced-features.md`; example and
+  reference in `docs/kontiki-config.example.yaml` and `docs/configuration.md`.
+  Integration suite `@logging`.
 
 ## [1.7.1] - 2026-09-02
 
-- Fixes `@on_event(..., in_session=True)` queue topology: each instance declares `{service}.{event}.{instance_id}.queue` (same naming pattern as `broadcast`) so session-targeted events are not competed for by other replicas. See `docs/fix-in-session-queue-topology.md`.
-- Fixes registry `register_again` signal: each instance declares `{service}.{instance_id}.register_again.queue` instead of a shared `register_again.queue` for the whole vhost. See `docs/fix-register-again-queue-topology.md`.
+- Fixes `@on_event(..., in_session=True)` queue topology: each instance declares `{service}.{event}.{instance_id}.queue` (same naming pattern as `broadcast`) so session-targeted events are not competed for by other replicas.
+- Fixes registry `register_again` signal: each instance declares `{service}.{instance_id}.register_again.queue` instead of a shared `register_again.queue` for the whole vhost.
 - Session example publishes repeatedly on one session so multi-instance pinning can be checked with two `run-session-service` terminals.
 
 ## [1.7.0] - 2026-08-29

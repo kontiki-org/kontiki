@@ -123,8 +123,7 @@ schema, with Kontiki extensions stripped before `dictConfig` runs.
 | `logging.disable_existing_loggers` | `true` (injected if omitted) | Explicit `false` is preserved. |
 | `logging.formatters` / `handlers` / `root` | see defaults | Standard dictConfig. If `formatters` is omitted, Kontiki injects a default format with `short_instance_id`, padded `levelname` / `flow_id`. |
 
-See [advanced-features.md](advanced-features.md) (`logging.directory`) and
-[kontiki-logging-filename.md](kontiki-logging-filename.md) for the full contract.
+See [advanced-features.md](advanced-features.md) (`logging.directory`).
 
 ---
 

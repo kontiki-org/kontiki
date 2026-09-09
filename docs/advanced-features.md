@@ -757,8 +757,7 @@ Default line shape when you omit `formatters`:
 **Gotcha:** `directory` alone does not create a file handler — declare a
 `FileHandler` / `RotatingFileHandler` / … yourself. Without `directory`, an
 explicit `filename` still works (legacy). Unsafe characters in `service_name`
-become `_` in the path. Contract detail:
-[kontiki-logging-filename.md](kontiki-logging-filename.md).
+become `_` in the path.
 
 ---
 

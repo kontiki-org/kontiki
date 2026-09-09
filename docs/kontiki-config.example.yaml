@@ -49,7 +49,7 @@ kontiki:
 # Logging is a top-level Python dictConfig block, plus Kontiki extension
 # `directory` (recommended for file logs / KontikiTUI / replicas).
 # Omit handlers.*.filename when directory is set — Kontiki names the file.
-# See docs/advanced-features.md and docs/kontiki-logging-filename.md.
+# See docs/advanced-features.md.
 logging:
   directory: logs
   handlers:
