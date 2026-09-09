@@ -5,7 +5,7 @@ from aio_pika import Message, connect_robust
 
 from kontiki import __version__
 from kontiki.configuration.parameter import get_kontiki_parameter
-from kontiki.messaging.common import create_tls_context, get_amqp_url
+from kontiki.messaging.common import create_tls_context, get_amqp_url, is_amqp_required
 from kontiki.messaging.serialization import Serializer
 from kontiki.registry.common import (
     EXCEPTION_RKEY,
@@ -80,12 +80,16 @@ class ServiceRegistryClient:
         self.registry_admin_exchange = None
         self._register_again_queue = None
         self._register_again_consumer_tag = None
+        self._registered = False
 
     async def setup(self):
         log.debug("ServiceRegistryClient Setup")
         amqp_url = get_amqp_url(self.container.config)
         ssl_ctx = create_tls_context(self.container.config)
-        self.connection = await connect_robust(amqp_url, ssl_context=ssl_ctx)
+        fail_fast = is_amqp_required(self.container.config)
+        self.connection = await connect_robust(
+            amqp_url, ssl_context=ssl_ctx, fail_fast=fail_fast
+        )
         self.channel = await self.connection.channel()
         await self.channel.set_qos(prefetch_count=10)
         self.registry_admin_exchange = await declare_registry_admin_exchange(
@@ -108,16 +112,16 @@ class ServiceRegistryClient:
         self._register_again_consumer_tag = await self._register_again_queue.consume(
             self._register_again
         )
+        self.connection.reconnect_callbacks.add(self._on_amqp_reconnect)
 
-        # Delay registration to ensure the ServiceRegistry is fully ready to
-        # receive messages. This helps avoid lost registration messages during startup.
-
-        delay = get_kontiki_parameter(
-            self.container.config, "registration.delay", default=2
-        )
-        log.info("Delaying registration by %s seconds.", delay)
-        await asyncio.sleep(delay)
+        if not self._registered:
+            delay = get_kontiki_parameter(
+                self.container.config, "registration.delay", default=2
+            )
+            log.info("Delaying registration by %s seconds.", delay)
+            await asyncio.sleep(delay)
         await self.register()
+        self._registered = True
 
     async def stop_accepting(self):
         if self._register_again_queue and self._register_again_consumer_tag:
@@ -128,6 +132,13 @@ class ServiceRegistryClient:
         if self.connection:
             await self.connection.close()
             self.connection = None
+            self.registry_admin_exchange = None
+
+    async def _on_amqp_reconnect(self, connection):
+        if self.container.shutting_down:
+            return
+        log.info("AMQP reconnected; registering with the registry.")
+        await self.register()
 
     def _get_config(self):
         config = self.container.config

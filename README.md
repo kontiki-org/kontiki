@@ -16,6 +16,11 @@ routing, delivery, fleet health, configuration, and testing. Services talk
 through a message mesh (AMQP via aio-pika and asyncio); you express **intentions
 in Kontiki terms**, not broker topology by hand.
 
+The aim is **one stack** for the ordinary needs of a distributed system —
+business services, ops jobs, fleet visibility, and alerting — so teams delay
+adopting extra tooling until a need is genuinely specialized. Common features
+stay in the suite.
+
 Kontiki turns **recurring distributed-service decisions into platform conventions**.
 Configuration, service identity, RPC, event delivery, fleet health, flow correlation,
 and testing follow the same model across services, so **each new service does not have to
@@ -65,9 +70,13 @@ see `docs/features.md`.
 
 ## Kontiki suite
 
-Kontiki is not only the Python runtime: the suite carries the same model into
-scheduling, fleet visibility, and alerting — so development, deployment, and
-day-to-day ops stay on one conceptual stack.
+Kontiki is not only the Python runtime. The suite is **one stack** for business
+workloads, ops services, and monitoring: the same process model, the same
+registry, the same terminal UI. Scheduling, fleet visibility, and alerting stay
+on that model so a crontab, a metrics sidecar, or an alerting product is not
+the default for everyday needs. Adopt third-party tools when the problem is
+specialized (long-term metrics store, tracing platform, IAM) — not for the
+common path.
 
 | Component | Role |
 |-----------|------|
@@ -168,7 +177,9 @@ make run-amqp
 ## Examples
 
 Examples can be run via the `Makefile` (see targets such as `run-rpc-service`,
-`run-rpc-example`, `run-simple-events-service`, etc.).
+`run-rpc-example`, `run-simple-events-service`, `run-task-service`, etc.).
+Shared logging is `examples/common.yaml`: console `StreamHandler`, default
+Kontiki formatter (omit `formatters` in YAML).
 
 | Feature                                      | Example path                                                     |
 |----------------------------------------------|------------------------------------------------------------------|
@@ -177,7 +188,7 @@ Examples can be run via the `Makefile` (see targets such as `run-rpc-service`,
 | Broadcast events                             | `examples/events/broadcast/`                                     |
 | Event serialization                          | `examples/events/serialization/`                                 |
 | Session-based events                         | `examples/events/session/`                                       |
-| Periodic tasks                               | `examples/task/`                                                 |
+| Periodic tasks (interval and cron)           | `examples/task/`                                                 |
 | Service registry (admin + client)            | `examples/registry/`                                             |
 | Heartbeats & degraded mode                   | `examples/heartbeat/`                                            |
 | HTTP entrypoints                             | `examples/http/simple/`                                          |

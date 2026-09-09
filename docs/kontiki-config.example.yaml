@@ -13,6 +13,7 @@ kontiki:
 
   amqp:
     url: "amqp://guest:guest@localhost/"
+    required: true  # false: @task/@http that don't need the bus still run if RabbitMQ is down; registry/exceptions when it is up
     rpc:
       timeout: 10
     serialization: "pickle"   # json is deprecated (startup warning); removal planned in a future major release
@@ -26,7 +27,7 @@ kontiki:
   registration:
     disable: false
     delay: 2
-    group: business  # or platform; blank → business
+    group: business  # free-form UI filter; blank → business
     report_uncaught_exceptions: true  # RPC, HTTP, @on_event, @task; opt out with false
     # configuration:
     #   public_paths: ["app", "feature_flags"]
@@ -48,7 +49,8 @@ kontiki:
 
 # Logging is a top-level Python dictConfig block, plus Kontiki extension
 # `directory` (recommended for file logs / KontikiTUI / replicas).
-# Omit handlers.*.filename when directory is set — Kontiki names the file.
+# Omit handlers.*.filename — Kontiki names {directory}/{service}-{short_id}.log
+# Omit formatters — default line is short_instance_id, padded level, flow_id.
 # See docs/advanced-features.md.
 logging:
   directory: logs

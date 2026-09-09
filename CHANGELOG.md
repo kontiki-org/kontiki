@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.11.0] - 2026-09-09
+
+- `@task(cron="…")`: 5-field crontab in the process local timezone, complementary
+  to `@task(interval=…)`. Default `immediate=False`. Config:
+  `@task(cron="app.backup.schedule", use_config=True)`. Late ticks still run; no
+  catch-up. Example: `examples/task/` (`make run-task-service`).
+- `kontiki.amqp.required` (default `true`): fail-fast at start if the broker is
+  unreachable. `false`: `@http` / `@task` start even when RabbitMQ is down (work
+  that does not need the bus, e.g. a database dump); registry, heartbeats, and
+  exception reporting connect when it is up. `publish` / `call` raise while
+  disconnected. Distinct from `registration.disable`. Integration suite
+  `@amqp_required`.
+- `kontiki.registration.group` is a free-form TUI filter (not a closed set).
+  Exception reporting is the same for every group.
+- Docs: one-stack positioning (business, ops, monitoring); logging reference
+  aligned with injected filters / default formatter / `logging.directory`.
+  Examples (`examples/common.yaml`) use console `StreamHandler` and inherit the
+  default formatter.
+
 ## [1.10.0] - 2026-09-05
 
 - Registry registration includes `kontiki_version` (framework version at

@@ -1,4 +1,5 @@
 import asyncio
+from unittest.mock import patch
 
 import pytest
 
@@ -27,6 +28,7 @@ class DummyService:
 class DummyServiceRegistryClient:
     def __init__(self):
         self.calls = []
+        self.registry_admin_exchange = None
 
     async def heartbeat(self, degraded, reason=None):
         self.calls.append((degraded, reason))
@@ -107,3 +109,53 @@ async def test_degraded_on_marks_method_and_publisher_uses_it(monkeypatch):
     task = asyncio.create_task(publisher._send_heartbeat())
     await task
     assert client.calls[-1] == (True, "dependency down")
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_sleeps_when_registry_exchange_is_missing():
+    client = DummyServiceRegistryClient()
+    publisher = HeartbeatPublisher(client)
+    publisher.container = DummyContainer(DummyService())
+    publisher.interval = 7
+    sleeps = []
+
+    async def fake_sleep(delay):
+        sleeps.append(delay)
+        if len(sleeps) >= 2:
+            raise asyncio.CancelledError()
+
+    with patch("asyncio.sleep", fake_sleep):
+        try:
+            await publisher._send_heartbeat()
+        except asyncio.CancelledError:
+            pass
+
+    assert sleeps == [7, 7]
+    assert client.calls == []
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_sleeps_after_error():
+    client = DummyServiceRegistryClient()
+    client.registry_admin_exchange = object()
+
+    async def boom(degraded, reason=None):
+        raise RuntimeError("broker down")
+
+    client.heartbeat = boom
+    publisher = HeartbeatPublisher(client)
+    publisher.container = DummyContainer(DummyService())
+    publisher.interval = 3
+    sleeps = []
+
+    async def fake_sleep(delay):
+        sleeps.append(delay)
+        raise asyncio.CancelledError()
+
+    with patch("asyncio.sleep", fake_sleep):
+        try:
+            await publisher._send_heartbeat()
+        except asyncio.CancelledError:
+            pass
+
+    assert sleeps == [3]

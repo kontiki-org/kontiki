@@ -25,6 +25,10 @@ def get_amqp_url(config, default_url=AMQP_DEFAULT_URL):
     return get_kontiki_parameter(config, "amqp.url", default_url)
 
 
+def is_amqp_required(config):
+    return get_kontiki_parameter(config, "amqp.required", True)
+
+
 def get_rpc_timeout(config):
     return get_kontiki_parameter(config, "amqp.rpc.timeout", 10)
 

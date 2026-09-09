@@ -2,6 +2,7 @@ import json
 
 from behave import given, then, when
 from runtime.process_manager import ServiceProcessManager
+from steps.amqp_required_steps import start_database_ops_service
 
 from kontiki.messaging.publisher.rpc import RpcError
 
@@ -25,6 +26,9 @@ def _stop_rpc_proxy_caller(context):
 def step_service_running_with_config(context):
     if not context.text or not context.text.strip():
         raise AssertionError("Configuration DocString is required.")
+    if context.active_suite_tag == "amqp_required":
+        start_database_ops_service(context, context.text)
+        return
     _stop_service_name_service(context)
     config_path = context.log_dir / "service_name_service.yaml"
     config_path.write_text(context.text.strip() + "\n", encoding="utf-8")

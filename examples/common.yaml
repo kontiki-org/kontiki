@@ -1,23 +1,16 @@
+# Shared by make run-*-service.
+# Omit formatters → Kontiki injects the default line format.
+# See docs/configuration.md.
+
 kontiki:
   amqp:
-    uri: amqp://guest:guest@localhost
+    url: amqp://guest:guest@localhost/
 
 logging:
-  version: 1
-  disable_existing_loggers: True
-  formatters:
-    default:
-      format: "%(asctime)s - %(name)s - %(levelname)s - %(flow_id)s - %(message)s - %(filename)s:%(lineno)d"
   handlers:
     console:
       class: logging.StreamHandler
-      formatter: default
       level: DEBUG
-  loggers:
-    kontiki:
-      handlers: ["console"]
-      level: DEBUG
-      propagate: False
   root:
-    handlers: ["console"]
+    handlers: [console]
     level: DEBUG

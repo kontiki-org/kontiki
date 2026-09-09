@@ -17,6 +17,7 @@ from kontiki.messaging.common import (
     declare_rpc_exchange,
     get_amqp_url,
     get_rpc_timeout,
+    is_amqp_required,
 )
 from kontiki.messaging.flow import apply_outbound_flow_id
 from kontiki.messaging.publisher.rpc import (
@@ -68,7 +69,9 @@ class Messenger(ServiceDelegate):
         # Create SSL context if configured.
         tls_ctx = create_tls_context(config)
 
-        self.connection = await connect_robust(amqp_url, ssl_context=tls_ctx)
+        self.connection = await connect_robust(
+            amqp_url, ssl_context=tls_ctx, fail_fast=self._fail_fast()
+        )
         self.channel = await self.connection.channel()
         # Create exchanges for async and sync communications
         self.event_exchange = await declare_event_exchange(
@@ -97,6 +100,15 @@ class Messenger(ServiceDelegate):
         else:
             await self._setup(self.container.config)
         self._started = True
+
+    def _fail_fast(self):
+        if self.container is None:
+            return True
+        return is_amqp_required(self.container.config)
+
+    def _require_amqp(self):
+        if not self._started:
+            raise RuntimeError("AMQP is not connected.")
 
     async def start(self):
         # Alias for standalone clients: start/stop feels more natural than setup/stop.
@@ -146,6 +158,7 @@ class Messenger(ServiceDelegate):
     async def publish(
         self, event_type, obj, reply_to=None, extra_headers=None, flow_id=None
     ):
+        self._require_amqp()
         if extra_headers is None:
             extra_headers = {}
 
@@ -164,6 +177,8 @@ class Messenger(ServiceDelegate):
                 Message(body=message, headers=headers), routing_key=event_type
             )
         except ChannelInvalidStateError:
+            if not self._fail_fast():
+                raise RuntimeError("AMQP is not connected.")
             log.info("Channel is in an invalid state. Attempting to reconnect...")
             await self.reconnect()
             await self.event_exchange.publish(
@@ -181,6 +196,7 @@ class Messenger(ServiceDelegate):
         flow_id=None,
         **kwargs,
     ):
+        self._require_amqp()
         cid = str(uuid.uuid4())
         loop = asyncio.get_running_loop()
 
@@ -210,6 +226,8 @@ class Messenger(ServiceDelegate):
         try:
             await publish_request()
         except ChannelInvalidStateError:
+            if not self._fail_fast():
+                raise RuntimeError("AMQP is not connected.")
             log.info("Channel is in an invalid state. Attempting to reconnect...")
             await self.reconnect()
             await publish_request()

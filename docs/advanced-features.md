@@ -12,9 +12,10 @@ features** that are easy to miss and worth knowing early.
 | Sync API | `@http` / `@rpc` |
 | Async reaction | `@on_event` |
 | Time-driven work | `@task` |
+| Local `@task` that must run even if RabbitMQ is down | `kontiki.amqp.required: false` |
 | Fleet health | registry + `degraded_on` |
 | Orchestrator liveness | `GET /live/{service_name}` |
-| Separate business vs platform in KontikiTUI | `kontiki.registration.group` |
+| Filter services by kind in KontikiTUI | `kontiki.registration.group` |
 | Crash visibility | let exceptions propagate |
 | Expected RPC failures | `rpc_error` + `RpcClientError.code` |
 | Retry event once then stop | `requeue_on_error` + `reject_on_redelivered` |
@@ -68,20 +69,27 @@ Prefer this over probing each worker’s own HTTP port. When `{service_name}` is
 the registry itself, **200** means the registry HTTP server is up (no
 self-registration required).
 
+**Gotcha:** With `kontiki.amqp.required: false`, `@task` and local HTTP can run
+while `/live/{service}` is still **503** (broker down, or the registry has not
+seen a heartbeat yet). Orchestrator liveness for those processes is the PID
+(systemd / container), not the registry probe.
+
 #### `kontiki.registration.group`
 
-**When:** KontikiTUI should distinguish day-to-day workloads from platform /
-mesh services (registry, gateways, …) without inventing a second registry.
+**When:** KontikiTUI should show one kind of service at a time (workloads, mesh,
+batch, a team, …) without inventing a second registry.
 
 ```yaml
 kontiki:
   registration:
-    group: platform   # default: business
+    group: platform   # default: business; any string
 ```
 
-Typical values: `business` (workloads) and `platform` (ops). Blank → `business`.
-KontikiTUI filters on this field; registry RPC and `/live/...` still see the
-**full** fleet — group is a label, not a visibility wall.
+`group` is a free-form label, not a closed set. `business` and `platform` are
+conventions, not the only values. Blank → `business`. KontikiTUI filters on this
+field; registry RPC and `/live/...` still see the **full** fleet — group is a
+view, not a visibility wall. Exception reporting is the same for every group
+(`report_uncaught_exceptions`, `publish_exception`, TUI / Monitor).
 
 **Gotcha:** The bus keeps working without a registry. What you lose is fleet
 visibility (and anything built on it: degraded signals, live probes,
@@ -428,12 +436,13 @@ await messenger.publish("alert.normalized", alert, flow_id=alert.alert_id)
 # or omit flow_id → Kontiki generates a 12-hex id and propagates it
 ```
 
-Logs then carry something like (filter sets the whole field, including brackets):
+Logs then carry the default columns (`short_instance_id`, padded `levelname` /
+`flow_id`). The filter sets the whole `flow_id` field, including brackets:
 
 ```text
-… - [flow=a1b2c3d4e5f6] - Message received on alert.normalized
-… - [flow=a1b2c3d4e5f6] - Call: get_recipients_for_alert(...)
-… - [no flow] - Polling USGS ...
+… - a1b2c3d4e5f6 - INFO     - [flow=a1b2c3d4e5f6]  - Message received on alert.normalized
+… - a1b2c3d4e5f6 - INFO     - [flow=a1b2c3d4e5f6]  - Call: get_recipients_for_alert(...)
+… - a1b2c3d4e5f6 - INFO     - [no flow]            - Polling USGS ...
 ```
 
 **Day to day:** in [KontikiTUI](https://github.com/kontiki-org/kontiki-tui) →
@@ -443,9 +452,10 @@ one place.
 
 **Gotcha:** If you declare your own `formatters`, Kontiki does not rewrite them —
 include `%(flow_id)s` (and `%(short_instance_id)s` / `%(service_name)s` if you
-want them in the line). When `formatters` is omitted, the default Kontiki
-format already includes `short_instance_id` and `flow_id`. Lines outside any
-handler context show `[no flow]`.
+want them in the line). Filters are still attached, so those fields exist on
+every record. When `formatters` is omitted, the default line already includes
+`short_instance_id` and `flow_id` (not `service_name` — that stays in the
+filename). Lines outside any handler context show `[no flow]`.
 
 ---
 
@@ -673,7 +683,7 @@ are not a dead-letter queue unless you configure one in RabbitMQ.
 
 ### `@task` — periodic work that stays in Kontiki
 
-**When:** Polling, sweeps, or other timer-driven logic that belongs to a service.
+**When:** Polling, sweeps, or calendar work that belongs to a service.
 The work keeps the same process, logs, registry health, messaging, and config as
 the rest of the service.
 
@@ -681,13 +691,48 @@ the rest of the service.
 @task(interval="app.poll_interval_seconds", immediate=True)
 async def poll(self):
     ...
+
+@task(cron="* * * * *")
+async def every_minute(self):
+    ...
 ```
 
-With config keys (see `@task` / `resolve_task_interval`), the interval can come
-from YAML.
+Runnable example: `examples/task/` (`make run-task-service`).
+
+Interval config keys resolve as a string argument (see `@task` /
+`resolve_task_interval`). Cron expressions use `use_config=True` when the
+value comes from YAML (`@task(cron="app.backup.schedule", use_config=True)`).
 
 **Gotcha:** Invalid or missing config should fail loudly at startup — prefer
-that over silent fallbacks in production paths.
+that over silent fallbacks in production paths. Two replicas mean two cron
+ticks; use a single instance or [kontiki-scheduler](https://github.com/kontiki-org/kontiki-scheduler)
+for fleet-wide competing consumers.
+
+### Optional AMQP — the work does not need the bus
+
+**When:** A `@task` (or local HTTP) does its job without RabbitMQ — a periodic
+database dump, a filesystem sweep — and that job must still run when the broker
+is down. When the broker is up, the same process should still get the Kontiki
+stack: registry, heartbeats, exception reporting, TUI / Monitor.
+
+```yaml
+kontiki:
+  amqp:
+    required: false
+```
+
+The task is independent of AMQP. HTTP and `@task` start without waiting for the
+broker. As soon as RabbitMQ is reachable, the service registers, heartbeats, and
+reports uncaught exceptions like any other Kontiki process. `publish` / `call`
+raise `RuntimeError("AMQP is not connected.")` while disconnected. There is no
+local buffer of messages or exceptions. A later broker outage does not stop the
+process.
+
+**Gotcha:** `registration.disable: true` hides the service forever. Optional AMQP
+still registers when the broker is up. If both are set, disable wins. `@rpc` /
+`@on_event` with `required: false` is valid: consumers start at the first
+successful connect. Orchestrator liveness is the PID, not registry
+`GET /live/{service}` (503 until the registry sees a heartbeat).
 
 ---
 
@@ -755,9 +800,12 @@ Default line shape when you omit `formatters`:
 ```
 
 **Gotcha:** `directory` alone does not create a file handler — declare a
-`FileHandler` / `RotatingFileHandler` / … yourself. Without `directory`, an
-explicit `filename` still works (legacy). Unsafe characters in `service_name`
-become `_` in the path.
+`FileHandler` / `RotatingFileHandler` / … yourself. If a file handler already
+has `filename` and `directory` is set, that filename is **ignored** (warning)
+and replaced by the Kontiki path. Without `directory`, an explicit `filename`
+still works (legacy). Unsafe characters in `service_name` become `_` in the
+path. If `loggers.kontiki` is omitted, it is injected so framework logs stay
+visible under `disable_existing_loggers: true`.
 
 ---
 
