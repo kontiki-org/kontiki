@@ -78,15 +78,21 @@ def test_apply_outbound_overwrites_header():
     assert headers[header] == "fresh"
 
 
-@pytest.mark.asyncio
-async def test_publish_sets_kontiki_flow_id_header():
+def _stub_connected_messenger():
     messenger = Messenger(standalone=True)
+    messenger._started = True
     messenger.serializer = MagicMock()
     messenger.serializer.dumps.return_value = b"{}"
     messenger.event_exchange = AsyncMock()
     messenger.container = None
     messenger.service_name = "test"
     messenger.instance_id = "inst"
+    return messenger
+
+
+@pytest.mark.asyncio
+async def test_publish_sets_kontiki_flow_id_header():
+    messenger = _stub_connected_messenger()
 
     await messenger.publish("evt", {"a": 1})
 
@@ -104,13 +110,7 @@ async def test_inbound_header_reused_on_child_publish():
     try:
         assert current_flow_id() == inbound_id
 
-        messenger = Messenger(standalone=True)
-        messenger.serializer = MagicMock()
-        messenger.serializer.dumps.return_value = b"{}"
-        messenger.event_exchange = AsyncMock()
-        messenger.container = None
-        messenger.service_name = "test"
-        messenger.instance_id = "inst"
+        messenger = _stub_connected_messenger()
 
         await messenger.publish("child", {})
         message = messenger.event_exchange.publish.await_args.args[0]
@@ -208,13 +208,7 @@ def test_prepare_logging_config_injects_filters():
 
 @pytest.mark.asyncio
 async def test_sticky_flow_within_same_context_two_publishes():
-    messenger = Messenger(standalone=True)
-    messenger.serializer = MagicMock()
-    messenger.serializer.dumps.return_value = b"{}"
-    messenger.event_exchange = AsyncMock()
-    messenger.container = None
-    messenger.service_name = "test"
-    messenger.instance_id = "inst"
+    messenger = _stub_connected_messenger()
 
     await messenger.publish("first", {})
     first = messenger.event_exchange.publish.await_args.args[0].headers[
