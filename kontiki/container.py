@@ -9,12 +9,13 @@ from kontiki.configuration.configuration import DEFAULT_LOGGING_CONFIGURATION
 from kontiki.configuration.merge import merge
 from kontiki.configuration.parameter import get_kontiki_parameter
 from kontiki.delegate import ServiceDelegate
-from kontiki.messaging.common import get_grace_seconds
+from kontiki.messaging.common import get_grace_seconds, is_amqp_required
 from kontiki.messaging.consumer.core import Consumer
 from kontiki.messaging.flow import prepare_logging_config
+from kontiki.messaging.publisher.messenger import Messenger
 from kontiki.registry.client.heartbeat_publisher import HeartbeatPublisher
 from kontiki.registry.client.registry_client import ServiceRegistryClient
-from kontiki.task.task import Task, resolve_task_interval
+from kontiki.task.task import Task, resolve_task_cron, resolve_task_interval
 from kontiki.utils import log
 from kontiki.web.web import HttpServer
 
@@ -62,6 +63,8 @@ class ServiceContainer:
         self.shutting_down = False
         self._stop_started = False
         self.amqp_consumer = None
+        self._amqp_required = True
+        self._amqp_setup_task = None
 
         self.service_registry_client = None
         if config_paths:
@@ -73,6 +76,7 @@ class ServiceContainer:
             raise RuntimeError("No service configuration provided.")
 
         self.service_name = resolve_service_name(service_cls, self.config)
+        self._amqp_required = is_amqp_required(self.config)
 
         logging_config = self.config.get("logging", DEFAULT_LOGGING_CONFIGURATION)
         logging.config.dictConfig(
@@ -101,11 +105,13 @@ class ServiceContainer:
             self.service_instance.config = self.config
 
         self.amqp_consumer = Consumer(self)
-
-        await self.setup_service_registry()
+        await self._prepare_registry_client()
         await self.setup_http_endpoints()
-        await self.setup_amqp_endpoints()
         await self.setup_delegates()
+        if self._amqp_required:
+            await self._setup_amqp()
+        else:
+            log.info("AMQP is optional; connecting in the background.")
 
         log.info("Service setup completed")
 
@@ -133,15 +139,21 @@ class ServiceContainer:
             setattr(self, attr_name, delegate)
 
         for delegate in self.delegates.values():
+            if isinstance(delegate, Messenger):
+                continue
             await delegate.setup()
 
-    async def setup_service_registry(self):
+    async def _prepare_registry_client(self):
         self.disable_service_registration = get_kontiki_parameter(
             self.config, "registration.disable", self.disable_service_registration
         )
         if self.disable_service_registration:
             return
         self.service_registry_client = ServiceRegistryClient(self)
+
+    async def setup_service_registry(self):
+        if self.service_registry_client is None:
+            return
         await self.service_registry_client.setup()
 
     # --------------------------------------------------------------------------
@@ -151,18 +163,30 @@ class ServiceContainer:
     async def start(self):
         if self.http_server is not None:
             await self.http_server.start()
-        if self._amqp_ready():
-            await self.amqp_consumer.start()
 
         await self.start_tasks()
 
         for delegate in self.delegates.values():
+            if isinstance(delegate, Messenger):
+                continue
             await delegate.start()
+
+        if not self._amqp_required:
+            self._amqp_setup_task = asyncio.create_task(self._setup_amqp())
 
     async def start_tasks(self):
         for attr_name in dir(self.service_instance):
             attr = getattr(self.service_instance, attr_name)
-            if hasattr(attr, "_task_interval"):
+            if hasattr(attr, "_task_cron"):
+                cron = resolve_task_cron(
+                    self.config, attr._task_cron, attr._task_use_config
+                )
+                immediate = attr._task_immediate
+                task = Task(None, attr, immediate, container=self, cron=cron)
+                log.debug("Starting %s task (cron=%s).", attr, cron)
+                self.tasks.append(task)
+                task.start()
+            elif hasattr(attr, "_task_interval"):
                 interval = resolve_task_interval(self.config, attr._task_interval)
                 immediate = attr._task_immediate
 
@@ -180,6 +204,14 @@ class ServiceContainer:
             return
         self._stop_started = True
         self.shutting_down = True  # blocks Messenger reconnect; gates AMQP prefetch
+
+        if self._amqp_setup_task and not self._amqp_setup_task.done():
+            self._amqp_setup_task.cancel()
+            try:
+                await self._amqp_setup_task
+            except asyncio.CancelledError:
+                pass
+            self._amqp_setup_task = None
 
         grace_seconds = get_grace_seconds(self.config)
 
@@ -220,7 +252,8 @@ class ServiceContainer:
 
         if self.service_registry_client:
             await self.service_registry_client.stop_accepting()
-            await self.service_registry_client.unregister()
+            if self.service_registry_client.registry_admin_exchange:
+                await self.service_registry_client.unregister()
 
     async def _drain_in_flight(self):
         drain_tasks = []
@@ -255,6 +288,15 @@ class ServiceContainer:
 
         if self.http_server:
             await self.http_server.drain()  # no-op if drain in-flight already ran
+
+    async def _setup_amqp(self):
+        await self.setup_service_registry()
+        await self.setup_amqp_endpoints()
+        if self._amqp_ready():
+            await self.amqp_consumer.start()
+        for delegate in self.delegates.values():
+            if isinstance(delegate, Messenger):
+                await delegate.setup()
 
     def _amqp_ready(self):
         return (

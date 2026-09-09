@@ -2,7 +2,7 @@
 	install test cov fmt lint check clean \
 	integration-test integration-test-single integration-test-multi \
 	integration-test-task integration-test-registry \
-	integration-test-service-name \
+	integration-test-service-name integration-test-amqp-required \
 	run-amqp down-amqp \
 	run-rpc-service run-rpc-example \
 	run-session-service run-session-example \
@@ -51,6 +51,7 @@ integration-test: run-amqp
 	@$(MAKE) integration-test-registry
 	@$(MAKE) integration-test-service-name
 	@$(MAKE) integration-test-logging
+	@$(MAKE) integration-test-amqp-required
 
 integration-test-single: run-amqp
 	@echo "Running integration tests (single_instance suite)..."
@@ -77,6 +78,10 @@ integration-test-service-name: run-amqp
 integration-test-logging: run-amqp
 	@echo "Running integration tests (logging suite)..."
 	$(PY) -m behave tests/integration --tags @logging --stop --no-skipped
+
+integration-test-amqp-required: run-amqp
+	@echo "Running integration tests (amqp_required suite)..."
+	$(PY) -m behave tests/integration --tags @amqp_required --stop --no-skipped
 
 # EXAMPLES
 # -----------------------------------------------------------------------------

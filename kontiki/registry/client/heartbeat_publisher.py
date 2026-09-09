@@ -69,6 +69,12 @@ class HeartbeatPublisher(ServiceDelegate):
         error_logged = False
         while True:
             try:
+                if not self.service_registry_client.registry_admin_exchange:
+                    await asyncio.sleep(
+                        self.interval if self.interval is not None else 10
+                    )
+                    continue
+
                 should_degrade, reason = self._evaluate_degraded()
 
                 # Normal state -> degraded state
@@ -91,21 +97,21 @@ class HeartbeatPublisher(ServiceDelegate):
                 await self.service_registry_client.heartbeat(
                     self._is_degraded, reason=reason
                 )
+                error_logged = False
 
                 if self.interval is not None:
                     await asyncio.sleep(self.interval)
                 else:
-                    # Default to 10 seconds if interval is not set
                     await asyncio.sleep(10)
 
             except asyncio.CancelledError:
                 log.info("Heartbeat task was cancelled.")
                 break
             except Exception as e:
-                # To avoid log messages to be printed indefinitely.
                 if not error_logged:
                     log.error("Error in heartbeat task: %s", e)
                     error_logged = True
+                await asyncio.sleep(self.interval if self.interval is not None else 10)
 
     def _evaluate_degraded(self):
         if not self.stop_condition:

@@ -13,6 +13,7 @@ from kontiki.messaging.common import (
     declare_event_exchange,
     declare_rpc_exchange,
     get_amqp_url,
+    is_amqp_required,
 )
 from kontiki.messaging.consumer.event import OnEventTask, normalize_event_types
 from kontiki.messaging.consumer.rpc import RpcTask
@@ -63,7 +64,10 @@ class Consumer:
 
     async def setup(self):
         tls_ctx = create_tls_context(self.container.config)
-        self.connection = await connect_robust(self.amqp_url, ssl_context=tls_ctx)
+        fail_fast = is_amqp_required(self.container.config)
+        self.connection = await connect_robust(
+            self.amqp_url, ssl_context=tls_ctx, fail_fast=fail_fast
+        )
         self.channel = await self.connection.channel()
         prefetch_count = get_kontiki_parameter(
             self.container.config, "amqp.max_pending_messages", 10

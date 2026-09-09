@@ -231,3 +231,16 @@ class RegistryUncaughtTaskTestService:
     @task(interval=10, immediate=True)
     async def raise_uncaught_task(self):
         raise Exception("uncaught task exception")
+
+
+class DatabaseOps:
+    def __init__(self):
+        self.count = 0
+
+    @task("app.ticks.interval")
+    async def tick(self):
+        self.count += 1
+
+    @http("/ticks", "GET")
+    async def ticks(self, request):
+        return {"count": self.count}

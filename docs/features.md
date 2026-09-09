@@ -1,11 +1,18 @@
 # Kontiki – Features
 
-Kontiki is a Python microservices framework built on AMQP (aio-pika) and asyncio.
+Kontiki is a Python runtime for distributed services, built on AMQP (aio-pika)
+and asyncio. Together with the registry, [KontikiTUI](https://github.com/kontiki-org/kontiki-tui),
+[kontiki-monitor](https://github.com/kontiki-org/kontiki-monitor), and
+[kontiki-scheduler](https://github.com/kontiki-org/kontiki-scheduler), it is
+**one stack** for business services, ops jobs, and monitoring. Everyday
+distributed-system needs stay in that model; extra tooling is for specialized
+problems, not the common path.
 
 - **Write only your business logic**: Kontiki manages connections to RabbitMQ, message routing (RPC, events, sessions, broadcast), service lifecycle and configuration merge for you.
 - **Run several instances of the same service to scale out**: Kontiki uses asyncio to handle many concurrent requests per process, and you can add more service instances to scale horizontally without dealing with threads yourself.
 - **Design service interactions as messages**: combine RPC, events, broadcast and per‑instance sessions to describe how services collaborate, while Kontiki takes care of the AMQP wiring for you.
 - **Keep environments aligned**: drive differences between development, staging and production through configuration and a unified way to start services, not ad‑hoc scripts.
+- **Same model for ops**: a backup dump, a notifier, and a domain service are the same kind of process — registry, exceptions, TUI — even when the work itself does not need the bus (`amqp.required: false`).
 
 This document summarizes the main features Kontiki offers out of the box.
 
@@ -125,12 +132,16 @@ Handlers that should receive session-scoped events use `@on_event("event_type", 
 
 ## Tasks (periodic)
 
-Tasks in Kontiki are **scheduled coroutines**: the container runs them on a fixed interval in the service event loop, so you can implement periodic work without an external scheduler.
+Tasks in Kontiki are **scheduled coroutines** in the service event loop: a fixed interval, or a local crontab expression.
 
-- **`@task(interval, immediate=True|False)`** : Registers a method to be run periodically. `immediate=True` runs it once at startup, then on the interval. The method can be async.
-- **Interval** : a number of seconds (literal), or a **config key string** resolved at service start (e.g. `@task("app.cleanup.interval")`). Use your own config namespace, not `kontiki.*`.
+- **`@task(interval=…, immediate=True|False)`** : Run periodically. `immediate=True` (the default for intervals) runs once at startup, then on the interval. The method can be async.
+- **Interval** : a number of seconds (literal), or a **config key string** resolved at service start (e.g. `@task("app.cleanup.interval")` or `@task(interval=10)`). Use your own config namespace, not `kontiki.*`.
+- **`@task(cron="0 2 * * *")`** : Unix crontab, 5 fields (`minute hour day month weekday`), process local timezone. `interval` and `cron` are mutually exclusive. Default `immediate=False` (wait until the next occurrence). `immediate=True` runs once at startup, then on the calendar. A tick that wakes late still runs; the next occurrence is computed from now (no catch-up of missed ticks while the process was down). Each replica runs the task.
+- **Cron from config** : `@task(cron="app.backup.schedule", use_config=True)`. Missing or invalid expressions fail at startup.
 
-For **cross-service calendar triggers** (cron in configuration, events on the bus), use [**kontiki-scheduler**](https://github.com/kontiki-org/kontiki-scheduler). Use `@task` for periodic work **inside** a service.
+Runnable example: `examples/task/` (`make run-task-service`) — an interval task every 10 seconds, and `@task(cron="* * * * *")` which logs once a minute.
+
+For **cross-service calendar triggers** (cron in configuration, events on the bus, competing consumers), use [**kontiki-scheduler**](https://github.com/kontiki-org/kontiki-scheduler). Use `@task` for work **inside** a service.
 
 ---
 
@@ -179,7 +190,36 @@ python -m kontiki.runner.__main__ <module.path.ServiceClass> --config config.yam
 
 - **Merge** : Multiple YAML config files can be merged with `--config file1.yaml --config file2.yaml`. Nested dicts are combined; new keys from later files are added. The same leaf key with the same value logs a warning; conflicting leaf values raise an error (later files do **not** override earlier ones).
 - **Parameters** : `get_parameter(config, "path.to.key", default)` and `get_kontiki_parameter(config, "amqp.url", default)` read from the merged config using **dot-separated paths** (e.g. `app.http.port`). Use your own namespace (e.g. `app.*`) for application settings; **do not use the `kontiki.*` namespace** for your own keys.
-- **Paths from config** : For HTTP routes and event types, you can pass a config key and set `use_config=True` so the value is read from config at startup (e.g. different paths per environment). For task intervals, pass a config key string instead of a number (no `use_config` flag).
+- **Paths from config** : For HTTP routes and event types, you can pass a config key and set `use_config=True` so the value is read from config at startup (e.g. different paths per environment). For task intervals, pass a config key string instead of a number (no `use_config` flag). For crontab expressions, use `@task(cron="app.backup.schedule", use_config=True)`.
+
+---
+
+## Logging
+
+Top-level `logging` block (Python dictConfig). Kontiki injects identity and
+`flow_id` filters on every handler.
+
+- **Files** : Set `logging.directory` (recommended) and declare a `FileHandler` / `RotatingFileHandler` without `filename`. Kontiki writes `{directory}/{service_name}-{short_instance_id}.log` so replicas do not overwrite each other and KontikiTUI / lnav can join files to the registry. Without `directory`, an explicit `filename` is kept.
+- **Line format** : If you omit `formatters`, the default is `short_instance_id`, padded `levelname`, padded `flow_id`, then the message. The **service name is not in the line** — it is in the filename. `%(service_name)s` and `%(short_instance_id)s` remain on the record for custom formatters. If you declare your own formatters, include `%(flow_id)s` yourself; Kontiki does not rewrite them.
+- **`flow_id`** : `[flow=…]` inside `@http` / `@rpc` / `@on_event` / `@task`, `[no flow]` otherwise. Same value as AMQP header and HTTP response `kontiki_flow_id`.
+- **Framework logs** : If `loggers.kontiki` is omitted, Kontiki injects it (`INFO`, propagate) so `disable_existing_loggers: true` does not hide framework lines.
+
+See [configuration.md](configuration.md) and [advanced-features.md](advanced-features.md).
+
+---
+
+## AMQP broker
+
+Use `kontiki.amqp.required: false` when the work itself does not need the bus
+and must still run if RabbitMQ is down — for example a periodic database dump.
+When the broker is up, the same process still gets the full stack: registry,
+heartbeats, exception reporting, TUI / Monitor.
+
+- **Required (default)** : `kontiki.amqp.required: true`. If RabbitMQ is unreachable at start, setup fails and the process does not stay up.
+- **Optional** : `required: false`. `@http` and `@task` start even when the broker is down. As soon as it is reachable, the service uses it normally. A later broker outage does not stop the process. `publish` / `call` raise `RuntimeError` while disconnected; there is no local buffer of messages or exceptions.
+- **vs `registration.disable`** : `kontiki.registration.disable: true` never registers. Optional AMQP registers when the broker is up. If both are set, disable wins (no registry client).
+
+Orchestrator liveness for `required: false` services is the **process** (systemd / PID / container). Registry `GET /live/{service}` stays **503** until the registry sees the instance, even if `@task` is already running.
 
 ---
 
@@ -187,17 +227,17 @@ python -m kontiki.runner.__main__ <module.path.ServiceClass> --config config.yam
 
 If the Kontiki registry service is running and registration is not disabled, the service registers itself and can:
 
-- **Registration group** : Each registration includes a first-class `group` field (`kontiki.registration.group`, default `business`). Typical values: `business` (day-to-day workloads) and `platform` (ops / mesh). Blank or whitespace is normalized to `business`. UIs can filter on this field; registry RPC and live probes still see the full fleet.
+- **Registration group** : Each registration includes a first-class `group` field (`kontiki.registration.group`, default `business`). It is a **free-form label** — as many groups as you need (`business`, `platform`, `batch`, a team name, …). Blank or whitespace is normalized to `business`. UIs (KontikiTUI) filter on this field to show one kind of service at a time; registry RPC and live probes still see the full fleet. Group is a view, not a visibility wall.
 - **Configuration** : Optionally expose selected config paths to the registry (for UIs) via `kontiki.registration.configuration.public_paths`.
 - **Heartbeats** : Sent automatically at a configurable interval.
 - **Degraded state** : Decorate a method with `@degraded_on`; it is called at each heartbeat. Return `True` or `(True, reason)` to report the service as degraded. On transition to `degraded`, `registry.instance.status_changed` includes an optional `reason` for alerting. Use your own logic (e.g. error count, dependency health).
-- **Live probe** : The registry HTTP API exposes `GET /live/{service_name}` for orchestrators (Docker Compose / Kubernetes). Returns **200** if at least one instance is `active` or `degraded` (recent heartbeat), **503** otherwise. When `{service_name}` is the registry's own name (e.g. `ServiceRegistry`), returns **200** as soon as the registry HTTP server is up (no self-registration required). Prefer this over in-service HTTP probes on bus-only workers.
+- **Live probe** : The registry HTTP API exposes `GET /live/{service_name}` for orchestrators (Docker Compose / Kubernetes). Returns **200** if at least one instance is `active` or `degraded` (recent heartbeat), **503** otherwise. When `{service_name}` is the registry's own name (e.g. `ServiceRegistry`), returns **200** as soon as the registry HTTP server is up (no self-registration required). Prefer this over in-service HTTP probes on bus-only workers. With `amqp.required: false`, `/live/{service}` is **503** until the broker and registry see the instance, even if local HTTP or `@task` already run — use the process as the orchestrator probe in that case.
 - **Event / exception tracking** : The registry can record events and reported exceptions for observability. Clients can call `ServiceRegistryProxy(messenger).get_services()`, `get_events()`, `get_exceptions()`, and filter by status (e.g. degraded).
-- **Uncaught exceptions** : By default (`kontiki.registration.report_uncaught_exceptions: true`), uncaught exceptions in RPC, unmapped HTTP, `@on_event`, and `@task` entrypoints are reported automatically via the same path as `ServiceDelegate.publish_exception`. Mapped HTTP errors (`errors=` on `@http`) and `rpc_error` returns are not reported. Set the option to `false` to opt out. Manual reporting with `publish_exception(exception, context=...)` remains available.
+- **Uncaught exceptions** : By default (`kontiki.registration.report_uncaught_exceptions: true`), uncaught exceptions in RPC, unmapped HTTP, `@on_event`, and `@task` entrypoints are reported automatically via the same path as `ServiceDelegate.publish_exception`. That path does not depend on `registration.group`: an ops dump and a domain service have the same reporting bar. Mapped HTTP errors (`errors=` on `@http`) and `rpc_error` returns are not reported. Set the option to `false` to opt out. Manual reporting with `publish_exception(exception, context=...)` remains available.
 - **Lifecycle events** : The registry also publishes AMQP events on the standard event exchange when instances register or deregister, when computed status changes, or when a client reports an exception. Event types: `registry.instance.registered`, `registry.instance.deregistered`, `registry.instance.status_changed`, `registry.exception.recorded`. Subscribe with `@on_event(...)` like any other event.
 - **Status changes** : Instance status is `active`, `degraded`, or `down`. `registry.instance.status_changed` is published on transitions (not on register/unregister). A newly registered instance is `down` until its first heartbeat; missed heartbeats mark it `down` after `heartbeat_interval × 3`.
 
-If the registry is unavailable at startup, registration is skipped and the service still runs.
+If the registry **service** is down but the broker is up, the process still starts: registration has no consumer until the registry is back. If the **broker** is unreachable, default `amqp.required: true` fails startup.
 
 ---
 
@@ -227,6 +267,6 @@ Kontiki ships with lightweight testing utilities under `kontiki.testing` to help
 
 For Behave integration tests using these helpers, see this repository's suite in `tests/integration/` and run:
 
-- `make integration-test` (runs `@single_instance`, `@multi_instance`, `@task_service`, `@task_config_service`, and `@registry`)
+- `make integration-test` (runs `@single_instance`, `@multi_instance`, `@task_service`, `@task_config_service`, `@registry`, `@service_name`, `@logging`, and `@amqp_required`)
 
 The suite covers RPC, events, tasks, registry, and multi-instance config merge (e.g. separate HTTP ports in complementary config files, without conflicting leaf keys).

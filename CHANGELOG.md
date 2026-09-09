@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.11.0] - 2026-09-09
+
+- `@task(cron="…")`: 5-field crontab in the process local timezone, complementary
+  to `@task(interval=…)`. Default `immediate=False`. Config:
+  `@task(cron="app.backup.schedule", use_config=True)`. Late ticks still run; no
+  catch-up. Example: `examples/task/` (`make run-task-service`).
+- `kontiki.amqp.required` (default `true`): fail-fast at start if the broker is
+  unreachable. `false`: `@http` / `@task` start even when RabbitMQ is down (work
+  that does not need the bus, e.g. a database dump); registry, heartbeats, and
+  exception reporting connect when it is up. `publish` / `call` raise while
+  disconnected. Distinct from `registration.disable`. Integration suite
+  `@amqp_required`.
+- `kontiki.registration.group` is a free-form TUI filter (not a closed set).
+  Exception reporting is the same for every group.
+- Docs: one-stack positioning (business, ops, monitoring); logging reference
+  aligned with injected filters / default formatter / `logging.directory`.
+  Examples (`examples/common.yaml`) use console `StreamHandler` and inherit the
+  default formatter.
+
 ## [1.10.0] - 2026-09-05
 
 - Registry registration includes `kontiki_version` (framework version at
@@ -30,15 +49,14 @@
   default formatter, and a propagating `kontiki` logger so framework logs stay
   visible. Service identity filter on all handlers (`service_name` /
   `short_instance_id` available to custom formatters).
-- Documents the recommended mode in `docs/advanced-features.md`; contract in
-  `docs/kontiki-logging-filename.md`; example and reference in
-  `docs/kontiki-config.example.yaml` and `docs/configuration.md`. Integration
-  suite `@logging`.
+- Documents the recommended mode in `docs/advanced-features.md`; example and
+  reference in `docs/kontiki-config.example.yaml` and `docs/configuration.md`.
+  Integration suite `@logging`.
 
 ## [1.7.1] - 2026-09-02
 
-- Fixes `@on_event(..., in_session=True)` queue topology: each instance declares `{service}.{event}.{instance_id}.queue` (same naming pattern as `broadcast`) so session-targeted events are not competed for by other replicas. See `docs/fix-in-session-queue-topology.md`.
-- Fixes registry `register_again` signal: each instance declares `{service}.{instance_id}.register_again.queue` instead of a shared `register_again.queue` for the whole vhost. See `docs/fix-register-again-queue-topology.md`.
+- Fixes `@on_event(..., in_session=True)` queue topology: each instance declares `{service}.{event}.{instance_id}.queue` (same naming pattern as `broadcast`) so session-targeted events are not competed for by other replicas.
+- Fixes registry `register_again` signal: each instance declares `{service}.{instance_id}.register_again.queue` instead of a shared `register_again.queue` for the whole vhost.
 - Session example publishes repeatedly on one session so multi-instance pinning can be checked with two `run-session-service` terminals.
 
 ## [1.7.0] - 2026-08-29

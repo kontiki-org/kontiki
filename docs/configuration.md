@@ -48,10 +48,19 @@ for fixed platform targets.
 | Key | Default | Description |
 |-----|---------|-------------|
 | `kontiki.amqp.url` | `amqp://guest:guest@localhost/` | AMQP connection URL. |
+| `kontiki.amqp.required` | `true` | `true`: fail-fast at start if the broker is unreachable. `false`: the local work (`@task`, `@http`) does not need AMQP and must run even if the broker is down; registry and exception reporting connect when it is up. Distinct from `kontiki.registration.disable`. |
 | `kontiki.amqp.rpc.timeout` | `10` | RPC call timeout in seconds. |
 | `kontiki.amqp.serialization` | `pickle` | AMQP message format: `pickle` (supported). `json` is deprecated — logs a warning at startup; removal planned in a future major release. |
 | `kontiki.amqp.max_pending_messages` | `10` | Consumer prefetch (QoS): max unacknowledged messages per consumer. Limits how many messages a single instance can hold before acknowledging; useful for load balancing and backpressure. |
 | `kontiki.amqp.tls` | `{}` | Optional TLS. See below. |
+
+`amqp.required: false` is for work that does not use the bus and must still run
+if RabbitMQ is down — typically a periodic `@task` such as a database dump.
+When the broker is reachable, the process still registers and reports exceptions
+to the registry (TUI / Monitor). `registration.disable: true` never registers.
+If both are set, disable wins (no registry client). There is no local buffer:
+`publish` / `call` raise while disconnected. Losing the broker after start does
+not stop the process.
 
 ### `kontiki.amqp.tls`
 
@@ -80,9 +89,9 @@ Used when the service registers with a Kontiki registry.
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `kontiki.registration.disable` | `False` | Set to `true` to disable registration. |
+| `kontiki.registration.disable` | `False` | Set to `true` to disable registration (never join the registry). Distinct from `kontiki.amqp.required: false`, which still registers once the broker is reachable. |
 | `kontiki.registration.delay` | `2` | Delay in seconds before sending the first registration. |
-| `kontiki.registration.group` | `business` | Logical registration group exposed to UIs (e.g. `business`, `platform`). Blank / whitespace is normalized to `business`. |
+| `kontiki.registration.group` | `business` | Free-form label for UI filters (any string). Blank / whitespace is normalized to `business`. Common conventions: `business`, `platform`. Not a closed set. |
 | `kontiki.registration.report_uncaught_exceptions` | `True` | When `true`, uncaught exceptions in RPC, HTTP (unmapped), `@on_event`, and `@task` entrypoints are reported to the registry (same path as `publish_exception`). Set to `false` to opt out. |
 | `kontiki.registration.configuration.public_paths` | `None` | List of config paths to expose to the registry (e.g. for UI). If set, only those paths are sent; otherwise no config is sent. |
 
@@ -114,17 +123,32 @@ For services that expose HTTP entrypoints (`@http`).
 ## `logging` (top-level)
 
 Python [`dictConfig`](https://docs.python.org/3/library/logging.config.html)
-schema, with Kontiki extensions stripped before `dictConfig` runs.
+schema. Kontiki strips its own keys (`directory`), then injects filters and
+missing defaults before `dictConfig` runs.
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `logging.directory` | *(unset)* | **Recommended** for file logs. When set, every `FileHandler` subclass gets filename `{directory}/{service_name}-{short_instance_id}.log` (omit `handlers.*.filename`). Without it, explicit `filename` remains valid (legacy). |
+| `logging.directory` | *(unset)* | **Recommended** for file logs. When set, every `FileHandler` subclass gets `{directory}/{service_name}-{short_instance_id}.log` (12-hex prefix of the instance UUID). Omit `handlers.*.filename`; an explicit `filename` is ignored (warning). The directory is created if needed. Empty or non-string → fail fast. Without `directory`, explicit `filename` is kept (legacy). |
 | `logging.version` | `1` (injected if omitted) | dictConfig version. |
 | `logging.disable_existing_loggers` | `true` (injected if omitted) | Explicit `false` is preserved. |
-| `logging.formatters` / `handlers` / `root` | see defaults | Standard dictConfig. If `formatters` is omitted, Kontiki injects a default format with `short_instance_id`, padded `levelname` / `flow_id`. |
+| `logging.formatters` | default formatter if omitted | If omitted, Kontiki injects `default` and assigns it to handlers that have no `formatter`. Custom formatters are left as written. |
+| `logging.loggers.kontiki` | `{level: INFO, propagate: true}` if omitted | Keeps framework logs visible when `disable_existing_loggers` is true. |
+| `logging.handlers` / `root` | see [example](kontiki-config.example.yaml) | Standard dictConfig. `directory` alone does not create a file handler — declare `FileHandler` / `RotatingFileHandler` / … yourself. |
 
-See [advanced-features.md](advanced-features.md) (`logging.directory`) and
-[kontiki-logging-filename.md](kontiki-logging-filename.md) for the full contract.
+**Always injected** (not YAML keys):
+
+- Filter `kontiki_flow_id` on every handler — `%(flow_id)s` is `[flow=…]` or `[no flow]`.
+- Filter `kontiki_service_identity` on every handler — `%(service_name)s` and `%(short_instance_id)s` on every record. The default line uses `short_instance_id` only; the service name stays in the **filename** (and registry / TUI).
+
+Default line when `formatters` is omitted:
+
+```text
+%(asctime)s - %(short_instance_id)s - %(levelname)-8s - %(flow_id)-20s - %(message)s
+```
+
+Unsafe characters in `service_name` become `_` in the file path.
+
+See [advanced-features.md](advanced-features.md) (`logging.directory`, `flow_id`).
 
 ---
 

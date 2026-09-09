@@ -27,3 +27,6 @@ dist/
 # Integration test artifacts
 logs/
 
+# Local working notes (explorations, specs) — not public docs
+notes/
+

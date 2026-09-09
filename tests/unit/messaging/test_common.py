@@ -4,6 +4,7 @@ from kontiki.messaging.common import (
     get_amqp_url,
     get_grace_seconds,
     get_rpc_timeout,
+    is_amqp_required,
 )
 from kontiki.messaging.publisher.messenger import Messenger
 from kontiki.utils import get_kontiki_header_name
@@ -79,6 +80,16 @@ def test_get_grace_seconds_without_config_uses_default():
 def test_get_grace_seconds_with_config():
     config = {"kontiki": {"shutdown": {"grace_seconds": 5}}}
     assert get_grace_seconds(config) == 5
+
+
+def test_is_amqp_required_defaults_true():
+    assert is_amqp_required({}) is True
+    assert is_amqp_required({"kontiki": {"amqp": {"url": "amqp://x/"}}}) is True
+
+
+def test_is_amqp_required_false():
+    config = {"kontiki": {"amqp": {"required": False}}}
+    assert is_amqp_required(config) is False
 
 
 def test_messenger_service_headers_timestamp_is_utc_iso_string():

@@ -1,4 +1,7 @@
 import asyncio
+from datetime import datetime
+
+from croniter import croniter
 
 from kontiki.configuration.parameter import get_parameter
 from kontiki.runtime.handler_scope import (
@@ -12,8 +15,9 @@ from kontiki.utils import log
 
 
 class Task:
-    def __init__(self, interval, user_task, immediate=True, container=None):
+    def __init__(self, interval, user_task, immediate=True, container=None, cron=None):
         self.interval = interval
+        self.cron = cron
         self.user_task = user_task
         self.immediate = immediate
         self.container = container
@@ -66,7 +70,10 @@ class Task:
             await self._execute_user_task()
 
         while self.running:
-            await asyncio.sleep(self.interval)
+            if self.cron is not None:
+                await asyncio.sleep(seconds_until_next_cron(self.cron))
+            else:
+                await asyncio.sleep(self.interval)
             if not self.running:
                 break
             await self._execute_user_task()
@@ -92,6 +99,32 @@ class Task:
             self._current_iteration = None
 
 
+def validate_cron_expression(expr):
+    if not isinstance(expr, str) or not expr.strip():
+        raise ValueError(
+            f"Task cron must be a 5-field crontab expression, got {expr!r}."
+        )
+    fields = expr.split()
+    if len(fields) != 5:
+        raise ValueError(
+            "Task cron must be a 5-field crontab expression "
+            f"(minute hour day month weekday), got {len(fields)} field(s): "
+            f"{expr!r}."
+        )
+    if not croniter.is_valid(expr):
+        raise ValueError(f"Invalid crontab expression: {expr!r}.")
+
+
+def seconds_until_next_cron(cron_expr, now=None):
+    if now is None:
+        now = datetime.now()
+    nxt = croniter(cron_expr, now).get_next(datetime)
+    delay = (nxt - now).total_seconds()
+    if delay < 0:
+        return 0
+    return delay
+
+
 def resolve_task_interval(config, interval):
     if type(interval) in (int, float):
         return interval
@@ -109,15 +142,45 @@ def resolve_task_interval(config, interval):
     )
 
 
-def task(interval, immediate=True):
-    if type(interval) not in (int, float) and not isinstance(interval, str):
+def resolve_task_cron(config, cron, use_config):
+    if use_config:
+        value = get_parameter(config, cron)
+        validate_cron_expression(value)
+        return value
+    validate_cron_expression(cron)
+    return cron
+
+
+def task(interval=None, immediate=None, *, cron=None, use_config=False):
+    if interval is not None and cron is not None:
+        raise ValueError("task(): 'interval' and 'cron' are mutually exclusive.")
+    if interval is None and cron is None:
+        raise ValueError("task(): pass interval or cron.")
+    if use_config and cron is None:
+        raise ValueError("task(): use_config=True only applies to cron.")
+    if cron is not None:
+        if not isinstance(cron, str) or not cron.strip():
+            raise TypeError(
+                "Task cron must be a crontab expression or config key string, "
+                f"got {cron!r}."
+            )
+        if not use_config:
+            validate_cron_expression(cron)
+    elif type(interval) not in (int, float) and not isinstance(interval, str):
         raise TypeError(
             f"Task interval must be a number or config key string, "
             f"got {type(interval).__name__}."
         )
 
+    if immediate is None:
+        immediate = cron is None
+
     def decorator(func):
-        func._task_interval = interval
+        if cron is not None:
+            func._task_cron = cron
+            func._task_use_config = use_config
+        else:
+            func._task_interval = interval
         func._task_immediate = immediate
         return func
 

@@ -5,6 +5,7 @@ import pytest
 
 from kontiki.container import ServiceContainer
 from kontiki.delegate import ServiceDelegate
+from kontiki.messaging.publisher.messenger import Messenger
 
 
 class _StubService:
@@ -174,3 +175,30 @@ async def test_stop_waits_for_amqp_in_flight_when_drain_completes():
     await container.stop()
 
     assert "amqp.force_close" in calls
+
+
+@pytest.mark.asyncio
+async def test_optional_amqp_setup_starts_without_broker():
+    container = ServiceContainer(
+        _StubService,
+        version="test",
+        config_paths=None,
+        disable_service_registration=True,
+        config={
+            "kontiki": {
+                "amqp": {"required": False},
+                "registration": {"disable": True},
+            }
+        },
+    )
+    await container.setup()
+    await container.start()
+    assert container._amqp_setup_task is not None
+    await container.stop()
+
+
+@pytest.mark.asyncio
+async def test_publish_raises_when_amqp_is_not_connected():
+    messenger = Messenger(standalone=True)
+    with pytest.raises(RuntimeError, match="AMQP is not connected"):
+        await messenger.publish("event", "payload")
