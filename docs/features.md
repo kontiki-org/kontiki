@@ -2,8 +2,7 @@
 
 Kontiki is a Python runtime for distributed services, built on AMQP (aio-pika)
 and asyncio. Together with the registry, [KontikiTUI](https://github.com/kontiki-org/kontiki-tui),
-[kontiki-monitor](https://github.com/kontiki-org/kontiki-monitor), and
-[kontiki-scheduler](https://github.com/kontiki-org/kontiki-scheduler), it is
+and [kontiki-monitor](https://github.com/kontiki-org/kontiki-monitor), it is
 **one stack** for business services, ops jobs, and monitoring. Everyday
 distributed-system needs stay in that model; extra tooling is for specialized
 problems, not the common path.
@@ -140,8 +139,6 @@ Tasks in Kontiki are **scheduled coroutines** in the service event loop: a fixed
 - **Cron from config** : `@task(cron="app.backup.schedule", use_config=True)`. Missing or invalid expressions fail at startup.
 
 Runnable example: `examples/task/` (`make run-task-service`) — an interval task every 10 seconds, and `@task(cron="* * * * *")` which logs once a minute.
-
-For **cross-service calendar triggers** (cron in configuration, events on the bus, competing consumers), use [**kontiki-scheduler**](https://github.com/kontiki-org/kontiki-scheduler). Use `@task` for work **inside** a service.
 
 ---
 

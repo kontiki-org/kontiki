@@ -72,16 +72,15 @@ see `docs/features.md`.
 
 Kontiki is not only the Python runtime. The suite is **one stack** for business
 workloads, ops services, and monitoring: the same process model, the same
-registry, the same terminal UI. Scheduling, fleet visibility, and alerting stay
-on that model so a crontab, a metrics sidecar, or an alerting product is not
-the default for everyday needs. Adopt third-party tools when the problem is
-specialized (long-term metrics store, tracing platform, IAM) — not for the
-common path.
+registry, the same terminal UI. Calendar work (`@task`), fleet visibility, and
+alerting stay on that model so a crontab, a metrics sidecar, or an alerting
+product is not the default for everyday needs. Adopt third-party tools when the
+problem is specialized (long-term metrics store, tracing platform, IAM) — not
+for the common path.
 
 | Component | Role |
 |-----------|------|
 | **Kontiki** (this repo) | Service runtime — entrypoints, messaging, registry client, config, testing |
-| [**kontiki-scheduler**](https://github.com/kontiki-org/kontiki-scheduler) | Declarative cron on the bus — static YAML schedules publish `{name}.schedule_task.requested` (replaces external crontab) |
 | [**kontiki-tui**](https://github.com/kontiki-org/kontiki-tui) | Terminal UI over the registry and local logs — browse services, filter by `flow_id`, inspect events and exceptions |
 | [**kontiki-monitor**](https://github.com/kontiki-org/kontiki-monitor) | Fleet checks, registry signals, and host disk alerts |
 

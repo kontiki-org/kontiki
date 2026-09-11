@@ -704,9 +704,8 @@ Interval config keys resolve as a string argument (see `@task` /
 value comes from YAML (`@task(cron="app.backup.schedule", use_config=True)`).
 
 **Gotcha:** Invalid or missing config should fail loudly at startup — prefer
-that over silent fallbacks in production paths. Two replicas mean two cron
-ticks; use a single instance or [kontiki-scheduler](https://github.com/kontiki-org/kontiki-scheduler)
-for fleet-wide competing consumers.
+that over silent fallbacks in production paths. Each replica runs the task:
+two instances mean two ticks.
 
 ### Optional AMQP — the work does not need the bus
 
