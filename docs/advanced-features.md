@@ -725,7 +725,7 @@ kontiki:
 The task is independent of AMQP. HTTP and `@task` start without waiting for the
 broker. As soon as RabbitMQ is reachable, the service registers, heartbeats, and
 reports uncaught exceptions like any other Kontiki process. `publish` / `call`
-raise `RuntimeError("AMQP is not connected.")` while disconnected. There is no
+raise `AmqpDisconnectedError` while disconnected. There is no
 local buffer of messages or exceptions. A later broker outage does not stop the
 process.
 
@@ -798,7 +798,7 @@ kontiki:
 Default line shape when you omit `formatters`:
 
 ```text
-%(asctime)s - %(short_instance_id)s - %(levelname)s - %(flow_id)-20s - %(message)s
+%(asctime)s - %(short_instance_id)s - %(levelname)s - %(flow_id)-19s - %(message)s
 ```
 
 **Gotcha:** `directory` alone does not create a file handler — declare a

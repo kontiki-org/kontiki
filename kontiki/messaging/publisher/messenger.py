@@ -31,6 +31,11 @@ from kontiki.messaging.serialization import DEFAULT_SERIALIZATION, Serializer
 from kontiki.utils import KONTIKI, get_kontiki_header_name, log, setup_logger
 
 
+class AmqpDisconnectedError(Exception):
+    def __init__(self):
+        super().__init__("AMQP is not connected.")
+
+
 class Messenger(ServiceDelegate):
     def __init__(
         self,
@@ -108,7 +113,7 @@ class Messenger(ServiceDelegate):
 
     def _require_amqp(self):
         if not self._started:
-            raise RuntimeError("AMQP is not connected.")
+            raise AmqpDisconnectedError()
 
     async def start(self):
         # Alias for standalone clients: start/stop feels more natural than setup/stop.
@@ -178,7 +183,7 @@ class Messenger(ServiceDelegate):
             )
         except ChannelInvalidStateError:
             if not self._fail_fast():
-                raise RuntimeError("AMQP is not connected.")
+                raise AmqpDisconnectedError()
             log.info("Channel is in an invalid state. Attempting to reconnect...")
             await self.reconnect()
             await self.event_exchange.publish(
@@ -227,7 +232,7 @@ class Messenger(ServiceDelegate):
             await publish_request()
         except ChannelInvalidStateError:
             if not self._fail_fast():
-                raise RuntimeError("AMQP is not connected.")
+                raise AmqpDisconnectedError()
             log.info("Channel is in an invalid state. Attempting to reconnect...")
             await self.reconnect()
             await publish_request()

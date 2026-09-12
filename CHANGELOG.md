@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.12.0] - 2026-09-12
+
+- Messenger `publish` / `call` raise `AmqpDisconnectedError` (from
+  `kontiki.messaging`) when AMQP is not connected, including during
+  `reconnect()` and when `amqp.required: false`. Callers that caught
+  `RuntimeError` on disconnect must catch `AmqpDisconnectedError`.
+- Registry client publish (register, heartbeat, exception, unregister) logs at
+  `debug` instead of `info`.
+- Default log format pads `flow_id` to 19 (`%(flow_id)-19s`), matching
+  `[flow=` + 12 hex + `]`.
+
 ## [1.11.1] - 2026-09-12
 
 - `@rpc` / `@on_event` get a `flow_id` at handler entry (reuse inbound

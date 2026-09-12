@@ -5,6 +5,7 @@ import pytest
 
 from kontiki.container import ServiceContainer
 from kontiki.delegate import ServiceDelegate
+from kontiki.messaging import AmqpDisconnectedError
 from kontiki.messaging.publisher.messenger import Messenger
 
 
@@ -200,5 +201,5 @@ async def test_optional_amqp_setup_starts_without_broker():
 @pytest.mark.asyncio
 async def test_publish_raises_when_amqp_is_not_connected():
     messenger = Messenger(standalone=True)
-    with pytest.raises(RuntimeError, match="AMQP is not connected"):
+    with pytest.raises(AmqpDisconnectedError):
         await messenger.publish("event", "payload")

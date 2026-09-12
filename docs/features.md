@@ -213,7 +213,7 @@ When the broker is up, the same process still gets the full stack: registry,
 heartbeats, exception reporting, TUI / Monitor.
 
 - **Required (default)** : `kontiki.amqp.required: true`. If RabbitMQ is unreachable at start, setup fails and the process does not stay up.
-- **Optional** : `required: false`. `@http` and `@task` start even when the broker is down. As soon as it is reachable, the service uses it normally. A later broker outage does not stop the process. `publish` / `call` raise `RuntimeError` while disconnected; there is no local buffer of messages or exceptions.
+- **Optional** : `required: false`. `@http` and `@task` start even when the broker is down. As soon as it is reachable, the service uses it normally. A later broker outage does not stop the process. `publish` / `call` raise `AmqpDisconnectedError` while disconnected; there is no local buffer of messages or exceptions.
 - **vs `registration.disable`** : `kontiki.registration.disable: true` never registers. Optional AMQP registers when the broker is up. If both are set, disable wins (no registry client).
 
 Orchestrator liveness for `required: false` services is the **process** (systemd / PID / container). Registry `GET /live/{service}` stays **503** until the registry sees the instance, even if `@task` is already running.
