@@ -143,7 +143,7 @@ missing defaults before `dictConfig` runs.
 Default line when `formatters` is omitted:
 
 ```text
-%(asctime)s - %(short_instance_id)s - %(levelname)-8s - %(flow_id)-20s - %(message)s
+%(asctime)s - %(short_instance_id)s - %(levelname)s - %(flow_id)-20s - %(message)s
 ```
 
 Unsafe characters in `service_name` become `_` in the file path.

@@ -197,7 +197,7 @@ Top-level `logging` block (Python dictConfig). Kontiki injects identity and
 `flow_id` filters on every handler.
 
 - **Files** : Set `logging.directory` (recommended) and declare a `FileHandler` / `RotatingFileHandler` without `filename`. Kontiki writes `{directory}/{service_name}-{short_instance_id}.log` so replicas do not overwrite each other and KontikiTUI / lnav can join files to the registry. Without `directory`, an explicit `filename` is kept.
-- **Line format** : If you omit `formatters`, the default is `short_instance_id`, padded `levelname`, padded `flow_id`, then the message. The **service name is not in the line** — it is in the filename. `%(service_name)s` and `%(short_instance_id)s` remain on the record for custom formatters. If you declare your own formatters, include `%(flow_id)s` yourself; Kontiki does not rewrite them.
+- **Line format** : If you omit `formatters`, the default is `short_instance_id`, `levelname` (unpadded), padded `flow_id`, then the message. The **service name is not in the line** — it is in the filename. `%(service_name)s` and `%(short_instance_id)s` remain on the record for custom formatters. If you declare your own formatters, include `%(flow_id)s` yourself; Kontiki does not rewrite them.
 - **`flow_id`** : `[flow=…]` inside `@http` / `@rpc` / `@on_event` / `@task` (generated at entry, or reused from inbound AMQP `kontiki_flow_id` for rpc/event). `[no flow]` outside a handler. Same value as AMQP header and HTTP response `kontiki_flow_id`.
 - **Framework logs** : If `loggers.kontiki` is omitted, Kontiki injects it (`INFO`, propagate) so `disable_existing_loggers: true` does not hide framework lines.
 

@@ -437,13 +437,13 @@ await messenger.publish("alert.normalized", alert, flow_id=alert.alert_id)
 # or omit flow_id → Kontiki generates a 12-hex id and propagates it
 ```
 
-Logs then carry the default columns (`short_instance_id`, padded `levelname` /
-`flow_id`). The filter sets the whole `flow_id` field, including brackets:
+Logs then carry the default columns (`short_instance_id`, unpadded `levelname`,
+padded `flow_id`). The filter sets the whole `flow_id` field, including brackets:
 
 ```text
-… - a1b2c3d4e5f6 - INFO     - [no flow]            - Service setup completed
-… - a1b2c3d4e5f6 - INFO     - [flow=a1b2c3d4e5f6]  - Message received on alert.normalized
-… - a1b2c3d4e5f6 - INFO     - [flow=a1b2c3d4e5f6]  - Call: get_recipients_for_alert(...)
+… - a1b2c3d4e5f6 - INFO - [no flow]            - Service setup completed
+… - a1b2c3d4e5f6 - INFO - [flow=a1b2c3d4e5f6]  - Message received on alert.normalized
+… - a1b2c3d4e5f6 - INFO - [flow=a1b2c3d4e5f6]  - Call: get_recipients_for_alert(...)
 ```
 
 **Day to day:** in [KontikiTUI](https://github.com/kontiki-org/kontiki-tui) →
@@ -753,8 +753,9 @@ with [KontikiTUI](https://github.com/kontiki-org/kontiki-tui) / lnav.
   (`OrderService-a1b2c3d4e5f6.log`) so tooling can resolve service + instance and
   join the registry (e.g. group filter) without per-service path conventions.
 - **Aggregated streams** — the default line format includes a fixed-width
-  `short_instance_id` (process instance) and padded `flow_id` / `levelname`, so a
-  mixed lnav view stays columnar. The **service** name stays in the log
+  `short_instance_id` (process instance) and padded `flow_id`. `levelname` is
+  unpadded (`INFO` vs `ERROR` / `DEBUG` shifts the rest of the line). The
+  **service** name stays in the log
   **filename** (and registry / TUI).
 - **Less YAML** — share handlers in a common config; service files keep real
   knobs (`http.port`, `registration.group`, `heartbeat.interval`), not
@@ -797,7 +798,7 @@ kontiki:
 Default line shape when you omit `formatters`:
 
 ```text
-%(asctime)s - %(short_instance_id)s - %(levelname)-8s - %(flow_id)-20s - %(message)s
+%(asctime)s - %(short_instance_id)s - %(levelname)s - %(flow_id)-20s - %(message)s
 ```
 
 **Gotcha:** `directory` alone does not create a file handler — declare a
