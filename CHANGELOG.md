@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.11.1] - 2026-09-12
+
+- `@rpc` / `@on_event` get a `flow_id` at handler entry (reuse inbound
+  `kontiki_flow_id` when present, otherwise generate), same as `@http` / `@task`.
+  `[no flow]` remains only for logs outside a handler.
+- Default log format: `levelname` is unpadded (`INFO` vs `ERROR` / `DEBUG`
+  shifts the rest of the line). `flow_id` stays padded.
+
 ## [1.11.0] - 2026-09-09
 
 - `@task(cron="…")`: 5-field crontab in the process local timezone, complementary

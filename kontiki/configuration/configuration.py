@@ -1,5 +1,5 @@
 DEFAULT_LOG_FORMAT = (
-    "%(asctime)s - %(short_instance_id)s - %(levelname)-8s - %(flow_id)-20s - "
+    "%(asctime)s - %(short_instance_id)s - %(levelname)s - %(flow_id)-20s - "
     "%(message)s"
 )
 

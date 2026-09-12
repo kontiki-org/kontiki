@@ -78,12 +78,10 @@ def set_flow_id(value):
 
 
 def enter_handler_scope(kind, operation, *, headers=None, work_in_flight=None):
-    if kind in ("http", "task"):
-        flow_id = generate_flow_id()
-    elif headers:
-        flow_id = headers.get(flow_id_header_name())
-    else:
-        flow_id = None
+    inbound = None
+    if headers and kind not in ("http", "task"):
+        inbound = headers.get(flow_id_header_name())
+    flow_id = inbound if inbound else generate_flow_id()
 
     context_token = set_handler_context(kind, operation, flow_id)
     if work_in_flight is not None:
