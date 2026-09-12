@@ -76,14 +76,20 @@ def test_rpc_scope_reuses_inbound_flow_header():
         reset_handler_scope(scope)
 
 
-def test_event_scope_without_header_starts_with_none_flow_id():
+def test_event_scope_without_header_generates_flow_id_at_entry():
     scope = enter_handler_scope("event", "alert.normalized", headers={})
     try:
-        assert current_handler_context().flow_id is None
-        generated = resolve_flow_id()
+        generated = current_handler_context().flow_id
         _hex_flow_id(generated)
         assert current_flow_id() == generated
-        assert current_handler_context().flow_id == generated
+    finally:
+        reset_handler_scope(scope)
+
+
+def test_rpc_scope_without_header_generates_flow_id_at_entry():
+    scope = enter_handler_scope("rpc", "my_method")
+    try:
+        _hex_flow_id(current_handler_context().flow_id)
     finally:
         reset_handler_scope(scope)
 

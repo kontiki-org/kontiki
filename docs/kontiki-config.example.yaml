@@ -50,7 +50,7 @@ kontiki:
 # Logging is a top-level Python dictConfig block, plus Kontiki extension
 # `directory` (recommended for file logs / KontikiTUI / replicas).
 # Omit handlers.*.filename — Kontiki names {directory}/{service}-{short_id}.log
-# Omit formatters — default line is short_instance_id, padded level, flow_id.
+# Omit formatters — default line is short_instance_id, level, padded flow_id.
 # See docs/advanced-features.md.
 logging:
   directory: logs

@@ -426,23 +426,24 @@ Changing the YAML value requires a **restart** so the queue is rebound.
 **When:** You need to follow one business flow across services without opening
 every log file by hand.
 
-**Origins:** `@http` and `@task` handlers always get a `flow_id` at entry (even
-with no outbound AMQP). `@rpc` and `@on_event` reuse inbound header
-`kontiki_flow_id` when present, otherwise generate on first outbound.
-`@http` responses expose the same id in header `kontiki_flow_id`.
+**Origins:** Every handler (`@http`, `@task`, `@rpc`, `@on_event`) gets a
+`flow_id` at entry. `@rpc` / `@on_event` reuse inbound header `kontiki_flow_id`
+when present, otherwise generate. `@http` and `@task` always generate (inbound
+HTTP `kontiki_flow_id` is ignored). `@http` responses expose the id in header
+`kontiki_flow_id`. `publish` / `call` propagate the current id.
 
 ```python
 await messenger.publish("alert.normalized", alert, flow_id=alert.alert_id)
 # or omit flow_id → Kontiki generates a 12-hex id and propagates it
 ```
 
-Logs then carry the default columns (`short_instance_id`, padded `levelname` /
-`flow_id`). The filter sets the whole `flow_id` field, including brackets:
+Logs then carry the default columns (`short_instance_id`, unpadded `levelname`,
+padded `flow_id`). The filter sets the whole `flow_id` field, including brackets:
 
 ```text
-… - a1b2c3d4e5f6 - INFO     - [flow=a1b2c3d4e5f6]  - Message received on alert.normalized
-… - a1b2c3d4e5f6 - INFO     - [flow=a1b2c3d4e5f6]  - Call: get_recipients_for_alert(...)
-… - a1b2c3d4e5f6 - INFO     - [no flow]            - Polling USGS ...
+… - a1b2c3d4e5f6 - INFO - [no flow]            - Service setup completed
+… - a1b2c3d4e5f6 - INFO - [flow=a1b2c3d4e5f6]  - Message received on alert.normalized
+… - a1b2c3d4e5f6 - INFO - [flow=a1b2c3d4e5f6]  - Call: get_recipients_for_alert(...)
 ```
 
 **Day to day:** in [KontikiTUI](https://github.com/kontiki-org/kontiki-tui) →
@@ -455,7 +456,8 @@ include `%(flow_id)s` (and `%(short_instance_id)s` / `%(service_name)s` if you
 want them in the line). Filters are still attached, so those fields exist on
 every record. When `formatters` is omitted, the default line already includes
 `short_instance_id` and `flow_id` (not `service_name` — that stays in the
-filename). Lines outside any handler context show `[no flow]`.
+filename). `[no flow]` is only for lines **outside** a handler (setup, heartbeat,
+AMQP connect).
 
 ---
 
@@ -751,8 +753,9 @@ with [KontikiTUI](https://github.com/kontiki-org/kontiki-tui) / lnav.
   (`OrderService-a1b2c3d4e5f6.log`) so tooling can resolve service + instance and
   join the registry (e.g. group filter) without per-service path conventions.
 - **Aggregated streams** — the default line format includes a fixed-width
-  `short_instance_id` (process instance) and padded `flow_id` / `levelname`, so a
-  mixed lnav view stays columnar. The **service** name stays in the log
+  `short_instance_id` (process instance) and padded `flow_id`. `levelname` is
+  unpadded (`INFO` vs `ERROR` / `DEBUG` shifts the rest of the line). The
+  **service** name stays in the log
   **filename** (and registry / TUI).
 - **Less YAML** — share handlers in a common config; service files keep real
   knobs (`http.port`, `registration.group`, `heartbeat.interval`), not
@@ -795,7 +798,7 @@ kontiki:
 Default line shape when you omit `formatters`:
 
 ```text
-%(asctime)s - %(short_instance_id)s - %(levelname)-8s - %(flow_id)-20s - %(message)s
+%(asctime)s - %(short_instance_id)s - %(levelname)s - %(flow_id)-20s - %(message)s
 ```
 
 **Gotcha:** `directory` alone does not create a file handler — declare a
