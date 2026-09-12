@@ -426,10 +426,11 @@ Changing the YAML value requires a **restart** so the queue is rebound.
 **When:** You need to follow one business flow across services without opening
 every log file by hand.
 
-**Origins:** `@http` and `@task` handlers always get a `flow_id` at entry (even
-with no outbound AMQP). `@rpc` and `@on_event` reuse inbound header
-`kontiki_flow_id` when present, otherwise generate on first outbound.
-`@http` responses expose the same id in header `kontiki_flow_id`.
+**Origins:** Every handler (`@http`, `@task`, `@rpc`, `@on_event`) gets a
+`flow_id` at entry. `@rpc` / `@on_event` reuse inbound header `kontiki_flow_id`
+when present, otherwise generate. `@http` and `@task` always generate (inbound
+HTTP `kontiki_flow_id` is ignored). `@http` responses expose the id in header
+`kontiki_flow_id`. `publish` / `call` propagate the current id.
 
 ```python
 await messenger.publish("alert.normalized", alert, flow_id=alert.alert_id)
@@ -440,9 +441,9 @@ Logs then carry the default columns (`short_instance_id`, padded `levelname` /
 `flow_id`). The filter sets the whole `flow_id` field, including brackets:
 
 ```text
+… - a1b2c3d4e5f6 - INFO     - [no flow]            - Service setup completed
 … - a1b2c3d4e5f6 - INFO     - [flow=a1b2c3d4e5f6]  - Message received on alert.normalized
 … - a1b2c3d4e5f6 - INFO     - [flow=a1b2c3d4e5f6]  - Call: get_recipients_for_alert(...)
-… - a1b2c3d4e5f6 - INFO     - [no flow]            - Polling USGS ...
 ```
 
 **Day to day:** in [KontikiTUI](https://github.com/kontiki-org/kontiki-tui) →
@@ -455,7 +456,8 @@ include `%(flow_id)s` (and `%(short_instance_id)s` / `%(service_name)s` if you
 want them in the line). Filters are still attached, so those fields exist on
 every record. When `formatters` is omitted, the default line already includes
 `short_instance_id` and `flow_id` (not `service_name` — that stays in the
-filename). Lines outside any handler context show `[no flow]`.
+filename). `[no flow]` is only for lines **outside** a handler (setup, heartbeat,
+AMQP connect).
 
 ---
 
