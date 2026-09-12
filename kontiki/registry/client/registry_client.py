@@ -62,7 +62,7 @@ def publish(routing_key):
 
             message = Message(body=self.serializer.dumps(body))
             await self.registry_admin_exchange.publish(message, routing_key=routing_key)
-            log.info("Published message to %s: %s", routing_key, body)
+            log.debug("Published message to %s: %s", routing_key, body)
 
         return wrapper
 

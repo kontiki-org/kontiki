@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from aio_pika.exceptions import ChannelInvalidStateError
 
+from kontiki.messaging import AmqpDisconnectedError
 from kontiki.messaging.publisher.messenger import Messenger
 from kontiki.messaging.publisher.rpc import RpcTimeoutError
 from kontiki.messaging.rpc import RpcReturn
@@ -117,6 +118,52 @@ async def test_call_retries_after_channel_invalid_state():
 
     assert result == "ok"
     assert publish.await_count == 2
+
+
+def _optional_amqp_messenger():
+    messenger = _ready_messenger()
+    container = MagicMock()
+    container.config = {"kontiki": {"amqp": {"required": False}}}
+    container.service_name = "Svc"
+    container.instance_id = "instance-id"
+    container.host = "host"
+    messenger.container = container
+    return messenger
+
+
+def test_amqp_disconnected_error_is_not_runtime_error():
+    assert not issubclass(AmqpDisconnectedError, RuntimeError)
+
+
+@pytest.mark.asyncio
+async def test_call_raises_when_amqp_is_not_connected():
+    messenger = Messenger(standalone=True)
+    with pytest.raises(AmqpDisconnectedError):
+        await messenger.call("Svc", "method")
+
+
+@pytest.mark.asyncio
+async def test_publish_raises_disconnected_on_invalid_channel_when_amqp_optional():
+    messenger = _optional_amqp_messenger()
+    messenger.event_exchange.publish.side_effect = ChannelInvalidStateError()
+    messenger.reconnect = AsyncMock()
+
+    with pytest.raises(AmqpDisconnectedError):
+        await messenger.publish("event", "payload")
+
+    messenger.reconnect.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_call_raises_disconnected_on_invalid_channel_when_amqp_optional():
+    messenger = _optional_amqp_messenger()
+    messenger.rpc_exchange.publish.side_effect = ChannelInvalidStateError()
+    messenger.reconnect = AsyncMock()
+
+    with pytest.raises(AmqpDisconnectedError):
+        await messenger.call("Svc", "method")
+
+    messenger.reconnect.assert_not_awaited()
 
 
 @pytest.mark.asyncio
