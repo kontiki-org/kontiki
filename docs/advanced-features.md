@@ -15,6 +15,8 @@ features** that are easy to miss and worth knowing early.
 | Local `@task` that must run even if RabbitMQ is down | `kontiki.amqp.required: false` |
 | Fleet health | registry + `degraded_on` |
 | Orchestrator liveness | `GET /live/{service_name}` |
+| Live instance ids for a client loop | `list_instances` / `GET /instances/{service_name}` |
+| RPC to one process | `call(..., instance_id=)` / `RpcProxy(..., instance_id=)` |
 | Filter services by kind in KontikiTUI | `kontiki.registration.group` |
 | Crash visibility | let exceptions propagate |
 | Expected RPC failures | `rpc_error` + `RpcClientError.code` |
@@ -73,6 +75,38 @@ self-registration required).
 while `/live/{service}` is still **503** (broker down, or the registry has not
 seen a heartbeat yet). Orchestrator liveness for those processes is the PID
 (systemd / container), not the registry probe.
+
+#### `list_instances` / `GET /instances/{service_name}`
+
+**When:** A client has work for **every live replica** of a name (drain,
+reconfigure, sticky follow-up). The registry returns ids; the client loops
+with `call(..., instance_id=)` and handles per-call errors. There is no
+`call_all`.
+
+```text
+list_instances(service_name)  →  [instance_id, …]
+GET /instances/{service_name}  →  200  [instance_id, …]
+```
+
+Sorted lexicographically. Live = `active` or `degraded` (same predicate as
+`/live` for **other** services). `down` is omitted. Unknown name, blank name,
+or no live instance → `[]` (HTTP **200**, not 503). The registry's own name is
+**not** special-cased: `list_instances("ServiceRegistry")` is `[]` unless the
+registry registered itself, even though `GET /live/ServiceRegistry` is 200.
+
+`get_services` remains the rich fleet view (status, heartbeat, metadata).
+
+```python
+from kontiki.messaging import Messenger, RpcTimeoutError
+from kontiki.registry.client.proxy import ServiceRegistryProxy
+
+ids = await ServiceRegistryProxy(messenger).list_instances("worker-service")
+for instance_id in ids:
+    try:
+        await messenger.call("worker-service", "reload", instance_id=instance_id)
+    except RpcTimeoutError:
+        pass
+```
 
 #### `kontiki.registration.group`
 
@@ -237,8 +271,9 @@ session = await messenger.open_session(peer="alert_engine")
 Use `RpcProxy(messenger, service_name="ServiceRegistry")` or
 `open_session("ServiceRegistry")` for **fixed** platform targets. `peer` and
 `service_name` are mutually exclusive; missing `kontiki.peers.<peer>` fails
-fast when resolved. Standalone messengers have no container conf — bind a
-service messenger (or pass `service_name`) for `peer`.
+fast when resolved. `instance_id=` on `RpcProxy` or `call` is independent of
+that XOR (pin every method, or one call). Standalone messengers have no
+container conf — bind a service messenger (or pass `service_name`) for `peer`.
 
 **Gotcha:** Host override and caller peers must agree on the same logical name.
 Changing either side requires a restart so queues / resolution pick up the value.
@@ -580,12 +615,15 @@ flowchart TB
 
 **Gotcha:** N instances ⇒ N deliveries ⇒ N side effects. Do not use broadcast
 for “do this job once” (send email, write DB row). That belongs on the default
-competing queue.
+competing queue. The per-instance queue dies with the process (`exclusive` +
+`auto_delete`); a replica that restarts gets a new `instance_id` and a new
+queue.
 
 #### `in_session=True` — talk to one specific instance
 
 **What it does:** Each instance declares its **own** queue
-(`{service}.{event}.{instance_id}.queue`) bound to `event_type.<instance_id>`.
+(`{service}.{event}.{instance_id}.queue`, `exclusive` + `auto_delete`) bound to
+`event_type.<instance_id>`.
 Clients first `open_session(service_name)` or `open_session(peer="…")` (RPC),
 then publish through the
 returned `EventSession`, which routes to **that instance of that service** and
@@ -633,7 +671,31 @@ sequenceDiagram
 
 **Gotcha:** `in_session` and `broadcast` cannot both be true. If the target
 instance dies, session publishes will not be picked up by another replica —
-the client must open a new session.
+the client must open a new session. The per-instance queue dies with the
+process.
+
+#### Targeted RPC — `instance_id=`
+
+**When:** You already have an `instance_id` (from `list_instances`, a session,
+or an event) and need **one request / one reply** on that process. Same idea
+as `in_session`, for RPC. There is no RPC broadcast.
+
+```python
+await messenger.call("worker-service", "reload", instance_id=instance_id)
+
+pinned = RpcProxy(messenger, peer="worker", instance_id=instance_id)
+await pinned.reload()
+```
+
+`peer` / `service_name` stay XOR; `instance_id` is independent. Omit it for
+competing consumers on `{service}.{method}.queue`. Every `@rpc` method binds
+both that shared durable queue and `{service}.{method}.{instance_id}.queue`
+(`exclusive` + `auto_delete`). Unknown or dead id → `RpcTimeoutError`.
+
+Callers that want every live replica ask the registry for the id list, then
+loop (see `list_instances` above). Runnable example: `examples/rpc/`
+(`make run-registry`, two `make run-rpc-service`, then
+`make run-rpc-instance-example`).
 
 ---
 

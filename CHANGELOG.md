@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.13.0] - 2026-09-14
+
+- RPC `instance_id=` on `messenger.call` and `RpcProxy` targets one process
+  (`{service}.{method}.{instance_id}`). Default competing RPC is unchanged.
+  Unknown or dead id → `RpcTimeoutError`.
+- `Messenger.call` / testing `call`: `service_name` and `method_name` are
+  positional-only so a handler may take a `service_name` kwarg (e.g. registry
+  `list_instances`).
+- Registry `list_instances(service_name)` and `GET /instances/{service_name}`
+  return the sorted live ids (`active` / `degraded`). Empty list for unknown
+  names (HTTP 200). The registry's own name is not special-cased (unlike
+  `GET /live/ServiceRegistry`).
+- Queues keyed by `instance_id` (targeted RPC, `broadcast`, `in_session`) are
+  `exclusive` + `auto_delete`. Shared competing queues stay durable.
+
 ## [1.12.0] - 2026-09-12
 
 - Messenger `publish` / `call` raise `AmqpDisconnectedError` (from

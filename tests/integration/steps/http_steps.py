@@ -2,6 +2,7 @@ import json
 from urllib import error, request
 
 from behave import then, when
+from runtime.registry_test_context import resolve_placeholders
 
 from kontiki.messaging.flow import FLOW_ID_LENGTH
 
@@ -71,6 +72,9 @@ def step_check_http_status(context, status_code):
 @then("the HTTP response body should be")
 def step_check_http_body(context):
     expected = json.loads(context.text.strip()) if context.text else None
+    placeholders = getattr(context, "registry_test_placeholders", None)
+    if placeholders:
+        expected = resolve_placeholders(expected, placeholders)
     assert context.http_body == expected, (
         f"Expected body:\n{json.dumps(expected, indent=2, ensure_ascii=True)}\n"
         f"Actual body:\n{json.dumps(context.http_body, indent=2, ensure_ascii=True)}"

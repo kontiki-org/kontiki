@@ -80,8 +80,14 @@ RPC in Kontiki is a **synchronous request/reply call over AMQP**: the caller wai
   `RpcProxy`. Prefer `RpcProxy(messenger, peer="alert_engine")`, which resolves
   `kontiki.peers.alert_engine`. Use `service_name="…"` for fixed platform
   targets (e.g. the registry). Or call
-  `messenger.call(service_name, method_name, *args, **kwargs)`. Exceptions:
+  `messenger.call(service_name, method_name, *args, **kwargs)` — target and
+  method are positional-only; remaining keywords are handler arguments plus
+  `extra_headers`, `flow_id`, and `instance_id`. Exceptions:
   `RpcClientError`, `RpcServerError`, `RpcTimeoutError`.
+- **Instance** : `call(..., instance_id=)` and `RpcProxy(..., instance_id=)`
+  (with `service_name` or `peer`) route to `{service}.{method}.{instance_id}`.
+  Omit `instance_id` for competing consumers on the shared queue. Empty or
+  whitespace id fails fast. Unknown or dead id → `RpcTimeoutError`.
 - **Headers** : With `include_headers=True`, the handler receives a `_headers` argument containing AMQP headers.
 
 ---
@@ -229,7 +235,8 @@ If the Kontiki registry service is running and registration is not disabled, the
 - **Heartbeats** : Sent automatically at a configurable interval.
 - **Degraded state** : Decorate a method with `@degraded_on`; it is called at each heartbeat. Return `True` or `(True, reason)` to report the service as degraded. On transition to `degraded`, `registry.instance.status_changed` includes an optional `reason` for alerting. Use your own logic (e.g. error count, dependency health).
 - **Live probe** : The registry HTTP API exposes `GET /live/{service_name}` for orchestrators (Docker Compose / Kubernetes). Returns **200** if at least one instance is `active` or `degraded` (recent heartbeat), **503** otherwise. When `{service_name}` is the registry's own name (e.g. `ServiceRegistry`), returns **200** as soon as the registry HTTP server is up (no self-registration required). Prefer this over in-service HTTP probes on bus-only workers. With `amqp.required: false`, `/live/{service}` is **503** until the broker and registry see the instance, even if local HTTP or `@task` already run — use the process as the orchestrator probe in that case.
-- **Event / exception tracking** : The registry can record events and reported exceptions for observability. Clients can call `ServiceRegistryProxy(messenger).get_services()`, `get_events()`, `get_exceptions()`, and filter by status (e.g. degraded).
+- **Instance census** : `list_instances(service_name)` (RPC) and `GET /instances/{service_name}` return the sorted list of live `instance_id` values (`active` or `degraded`). Unknown name, blank name, or no live instance → `[]` with HTTP **200** (not 503). The registry's own name is not special-cased: if `ServiceRegistry` is not registered, the list is `[]` even though `GET /live/ServiceRegistry` is 200. Callers that need every replica compose `list_instances` then `call(..., instance_id=)` with per-call error handling. Rich fleet view remains `get_services`.
+- **Event / exception tracking** : The registry can record events and reported exceptions for observability. Clients can call `ServiceRegistryProxy(messenger).get_services()`, `list_instances()`, `get_events()`, `get_exceptions()`, and filter by status (e.g. degraded).
 - **Uncaught exceptions** : By default (`kontiki.registration.report_uncaught_exceptions: true`), uncaught exceptions in RPC, unmapped HTTP, `@on_event`, and `@task` entrypoints are reported automatically via the same path as `ServiceDelegate.publish_exception`. That path does not depend on `registration.group`: an ops dump and a domain service have the same reporting bar. Mapped HTTP errors (`errors=` on `@http`) and `rpc_error` returns are not reported. Set the option to `false` to opt out. Manual reporting with `publish_exception(exception, context=...)` remains available.
 - **Lifecycle events** : The registry also publishes AMQP events on the standard event exchange when instances register or deregister, when computed status changes, or when a client reports an exception. Event types: `registry.instance.registered`, `registry.instance.deregistered`, `registry.instance.status_changed`, `registry.exception.recorded`. Subscribe with `@on_event(...)` like any other event.
 - **Status changes** : Instance status is `active`, `degraded`, or `down`. `registry.instance.status_changed` is published on transitions (not on register/unregister). A newly registered instance is `down` until its first heartbeat; missed heartbeats mark it `down` after `heartbeat_interval × 3`.

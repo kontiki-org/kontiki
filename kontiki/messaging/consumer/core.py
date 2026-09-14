@@ -154,9 +154,10 @@ class Consumer:
                         f"{self.service_name}.{event_type}."
                         f"{self.container.instance_id}.queue"
                     )
+                    queue = await self._declare_queue(qname, durable=False)
                 else:
                     qname = f"{self.service_name}.{event_type}.queue"
-                queue = await self.channel.declare_queue(qname, durable=True)
+                    queue = await self._declare_queue(qname, durable=True)
 
                 routing_key = (
                     f"{event_type}.{self.container.instance_id}"
@@ -179,28 +180,43 @@ class Consumer:
                 self.on_event_tasks.append(on_event_task)
                 log.debug("On event task registered for event: %s", event_type)
 
+    async def _declare_queue(self, qname, durable):
+        if durable:
+            return await self.channel.declare_queue(qname, durable=True)
+        return await self.channel.declare_queue(
+            qname, exclusive=True, auto_delete=True
+        )
+
+    async def _bind_rpc_task(
+        self, task, task_name, include_headers, routing_key, durable
+    ):
+        qname = f"{routing_key}.queue"
+        queue = await self._declare_queue(qname, durable=durable)
+        await queue.bind(self.rpc_exchange, routing_key=routing_key)
+        log.debug("Queue %s bound with routing key %s", qname, routing_key)
+        self.rpc_tasks.append(
+            RpcTask(
+                task_name,
+                task,
+                self.container,
+                self.channel.default_exchange,
+                queue,
+                self.serializer,
+                include_headers,
+            )
+        )
+
     async def add_rpc_tasks(self, tasks):
         for task in tasks:
             endpoint = task._rpc_endpoint
             task_name = endpoint["name"]
             include_headers = endpoint["include_headers"]
-
-            routing_key = f"{self.service_name}.{task_name}"
-            qname = f"{routing_key}.queue"
-            queue = await self.channel.declare_queue(qname, durable=True)
-
-            await queue.bind(self.rpc_exchange, routing_key=routing_key)
-            log.debug("Queue %s bound with routing key %s", qname, routing_key)
-
-            reply_exchange = self.channel.default_exchange
-            rpc_task = RpcTask(
-                task_name,
-                task,
-                self.container,
-                reply_exchange,
-                queue,
-                self.serializer,
-                include_headers,
+            shared_key = f"{self.service_name}.{task_name}"
+            await self._bind_rpc_task(
+                task, task_name, include_headers, shared_key, durable=True
             )
-            self.rpc_tasks.append(rpc_task)
+            instance_key = f"{shared_key}.{self.container.instance_id}"
+            await self._bind_rpc_task(
+                task, task_name, include_headers, instance_key, durable=False
+            )
             log.debug("RPC task registered for task: %s", task_name)

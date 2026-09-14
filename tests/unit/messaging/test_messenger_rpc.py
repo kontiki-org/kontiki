@@ -178,3 +178,78 @@ async def test_call_timeout_removes_future_and_late_response_is_acked():
 
     # Late reply for the timed-out call must still be acked
     await messenger._on_response(_incoming_message("stale-cid"))
+
+
+async def _complete_on_publish(messenger, captured=None):
+    async def publish(message, routing_key):
+        if captured is not None:
+            captured.append(routing_key)
+        cid = message.correlation_id
+        messenger.futures[cid].set_result(RpcReturn(success=True, result="ok"))
+
+    messenger.rpc_exchange.publish = AsyncMock(side_effect=publish)
+
+
+@pytest.mark.asyncio
+async def test_call_routing_key_without_instance_id():
+    messenger = _ready_messenger()
+    captured = []
+    await _complete_on_publish(messenger, captured)
+
+    result = await messenger.call("Svc", "ping", foo=1)
+
+    assert result == "ok"
+    assert captured == ["Svc.ping"]
+    dumped = messenger.serializer.dumps.call_args[0][0]
+    assert dumped == {"args": (), "kwargs": {"foo": 1}}
+
+
+@pytest.mark.asyncio
+async def test_call_routing_key_with_instance_id():
+    messenger = _ready_messenger()
+    captured = []
+    await _complete_on_publish(messenger, captured)
+
+    result = await messenger.call("Svc", "ping", instance_id="inst-1", foo=1)
+
+    assert result == "ok"
+    assert captured == ["Svc.ping.inst-1"]
+    dumped = messenger.serializer.dumps.call_args[0][0]
+    assert dumped == {"args": (), "kwargs": {"foo": 1}}
+
+
+@pytest.mark.asyncio
+async def test_call_empty_instance_id_raises():
+    messenger = _ready_messenger()
+    with pytest.raises(ValueError, match="instance_id"):
+        await messenger.call("Svc", "ping", instance_id="  ")
+    messenger.rpc_exchange.publish.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_unbound_instance_id_times_out():
+    messenger = _ready_messenger()
+    messenger._rpc_timeout = 0.01
+
+    with pytest.raises(RpcTimeoutError):
+        await messenger.call("Svc", "ping", instance_id="dead-id")
+
+
+@pytest.mark.asyncio
+async def test_call_handler_kwargs_may_include_service_name():
+    messenger = _ready_messenger()
+    await _complete_on_publish(messenger)
+
+    result = await messenger.call(
+        "ServiceRegistry", "list_instances", service_name="Worker"
+    )
+
+    assert result == "ok"
+    dumped = messenger.serializer.dumps.call_args[0][0]
+    assert dumped == {"args": (), "kwargs": {"service_name": "Worker"}}
+
+
+def test_call_rejects_service_name_as_keyword_for_target():
+    messenger = _ready_messenger()
+    with pytest.raises(TypeError):
+        messenger.call(service_name="Svc", method_name="ping")

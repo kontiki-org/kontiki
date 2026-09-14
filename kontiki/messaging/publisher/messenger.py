@@ -24,6 +24,7 @@ from kontiki.messaging.publisher.rpc import (
     RpcClientError,
     RpcServerError,
     RpcTimeoutError,
+    require_instance_id,
 )
 from kontiki.messaging.publisher.session import EventSession
 from kontiki.messaging.rpc import RpcErrorType, RpcReturn
@@ -196,12 +197,15 @@ class Messenger(ServiceDelegate):
         self,
         service_name,
         method_name,
+        /,
         *args,
         extra_headers=None,
         flow_id=None,
+        instance_id=None,
         **kwargs,
     ):
         self._require_amqp()
+        instance_id = require_instance_id(instance_id)
         cid = str(uuid.uuid4())
         loop = asyncio.get_running_loop()
 
@@ -216,6 +220,8 @@ class Messenger(ServiceDelegate):
         apply_outbound_flow_id(headers, flow_id=flow_id, extra_headers=extra_headers)
 
         routing_key = f"{service_name}.{method_name}"
+        if instance_id is not None:
+            routing_key = f"{routing_key}.{instance_id}"
         request_body = self.serializer.dumps({"args": args, "kwargs": kwargs})
 
         async def publish_request():

@@ -4,7 +4,7 @@
 	integration-test-task integration-test-registry \
 	integration-test-service-name integration-test-amqp-required \
 	run-amqp down-amqp \
-	run-rpc-service run-rpc-example \
+	run-rpc-service run-rpc-example run-rpc-instance-example \
 	run-session-service run-session-example \
 	run-simple-events-service run-simple-events-example \
 	run-serialization-service run-serialization-example \
@@ -94,6 +94,13 @@ run-rpc-service: run-amqp
 run-rpc-example:
 	@echo "Running RPC example..."
 	$(PY) -m examples.rpc.rpc_example
+
+# Note: Launch twice (two terminals) and run-registry, then
+# run-rpc-instance-example: list_instances then whoami on each id.
+# Each reply must match the targeted id (check both service panes).
+run-rpc-instance-example:
+	@echo "Running targeted RPC example..."
+	$(PY) -m examples.rpc.instance_example
 
 # -----------------------------------------------------------------------------
 # Task Service

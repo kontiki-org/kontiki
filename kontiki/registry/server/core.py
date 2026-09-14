@@ -210,6 +210,24 @@ class ServiceRegistryCore(ServiceDelegate):
 
         return dict(filtered_services)
 
+    def list_instances(self, service_name):
+        if not isinstance(service_name, str) or not service_name.strip():
+            return []
+        instances = self.registry.services.get(service_name)
+        if not instances:
+            return []
+        live = []
+        for instance_id, data in instances.items():
+            status = self._get_instance_status(
+                instance_id,
+                service_name,
+                self._get_timeout(data.get("heartbeat_interval", 10)),
+            )
+            if status in (ServiceStatus.ACTIVE.value, ServiceStatus.DEGRADED.value):
+                live.append(instance_id)
+        live.sort()
+        return live
+
     def is_live(self, service_name):
         if service_name == self.container.service_name:
             return True

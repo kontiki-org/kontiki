@@ -47,6 +47,7 @@ class MockServiceRunner(threading.Thread):
         self,
         service_name,
         method_name,
+        /,
         *args,
         extra_headers=None,
         flow_id=None,

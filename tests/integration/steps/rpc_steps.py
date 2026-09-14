@@ -11,6 +11,7 @@ from kontiki.messaging.publisher.rpc import RpcError
 REGISTRY_RPC_METHODS = frozenset(
     {
         "get_services",
+        "list_instances",
         "get_exceptions",
         "get_events",
         "get_filtered_events",

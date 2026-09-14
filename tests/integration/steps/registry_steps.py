@@ -123,9 +123,10 @@ def step_registry_published_event(context, event_type):
 @then("the registry service should return the result")
 def step_registry_return_result(context):
     assert context.result is not None
+    placeholders = getattr(context, "registry_test_placeholders", None) or {}
     expected = resolve_placeholders(
         json.loads(context.text.strip()),
-        context.registry_test_placeholders,
+        placeholders,
     )
     assert matches_with_timestamps(context.result, expected), (
         f"Expected:\n{json.dumps(expected, indent=2, ensure_ascii=True)}\n"
