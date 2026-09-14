@@ -5,9 +5,7 @@ def require_instance_id(instance_id):
     if instance_id is None:
         return None
     if not isinstance(instance_id, str) or not instance_id.strip():
-        raise ValueError(
-            f"instance_id must be a non-empty string, got {instance_id!r}"
-        )
+        raise ValueError(f"instance_id must be a non-empty string, got {instance_id!r}")
     return instance_id
 
 

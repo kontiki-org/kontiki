@@ -183,9 +183,7 @@ class Consumer:
     async def _declare_queue(self, qname, durable):
         if durable:
             return await self.channel.declare_queue(qname, durable=True)
-        return await self.channel.declare_queue(
-            qname, exclusive=True, auto_delete=True
-        )
+        return await self.channel.declare_queue(qname, exclusive=True, auto_delete=True)
 
     async def _bind_rpc_task(
         self, task, task_name, include_headers, routing_key, durable

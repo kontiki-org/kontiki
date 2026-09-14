@@ -54,8 +54,7 @@ def _declare_kwargs(call):
 
 def _declares(consumer):
     return [
-        _declare_kwargs(call)
-        for call in consumer.channel.declare_queue.await_args_list
+        _declare_kwargs(call) for call in consumer.channel.declare_queue.await_args_list
     ]
 
 
