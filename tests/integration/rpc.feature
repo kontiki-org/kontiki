@@ -1,9 +1,9 @@
-@single_instance
 Feature: RPC
 
     Background:
         Given the test service is running
 
+    @single_instance
     Scenario: RPC call with standard case
         When I call the rpc_example method with the following parameters
             """
@@ -16,6 +16,7 @@ Feature: RPC
             Standard case
             """
 
+    @single_instance
     Scenario: RPC call with user input error
         When I call the rpc_example method with the following parameters
             """
@@ -31,6 +32,7 @@ Feature: RPC
                 }
             """
 
+    @single_instance
     Scenario: RPC call with server error
         When I call the rpc_example method with the following parameters
             """
@@ -46,6 +48,7 @@ Feature: RPC
                 }
             """
 
+    @single_instance
     Scenario: RPC call with headers
         When I call the rpc_with_headers method with the following headers
             """
@@ -58,4 +61,17 @@ Feature: RPC
         Then the test service should return the result
             """
             my_user_header
+            """
+
+    @multi_instance
+    Scenario: Untargeted RPC still works with two instances
+        When I call the rpc_example method with the following parameters
+            """
+            {
+                "feature": "standard_case"
+            }
+            """
+        Then the test service should return the result
+            """
+            Standard case
             """

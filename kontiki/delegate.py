@@ -16,6 +16,6 @@ class ServiceDelegate:
         pass
 
     async def publish_exception(self, exception, context=None):
-        if not self.container:
-            return
+        # Vestigial: the registry records the exception automatically if it
+        # propagates (RPC, unmapped HTTP, @on_event, @task). Remove on next major.
         await self.container.report_exception(exception, context)

@@ -26,6 +26,10 @@ class ServiceRegistry:
             return web.Response(status=200)
         raise web.HTTPServiceUnavailable()
 
+    @http("/instances/{service_name}", "GET")
+    async def http_list_instances(self, request, service_name):
+        return web.json_response(self.core.list_instances(service_name))
+
     @http("/services", "GET")
     async def http_get_all_services(self, request):
         services = self.core.get_services()
@@ -79,6 +83,10 @@ class ServiceRegistry:
             except ValueError:
                 return rpc_error("INVALID_STATUS", f"Invalid status: {status}")
         return self.core.get_services(status)
+
+    @rpc
+    async def list_instances(self, service_name):
+        return self.core.list_instances(service_name)
 
     @rpc
     async def get_events(self):

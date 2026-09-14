@@ -37,7 +37,8 @@ redesign the same plumbing.**
   identity (`kontiki.service_name`, `kontiki.peers`) and environment-specific
   names live in config, not in code.
 - **Fleet registry**: heartbeats, degraded state (`degraded_on`), exception
-  tracking, and orchestrator live probes (`GET /live/{service_name}`). The bus
+  tracking, live instance ids (`list_instances` / `GET /instances/{service_name}`),
+  and orchestrator live probes (`GET /live/{service_name}`). The bus
   runs without a registry; operating the fleet coherently assumes one.
 - **Integrated operations**: correlate flows with `flow_id`, browse the fleet in
   [**KontikiTUI**](https://github.com/kontiki-org/kontiki-tui), alert from
@@ -59,6 +60,7 @@ see `docs/features.md`.
 | One instance handles an event | default `@on_event` (competing consumers) |
 | Every instance handles it | `@on_event(..., broadcast=True)` |
 | One pinned instance | `@on_event(..., in_session=True)` + `open_session` |
+| RPC to one process | `call(..., instance_id=)` / `RpcProxy(..., instance_id=)` |
 | Route an event | explicit `event_type` |
 | Caller target from deploy config | `RpcProxy(..., peer="…")` / `open_session(peer="…")` → `kontiki.peers` |
 | Fleet health | registry + `degraded_on` |
@@ -176,13 +178,14 @@ make run-amqp
 ## Examples
 
 Examples can be run via the `Makefile` (see targets such as `run-rpc-service`,
-`run-rpc-example`, `run-simple-events-service`, `run-task-service`, etc.).
-Shared logging is `examples/common.yaml`: console `StreamHandler`, default
-Kontiki formatter (omit `formatters` in YAML).
+`run-rpc-example`, `run-rpc-instance-example`, `run-simple-events-service`,
+`run-task-service`, etc.). Shared logging is `examples/common.yaml`: console
+`StreamHandler`, default Kontiki formatter (omit `formatters` in YAML).
 
 | Feature                                      | Example path                                                     |
 |----------------------------------------------|------------------------------------------------------------------|
 | Basic RPC                                    | `examples/rpc/`                                                  |
+| Targeted RPC                                 | `examples/rpc/`                                                  |
 | Simple events                                | `examples/events/simple/`                                        |
 | Broadcast events                             | `examples/events/broadcast/`                                     |
 | Event serialization                          | `examples/events/serialization/`                                 |

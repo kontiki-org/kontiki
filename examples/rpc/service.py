@@ -17,6 +17,11 @@ class RpcServiceDelegate(ServiceDelegate):
         logging.info("You can add specific logic when stopping the service")
         logging.info("Not necessary to implement this method though")
 
+    async def whoami(self):
+        instance_id = self.container.instance_id
+        logging.info("whoami instance_id=%s", instance_id)
+        return instance_id
+
     async def rpc_example(self, feature):
         if feature == "standard_case":
             return "Standard case"
@@ -29,6 +34,10 @@ class RpcServiceDelegate(ServiceDelegate):
 class RpcService:
     name = "RpcService"
     delegate = RpcServiceDelegate()
+
+    @rpc
+    async def whoami(self):
+        return await self.delegate.whoami()
 
     @rpc
     async def rpc_example(self, feature):
