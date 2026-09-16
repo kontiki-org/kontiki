@@ -21,35 +21,6 @@ from kontiki.utils import log
 # -----------------------------------------------------------------------------
 
 
-def filter_config_by_whitelist(config, whitelist_patterns):
-    if not whitelist_patterns:
-        return {}
-
-    def _is_included(path):
-        for pattern in whitelist_patterns:
-            if path == pattern or path.startswith(f"{pattern}."):
-                return True
-        return False
-
-    def _filter_dict(d, parent_path=""):
-        filtered = {}
-        for key, value in d.items():
-            current_path = f"{parent_path}.{key}" if parent_path else key
-
-            if _is_included(current_path):
-                if isinstance(value, dict):
-                    filtered[key] = _filter_dict(value, current_path)
-                else:
-                    filtered[key] = value
-            elif isinstance(value, dict):
-                nested_filtered = _filter_dict(value, current_path)
-                if nested_filtered:
-                    filtered[key] = nested_filtered
-        return filtered
-
-    return _filter_dict(config)
-
-
 def publish(routing_key):
     def decorator(func):
         async def wrapper(self, *args, **kwargs):
@@ -141,18 +112,15 @@ class ServiceRegistryClient:
         await self.register()
 
     def _get_config(self):
-        config = self.container.config
-        public_paths = get_kontiki_parameter(
-            config, "registration.configuration.public_paths", default=None
-        )
-        if public_paths:
-            return filter_config_by_whitelist(config, public_paths)
+        public = self.container.config.get("public")
+        if isinstance(public, dict) and public:
+            return public
         return {}
 
     @publish(REGISTER_RKEY)
     async def register(self):
         heartbeat_interval = get_heartbeat_interval(self.container.config)
-        filtered_config = self._get_config()
+        public_config = self._get_config()
         body = {
             "service_name": self.container.service_name,
             "instance_id": self.container.instance_id,
@@ -164,8 +132,8 @@ class ServiceRegistryClient:
             "group": get_registration_group(self.container.config),
         }
 
-        if filtered_config:
-            body["config"] = filtered_config
+        if public_config:
+            body["config"] = public_config
         return body
 
     @publish(UNREGISTER_RKEY)

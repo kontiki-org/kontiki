@@ -3,6 +3,8 @@ import json
 import re
 import time
 
+from kontiki import __version__ as kontiki_version
+
 REGISTER_LINE = re.compile(r"Published message to registry\.register: (.+)$")
 EXCEPTION_LINE = re.compile(r"Published message to registry\.exception: (.+)$")
 
@@ -42,6 +44,7 @@ def placeholders_from_registration(registration):
         "REGISTRY_TEST_INSTANCE_ID": registration["instance_id"],
         "REGISTRY_TEST_PID": registration["pid"],
         "REGISTRY_TEST_HOST": registration["host"],
+        "KONTIKI_VERSION": kontiki_version,
     }
 
 
