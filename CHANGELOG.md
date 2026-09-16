@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.0] - 2026-09-16
+
+- Registration `config` is the top-level `public` mapping when it is a
+  non-empty dict (`get_services` metadata and `registry.instance.registered`).
+  `kontiki`, `logging`, and other roots are not exported.
+  `kontiki.registration.configuration.public_paths` has no effect.
+
 ## [1.13.0] - 2026-09-14
 
 - RPC `instance_id=` on `messenger.call` and `RpcProxy` targets one process

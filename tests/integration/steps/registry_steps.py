@@ -36,12 +36,6 @@ def _stop_registry_service(context):
 
 def _start_registry_service(context, config_text):
     normalized = config_text.strip()
-    manager = context.registry["manager"]
-    if manager is not None and context.registry["config_text"] == normalized:
-        if manager.process is not None and manager.process.poll() is None:
-            return
-        _stop_registry_service(context)
-
     _stop_registry_service(context)
     config_path = context.log_dir / "registry_service.yaml"
     config_path.write_text(normalized + "\n", encoding="utf-8")

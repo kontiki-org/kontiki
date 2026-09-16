@@ -29,8 +29,6 @@ kontiki:
     delay: 2
     group: business  # free-form UI filter; blank → business
     report_uncaught_exceptions: true  # RPC, HTTP, @on_event, @task; opt out with false
-    # configuration:
-    #   public_paths: ["app", "feature_flags"]
 
   heartbeat:
     interval: 60
@@ -64,7 +62,15 @@ logging:
     handlers: [file]
     level: INFO
 
-# Application-specific config (do not use "kontiki" for your own keys).
+# Registry-visible facts (KontikiTUI Configuration). Only this mapping is
+# sent as registration `config`. Omit the key to send nothing.
+# public:
+#   environment: earth
+#   poll_interval: 30
+#   flags:
+#     new_feed: true
+
+# Application-specific config (do not use "kontiki" or "public" for secrets).
 # app:
 #   http:
 #     ping_path: "/ping"
