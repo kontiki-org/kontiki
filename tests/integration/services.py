@@ -220,6 +220,14 @@ class RegistryTestService:
     async def raise_mapped_http(self, request):
         raise RegistryMappedHttpError("mapped http exception")
 
+    @http("/raise_http_error", "GET")
+    async def raise_http_error(self, request):
+        raise web.HTTPNotFound()
+
+    @rpc
+    async def return_rpc_error(self):
+        return rpc_error("CLIENT", "rpc error")
+
     @degraded_on
     def is_degraded(self):
         return self.delegate.is_degraded()

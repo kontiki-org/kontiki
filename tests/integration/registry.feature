@@ -243,8 +243,10 @@ Feature: Service registry
                     "instance_id": "[REGISTRY_TEST_INSTANCE_ID]",
                     "exception_type": "Exception",
                     "message": "test exception",
-                    "context": {},
-                    "timestamp": "[REGISTRY_TEST_EXCEPTION_TIMESTAMP]"
+                    "timestamp": "[REGISTRY_TEST_EXCEPTION_TIMESTAMP]",
+                    "flow_id": "[FLOW_ID]",
+                    "entrypoint": "rpc",
+                    "operation": "report_test_exception"
                 }
             ]
             """
@@ -545,9 +547,22 @@ Feature: Service registry
                 "instance_id": "[REGISTRY_TEST_INSTANCE_ID]",
                 "exception_type": "Exception",
                 "message": "test exception",
-                "context": {},
-                "timestamp": "[TIMESTAMP]"
+                "timestamp": "[TIMESTAMP]",
+                "flow_id": "[FLOW_ID]",
+                "entrypoint": "rpc",
+                "operation": "report_test_exception"
             }
+            """
+        When I call the get_filtered_events method with the following parameters
+            """
+            {
+                "filter_field": "event_type",
+                "value": "registry.exception.recorded"
+            }
+            """
+        Then the registry service should return the result
+            """
+            []
             """
 
     Scenario: a missed heartbeat publishes registry.instance.status_changed to down

@@ -15,6 +15,7 @@ from kontiki.messaging.flow import prepare_logging_config
 from kontiki.messaging.publisher.messenger import Messenger
 from kontiki.registry.client.heartbeat_publisher import HeartbeatPublisher
 from kontiki.registry.client.registry_client import ServiceRegistryClient
+from kontiki.runtime.handler_scope import exception_record_fields
 from kontiki.task.task import Task, resolve_task_cron, resolve_task_interval
 from kontiki.utils import log
 from kontiki.web.web import HttpServer
@@ -309,27 +310,27 @@ class ServiceContainer:
             parts.append(f"amqp_in_flight={self.amqp_consumer.work_in_flight.count}")
         return ", ".join(parts) if parts else "none"
 
-    async def report_exception(self, exception, context=None):
-        if context is None:
-            context = {}
-
+    async def report_exception(self, exception):
         if not self.service_registry_client:
             log.warning("Service registration is disabled or unavailable..")
             return
 
+        flow_id, entrypoint, operation = exception_record_fields()
         try:
-            await self.service_registry_client.register_exception(exception, context)
+            await self.service_registry_client.register_exception(
+                exception, flow_id, entrypoint, operation
+            )
             log.debug("Exception published successfully: %s.", exception)
         except Exception as e:
             log.error("Error while publishing exception %s: %s", exception, e)
 
-    async def report_uncaught_exception(self, exception, context):
+    async def report_uncaught_exception(self, exception):
         enabled = get_kontiki_parameter(
             self.config, "registration.report_uncaught_exceptions", True
         )
         if not enabled:
             return
-        await self.report_exception(exception, context)
+        await self.report_exception(exception)
 
     # Internal methods
 

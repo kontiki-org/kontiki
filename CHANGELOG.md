@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+- Exception records are a flat ops index: `entrypoint`, `operation`, and
+  `flow_id` from the handler scope. `publish_exception` takes only the
+  exception (no `context` bag). Uncaught handlers log with `exc_info`.
+  `registry.exception.recorded` stays on the bus and is not stored in
+  `get_events`. Mapped HTTP, `HTTPException`, and returned `rpc_error`
+  are not recorded.
+
 ## [1.14.0] - 2026-09-16
 
 - Registration `config` is the top-level `public` mapping when it is a

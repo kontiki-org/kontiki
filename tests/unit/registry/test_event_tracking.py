@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from kontiki.registry.events import EXCEPTION_RECORDED
 from kontiki.registry.server.delegates.event_tracking import EventTracker
 from kontiki.utils import get_kontiki_prefix
 
@@ -88,6 +89,28 @@ async def test_handle_event_does_not_override_user_headers():
     # Both keys are present, but the user header wins for the bare name.
     assert normalized[f"{prefix}service_name"] == "internal-svc"
     assert normalized["service_name"] == "user-svc"
+
+
+@pytest.mark.asyncio
+async def test_handle_event_skips_registry_exception_recorded():
+    core = DummyCore()
+    tracker = EventTracker(core)
+
+    msg = AsyncMock()
+    msg.headers = {"event_type": EXCEPTION_RECORDED}
+
+    class _Ctx:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    msg.process = Mock(return_value=_Ctx())
+
+    await tracker._handle_event(msg)
+
+    assert tracker.events == []
 
 
 def test_purge_expired_events_handles_offset_aware_timestamp():

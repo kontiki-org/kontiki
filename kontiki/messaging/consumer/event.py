@@ -2,11 +2,7 @@ import asyncio
 
 from aio_pika import IncomingMessage
 
-from kontiki.runtime.handler_scope import (
-    enter_handler_scope,
-    registry_exception_context,
-    reset_handler_scope,
-)
+from kontiki.runtime.handler_scope import enter_handler_scope, reset_handler_scope
 from kontiki.utils import log
 
 
@@ -160,11 +156,10 @@ class OnEventTask:
                             self.task(obj)
 
             except Exception as e:
-                log.error("Error occurred while consuming the event: %s", e)
-                await self.container.report_uncaught_exception(
-                    e,
-                    registry_exception_context(),
+                log.error(
+                    "Error occurred while consuming the event: %s", e, exc_info=True
                 )
+                await self.container.report_uncaught_exception(e)
                 await message.nack(requeue=False)
         finally:
             reset_handler_scope(scope)

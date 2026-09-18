@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 from aio_pika import Message, connect_robust
 
@@ -156,14 +156,16 @@ class ServiceRegistryClient:
         return body
 
     @publish(EXCEPTION_RKEY)
-    async def register_exception(self, exception, context):
+    async def register_exception(self, exception, flow_id, entrypoint, operation):
         body = {
             "service_name": self.container.service_name,
             "instance_id": self.container.instance_id,
             "exception_type": type(exception).__name__,
             "message": str(exception),
-            "context": context,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "flow_id": flow_id,
+            "entrypoint": entrypoint,
+            "operation": operation,
         }
         return body
 

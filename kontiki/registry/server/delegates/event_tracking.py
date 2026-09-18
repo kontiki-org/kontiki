@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from kontiki.configuration.parameter import get_parameter
 from kontiki.messaging.common import declare_event_exchange, declare_rpc_exchange
 from kontiki.registry.common import declare_registry_event_exchange
+from kontiki.registry.events import EXCEPTION_RECORDED
 from kontiki.utils import get_kontiki_prefix
 
 # -----------------------------------------------------------------------------
@@ -75,6 +76,8 @@ class EventTracker:
                         normalized.setdefault(bare_key, value)
 
                 event_type = normalized.get("event_type", "_rpc_event")
+                if event_type == EXCEPTION_RECORDED:
+                    return
                 service = normalized.get("service_name")
                 uuid = normalized.get("instance_id")
                 host = normalized.get("host")
