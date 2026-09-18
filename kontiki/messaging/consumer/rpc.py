@@ -3,11 +3,7 @@ import asyncio
 from aio_pika import Message
 
 from kontiki.messaging.rpc import RpcErrorType, RpcReturn
-from kontiki.runtime.handler_scope import (
-    enter_handler_scope,
-    registry_exception_context,
-    reset_handler_scope,
-)
+from kontiki.runtime.handler_scope import enter_handler_scope, reset_handler_scope
 from kontiki.utils import log
 
 
@@ -117,11 +113,8 @@ class RpcTask:
 
                 except Exception as e:
                     msg = "Error while processing RPC method %s: %s"
-                    log.error(msg, self.name, e)
-                    await self.container.report_uncaught_exception(
-                        e,
-                        registry_exception_context(),
-                    )
+                    log.error(msg, self.name, e, exc_info=True)
+                    await self.container.report_uncaught_exception(e)
                     if not future.done():
                         future.set_result(
                             RpcReturn(

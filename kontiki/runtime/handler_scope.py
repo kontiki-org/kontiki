@@ -95,11 +95,8 @@ def reset_handler_scope(scope_token):
     reset_handler_context(scope_token.context_token)
 
 
-def registry_exception_context():
+def exception_record_fields():
     ctx = current_handler_context()
     if ctx is None:
-        return {}
-    if ctx.kind == "http":
-        method, _, path = ctx.operation.partition(" ")
-        return {"entrypoint": "http", "method": method, "path": path}
-    return {"entrypoint": ctx.kind, "name": ctx.operation}
+        return None, None, None
+    return ctx.flow_id, ctx.kind, ctx.operation

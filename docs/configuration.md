@@ -94,7 +94,7 @@ Used when the service registers with a Kontiki registry.
 | `kontiki.registration.disable` | `False` | Set to `true` to disable registration (never join the registry). Distinct from `kontiki.amqp.required: false`, which still registers once the broker is reachable. |
 | `kontiki.registration.delay` | `2` | Delay in seconds before sending the first registration. |
 | `kontiki.registration.group` | `business` | Free-form label for UI filters (any string). Blank / whitespace is normalized to `business`. Common conventions: `business`, `platform`. Not a closed set. |
-| `kontiki.registration.report_uncaught_exceptions` | `True` | When `true`, uncaught exceptions in RPC, HTTP (unmapped), `@on_event`, and `@task` entrypoints are reported to the registry (same path as `publish_exception`). Set to `false` to opt out. |
+| `kontiki.registration.report_uncaught_exceptions` | `True` | When `true`, uncaught exceptions in RPC, unmapped HTTP, `@on_event`, and `@task` entrypoints are reported to the registry (same path as `publish_exception`). Mapped HTTP, aiohttp `HTTPException`, and `rpc_error` returns are not uncaught. Set to `false` to opt out. |
 
 ---
 

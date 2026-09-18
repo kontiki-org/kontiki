@@ -4,11 +4,7 @@ from datetime import datetime
 from croniter import croniter
 
 from kontiki.configuration.parameter import get_parameter
-from kontiki.runtime.handler_scope import (
-    enter_handler_scope,
-    registry_exception_context,
-    reset_handler_scope,
-)
+from kontiki.runtime.handler_scope import enter_handler_scope, reset_handler_scope
 from kontiki.utils import log
 
 # -----------------------------------------------------------------------------
@@ -88,12 +84,11 @@ class Task:
                 else:
                     self.user_task()
             except Exception as e:
-                log.error("Repeat task: Error executing user task: %s", e)
+                log.error(
+                    "Repeat task: Error executing user task: %s", e, exc_info=True
+                )
                 if self.container is not None:
-                    await self.container.report_uncaught_exception(
-                        e,
-                        registry_exception_context(),
-                    )
+                    await self.container.report_uncaught_exception(e)
         finally:
             reset_handler_scope(scope)
             self._current_iteration = None

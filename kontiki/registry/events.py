@@ -56,8 +56,10 @@ def exception_recorded_payload(exception_data):
     return {
         "service_name": exception_data["service_name"],
         "instance_id": exception_data["instance_id"],
-        "exception_type": exception_data.get("exception_type"),
-        "message": exception_data.get("message"),
-        "context": exception_data.get("context"),
-        "timestamp": exception_data.get("timestamp", _utc_now_iso()),
+        "exception_type": exception_data["exception_type"],
+        "message": exception_data["message"],
+        "timestamp": exception_data["timestamp"],
+        "flow_id": exception_data["flow_id"],
+        "entrypoint": exception_data["entrypoint"],
+        "operation": exception_data["operation"],
     }

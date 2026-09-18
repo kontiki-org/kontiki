@@ -17,7 +17,7 @@ from kontiki.runtime.handler_scope import (
     FLOW_ID_LENGTH,
     current_handler_context,
     enter_handler_scope,
-    registry_exception_context,
+    exception_record_fields,
     reset_handler_scope,
 )
 from kontiki.web.web import prepare_http_response
@@ -98,27 +98,28 @@ def test_flow_only_context_has_no_handler_context():
     resolve_flow_id()
     assert current_flow_id() is not None
     assert current_handler_context() is None
+    assert exception_record_fields() == (None, None, None)
 
 
-def test_registry_exception_context_by_kind():
+def test_exception_record_fields_by_kind():
     cases = [
-        ("rpc", "compute", {"entrypoint": "rpc", "name": "compute"}),
-        ("event", "alert.open", {"entrypoint": "event", "name": "alert.open"}),
-        (
-            "http",
-            "POST /submit",
-            {"entrypoint": "http", "method": "POST", "path": "/submit"},
-        ),
-        ("task", "poll_source", {"entrypoint": "task", "name": "poll_source"}),
+        ("rpc", "compute"),
+        ("event", "alert.open"),
+        ("http", "POST /submit"),
+        ("task", "poll_source"),
     ]
-    for kind, operation, expected in cases:
+    for kind, operation in cases:
         scope = enter_handler_scope(kind, operation)
         try:
-            assert registry_exception_context() == expected
+            flow_id, entrypoint, recorded_operation = exception_record_fields()
+            ctx = current_handler_context()
+            assert entrypoint == kind
+            assert recorded_operation == operation
+            assert flow_id == ctx.flow_id
         finally:
             reset_handler_scope(scope)
 
-    assert registry_exception_context() == {}
+    assert exception_record_fields() == (None, None, None)
 
 
 def test_scope_calls_work_in_flight_begin_and_end():
@@ -201,8 +202,8 @@ async def test_event_handler_reports_uncaught_exception():
     await task._consume_message(message)
 
     container.report_uncaught_exception.assert_awaited_once()
-    exc, context = container.report_uncaught_exception.await_args.args
+    (exc,) = container.report_uncaught_exception.await_args.args
     assert isinstance(exc, RuntimeError)
     assert str(exc) == "event blew up"
-    assert context == {"entrypoint": "event", "name": "tests.fail"}
+    assert container.report_uncaught_exception.await_args.kwargs == {}
     message.nack.assert_awaited_once_with(requeue=False)

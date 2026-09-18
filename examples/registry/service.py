@@ -20,9 +20,7 @@ class RegistryExampleDelegate(ServiceDelegate):
         try:
             raise Exception("This is a test exception")
         except Exception as e:
-            await self.publish_exception(
-                e, context={"message": "Whatever context you want to add."}
-            )
+            await self.publish_exception(e)
 
 
 class RegistryExampleService:

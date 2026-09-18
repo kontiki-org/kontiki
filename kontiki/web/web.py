@@ -10,7 +10,6 @@ from kontiki.messaging.flow import flow_id_header_name
 from kontiki.runtime.handler_scope import (
     current_flow_id,
     enter_handler_scope,
-    registry_exception_context,
     reset_handler_scope,
 )
 from kontiki.utils import log
@@ -244,11 +243,10 @@ class HttpServer:
                         prepare_http_response(e, flow_id)
                         raise
 
-                    log.error("Error in handler for %s %s: %s", method, path, e)
-                    await self.container.report_uncaught_exception(
-                        e,
-                        registry_exception_context(),
+                    log.error(
+                        "Error in handler for %s %s: %s", method, path, e, exc_info=True
                     )
+                    await self.container.report_uncaught_exception(e)
                     error = web.HTTPInternalServerError(reason="Internal Server Error")
                     prepare_http_response(error, flow_id)
                     raise error from e

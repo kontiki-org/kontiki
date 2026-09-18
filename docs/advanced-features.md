@@ -167,9 +167,31 @@ Returning plain `True` still works; `reason` is then `null` on the event.
 **When:** You want failures on HTTP / RPC / events / tasks to be visible fleet-wide without
 hand-rolling error publishers.
 
-Kontiki can report uncaught exceptions to the registry (`registry.exception` /
-exception tracking). Leave domain errors you expect to map (validation, auth)
-as controlled responses; let unexpected failures bubble.
+Kontiki reports uncaught exceptions to the registry on the same path as
+`publish_exception(exception)`. The record is an **ops index**: which error, on
+which service / instance, at which entrypoint, operation, and `flow_id`. It is
+not a debugger and not a hop in `get_events`.
+
+Uncaught `except` on `@rpc`, unmapped `@http`, `@on_event`, and `@task` report
+and log with a traceback (`exc_info`). The stack is in the instance log with
+`[flow=…]`; the registry record does not carry a traceback.
+
+Not reported: mapped HTTP (`errors=` / `http_error_handlers`), aiohttp
+`HTTPException` (controlled HTTP response), and a **returned** `rpc_error`.
+A `raise` in an RPC handler is uncaught.
+
+`entrypoint`, `operation`, and `flow_id` come from the handler scope.
+`publish_exception` takes only the exception and stamps the same way. Outside a
+handler, those three fields are `null`. Setup failures are not recorded (log and
+process exit).
+
+`get_exceptions`, `get_filtered_exceptions`, and `GET /exceptions` expose the
+record as-is. Filter by exact equality on a top-level field (`entrypoint`,
+`operation`, `flow_id`, …).
+
+`registry.exception.recorded` copies the same keys on the bus (Monitor
+subscribes). The crashing flow is `flow_id` in the body; the AMQP header is the
+Registry's own flow. That event is not stored in `get_events` / Flows.
 
 ```python
 # Prefer: let unexpected errors propagate
@@ -177,6 +199,8 @@ as controlled responses; let unexpected failures bubble.
 async def on_notification_requested(self, payload):
     await self.delegate.send_notification_telegram(payload)
 ```
+
+Opt out with `kontiki.registration.report_uncaught_exceptions: false`.
 
 **Gotcha:** Catching everything and only logging locally hides the failure from
 the registry and from any alerting built on top of it.
@@ -296,8 +320,9 @@ class AlertEngineService:
         ...
 ```
 
-**Gotcha:** Unmapped exceptions become 500 and can be reported as uncaught
-exceptions (see above).
+**Gotcha:** Unmapped exceptions become 500 and are reported as uncaught
+(see above). aiohttp `HTTPException` is a controlled response and is not
+reported.
 
 ---
 
@@ -465,7 +490,9 @@ every log file by hand.
 `flow_id` at entry. `@rpc` / `@on_event` reuse inbound header `kontiki_flow_id`
 when present, otherwise generate. `@http` and `@task` always generate (inbound
 HTTP `kontiki_flow_id` is ignored). `@http` responses expose the id in header
-`kontiki_flow_id`. `publish` / `call` propagate the current id.
+`kontiki_flow_id`. `publish` / `call` propagate the current id. Exception
+records in the registry carry the same `flow_id` (body field; see uncaught
+exceptions above).
 
 ```python
 await messenger.publish("alert.normalized", alert, flow_id=alert.alert_id)

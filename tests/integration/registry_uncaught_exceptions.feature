@@ -2,19 +2,25 @@
 Feature: Automatic uncaught exception reporting
 
     Uncaught exceptions in RPC, HTTP, @on_event and @task
-    entrypoints are reported to the registry automatically when
+    entrypoints are reported to the registry when
     kontiki.registration.report_uncaught_exceptions is true
     (the default). Set it to false to opt out.
 
+    Reporting uses the same path as publish_exception /
+    register_exception. The registry publishes
+    registry.exception.recorded on the bus. That event is not
+    stored in get_events.
+
+    The record carries top-level entrypoint, operation and
+    flow_id stamped from the handler scope. Manual
+    publish_exception inside a handler uses the same stamp.
+
+    Mapped HTTP errors (errors= on @http), HTTP error
+    responses (HTTPException), and explicit rpc_error
+    returns are not uncaught exceptions and are not reported.
+
     Event reporting is covered by unit tests in v1 (no simple
     AMQP publisher in the @registry harness).
-
-    Reporting uses the same path as publish_exception /
-    register_exception, so the registry still publishes
-    registry.exception.recorded with no breaking change.
-
-    Mapped HTTP errors (errors= on @http) and explicit rpc_error
-    returns are not uncaught exceptions and are not reported.
 
     The failing periodic task is only active in the task scenario so it
     does not pollute RPC/HTTP exception assertions.
@@ -150,12 +156,33 @@ Feature: Automatic uncaught exception reporting
                 "instance_id": "[REGISTRY_TEST_INSTANCE_ID]",
                 "exception_type": "Exception",
                 "message": "uncaught rpc exception",
-                "context": {
-                    "entrypoint": "rpc",
-                    "name": "raise_uncaught_exception"
-                },
-                "timestamp": "[TIMESTAMP]"
+                "timestamp": "[TIMESTAMP]",
+                "flow_id": "[FLOW_ID]",
+                "entrypoint": "rpc",
+                "operation": "raise_uncaught_exception"
             }
+            """
+        When I call the get_filtered_exceptions method with the following parameters
+            """
+            {
+                "filter_field": "entrypoint",
+                "value": "rpc"
+            }
+            """
+        Then the registry service should return the result
+            """
+            [
+                {
+                    "service_name": "RegistryTestService",
+                    "instance_id": "[REGISTRY_TEST_INSTANCE_ID]",
+                    "exception_type": "Exception",
+                    "message": "uncaught rpc exception",
+                    "timestamp": "[TIMESTAMP]",
+                    "flow_id": "[FLOW_ID]",
+                    "entrypoint": "rpc",
+                    "operation": "raise_uncaught_exception"
+                }
+            ]
             """
 
     # ------------------------------------------------------------
@@ -204,12 +231,10 @@ Feature: Automatic uncaught exception reporting
                 "instance_id": "[REGISTRY_TEST_INSTANCE_ID]",
                 "exception_type": "Exception",
                 "message": "uncaught http exception",
-                "context": {
-                    "entrypoint": "http",
-                    "method": "GET",
-                    "path": "/raise_uncaught"
-                },
-                "timestamp": "[TIMESTAMP]"
+                "timestamp": "[TIMESTAMP]",
+                "flow_id": "[FLOW_ID]",
+                "entrypoint": "http",
+                "operation": "GET /raise_uncaught"
             }
             """
 
@@ -249,6 +274,110 @@ Feature: Automatic uncaught exception reporting
                 level: DEBUG
             """
         When I send an HTTP GET request to "/raise_mapped"
+        When I call the get_filtered_exceptions method with the following parameters
+            """
+            {
+                "filter_field": "instance_id",
+                "value": "[REGISTRY_TEST_INSTANCE_ID]"
+            }
+            """
+        Then the registry service should return the result
+            """
+            []
+            """
+
+    Scenario: HTTP error response is not reported when report_uncaught_exceptions is true
+        Given the registry test service is running with the following configuration
+            """
+            kontiki:
+              amqp:
+                url: amqp://guest:guest@localhost/
+              registration:
+                disable: false
+                delay: 0
+              heartbeat:
+                interval: 2
+              http:
+                address: "0.0.0.0"
+                port: 8080
+
+            logging:
+              version: 1
+              disable_existing_loggers: True
+              formatters:
+                default:
+                  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(filename)s:%(lineno)d"
+              handlers:
+                console:
+                  class: logging.StreamHandler
+                  formatter: default
+                  level: DEBUG
+              loggers:
+                kontiki:
+                  handlers: ["console"]
+                  level: DEBUG
+                  propagate: False
+              root:
+                handlers: ["console"]
+                level: DEBUG
+            """
+        When I send an HTTP GET request to "/raise_http_error"
+        Then the HTTP response status should be 404
+        When I call the get_filtered_exceptions method with the following parameters
+            """
+            {
+                "filter_field": "instance_id",
+                "value": "[REGISTRY_TEST_INSTANCE_ID]"
+            }
+            """
+        Then the registry service should return the result
+            """
+            []
+            """
+
+    Scenario: returned rpc_error is not reported when report_uncaught_exceptions is true
+        Given the registry test service is running with the following configuration
+            """
+            kontiki:
+              amqp:
+                url: amqp://guest:guest@localhost/
+              registration:
+                disable: false
+                delay: 0
+              heartbeat:
+                interval: 2
+
+            logging:
+              version: 1
+              disable_existing_loggers: True
+              formatters:
+                default:
+                  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(filename)s:%(lineno)d"
+              handlers:
+                console:
+                  class: logging.StreamHandler
+                  formatter: default
+                  level: DEBUG
+              loggers:
+                kontiki:
+                  handlers: ["console"]
+                  level: DEBUG
+                  propagate: False
+              root:
+                handlers: ["console"]
+                level: DEBUG
+            """
+        When I call the return_rpc_error method with the following parameters
+            """
+            {}
+            """
+        Then the test service should return the error
+            """
+            {
+                "code": "CLIENT",
+                "message": "rpc error"
+            }
+            """
         When I call the get_filtered_exceptions method with the following parameters
             """
             {
@@ -305,10 +434,9 @@ Feature: Automatic uncaught exception reporting
                 "instance_id": "[REGISTRY_TEST_INSTANCE_ID]",
                 "exception_type": "Exception",
                 "message": "uncaught task exception",
-                "context": {
-                    "entrypoint": "task",
-                    "name": "raise_uncaught_task"
-                },
-                "timestamp": "[TIMESTAMP]"
+                "timestamp": "[TIMESTAMP]",
+                "flow_id": "[FLOW_ID]",
+                "entrypoint": "task",
+                "operation": "raise_uncaught_task"
             }
             """
