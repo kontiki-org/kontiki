@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [1.15.0] - 2026-09-18
 
 - Exception records are a flat ops index: `entrypoint`, `operation`, and
   `flow_id` from the handler scope. `publish_exception` takes only the
