@@ -18,9 +18,9 @@ not broker topology by hand.
 
 This repository is the runtime. Together with the registry,
 [KontikiTUI](https://github.com/kontiki-org/kontiki-tui), and
-[kontiki-monitor](https://github.com/kontiki-org/kontiki-monitor) it is one
-model for building services, watching the fleet, and getting alerted — the
-same process for a domain worker or a backup job.
+[kontiki-monitor](https://github.com/kontiki-org/kontiki-monitor), every Python
+workload — API, worker, cron job, ops service — is the same operable, testable,
+and observable unit.
 
 Most applications don't need the full depth of a specialized ops stack.
 We'll say 80%. We have a Python runtime, not a survey.
