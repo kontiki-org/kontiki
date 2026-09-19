@@ -23,7 +23,6 @@ workload — API, worker, cron job, ops service — is the same operable, testab
 and observable unit.
 
 Most applications don't need the full depth of a specialized ops stack.
-We'll say 80%. We have a Python runtime, not a survey.
 Kontiki takes the commonly useful part and aims to integrate it into the same service model,
 instead of giving you another platform to assemble and tune.
 
