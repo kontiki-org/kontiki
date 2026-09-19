@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.16.0] - 2026-09-19
+
+- Each `publish` / `call` stamps `kontiki_hop_id` (new id per emission),
+  `kontiki_parent_hop_id` (inbound hop; omitted for `@http` / `@task` /
+  outbound outside a handler), `kontiki_entrypoint`, `kontiki_operation`,
+  and `kontiki_rpc_service` on `call` only.
+- Exception records include `hop_id` (inbound hop; `null` for HTTP/task)
+  and `exception_id`.
+
 ## [1.15.0] - 2026-09-18
 
 - Exception records are a flat ops index: `entrypoint`, `operation`, and
