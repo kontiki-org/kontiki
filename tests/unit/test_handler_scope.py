@@ -15,10 +15,17 @@ from kontiki.messaging.flow import (
 )
 from kontiki.runtime.handler_scope import (
     FLOW_ID_LENGTH,
+    HOP_ID_LENGTH,
+    apply_outbound_hop_headers,
     current_handler_context,
     enter_handler_scope,
+    entrypoint_header_name,
     exception_record_fields,
+    hop_id_header_name,
+    operation_header_name,
+    parent_hop_id_header_name,
     reset_handler_scope,
+    rpc_service_header_name,
 )
 from kontiki.web.web import prepare_http_response
 
@@ -98,7 +105,7 @@ def test_flow_only_context_has_no_handler_context():
     resolve_flow_id()
     assert current_flow_id() is not None
     assert current_handler_context() is None
-    assert exception_record_fields() == (None, None, None)
+    assert exception_record_fields() == (None, None, None, None)
 
 
 def test_exception_record_fields_by_kind():
@@ -111,15 +118,16 @@ def test_exception_record_fields_by_kind():
     for kind, operation in cases:
         scope = enter_handler_scope(kind, operation)
         try:
-            flow_id, entrypoint, recorded_operation = exception_record_fields()
+            flow_id, entrypoint, recorded_operation, hop_id = exception_record_fields()
             ctx = current_handler_context()
             assert entrypoint == kind
             assert recorded_operation == operation
             assert flow_id == ctx.flow_id
+            assert hop_id is None
         finally:
             reset_handler_scope(scope)
 
-    assert exception_record_fields() == (None, None, None)
+    assert exception_record_fields() == (None, None, None, None)
 
 
 def test_scope_calls_work_in_flight_begin_and_end():
@@ -207,3 +215,90 @@ async def test_event_handler_reports_uncaught_exception():
     assert str(exc) == "event blew up"
     assert container.report_uncaught_exception.await_args.kwargs == {}
     message.nack.assert_awaited_once_with(requeue=False)
+
+
+def _hex_hop_id(value):
+    assert len(value) == HOP_ID_LENGTH
+    assert all(c in "0123456789abcdef" for c in value)
+
+
+def test_rpc_scope_remembers_inbound_hop_id():
+    inbound_hop = "aabbccddeeff0011"
+    scope = enter_handler_scope(
+        "rpc",
+        "my_method",
+        headers={hop_id_header_name(): inbound_hop},
+    )
+    try:
+        assert current_handler_context().hop_id == inbound_hop
+        _, _, _, hop_id = exception_record_fields()
+        assert hop_id == inbound_hop
+    finally:
+        reset_handler_scope(scope)
+
+
+def test_http_scope_ignores_inbound_hop_header():
+    scope = enter_handler_scope(
+        "http",
+        "GET /alerts",
+        headers={hop_id_header_name(): "aabbccddeeff0011"},
+    )
+    try:
+        assert current_handler_context().hop_id is None
+        _, _, _, hop_id = exception_record_fields()
+        assert hop_id is None
+    finally:
+        reset_handler_scope(scope)
+
+
+def test_outbound_outside_handler_has_hop_id_and_omits_parent():
+    headers = {}
+    apply_outbound_hop_headers(headers)
+    _hex_hop_id(headers[hop_id_header_name()])
+    assert parent_hop_id_header_name() not in headers
+    assert entrypoint_header_name() not in headers
+    assert operation_header_name() not in headers
+    assert rpc_service_header_name() not in headers
+
+
+def test_http_outbound_omits_parent_and_stamps_entrypoint():
+    scope = enter_handler_scope("http", "GET /alerts")
+    try:
+        headers = {}
+        apply_outbound_hop_headers(headers)
+        _hex_hop_id(headers[hop_id_header_name()])
+        assert parent_hop_id_header_name() not in headers
+        assert headers[entrypoint_header_name()] == "http"
+        assert headers[operation_header_name()] == "GET /alerts"
+    finally:
+        reset_handler_scope(scope)
+
+
+def test_rpc_outbounds_share_inbound_parent_and_get_distinct_hop_ids():
+    inbound_hop = "aabbccddeeff0011"
+    scope = enter_handler_scope(
+        "rpc",
+        "charge",
+        headers={hop_id_header_name(): inbound_hop},
+    )
+    try:
+        first = {}
+        second = {}
+        apply_outbound_hop_headers(first)
+        apply_outbound_hop_headers(second, rpc_service="billing")
+        third = {}
+        apply_outbound_hop_headers(third)
+        parent_key = parent_hop_id_header_name()
+        hop_key = hop_id_header_name()
+        assert first[parent_key] == inbound_hop
+        assert second[parent_key] == inbound_hop
+        assert third[parent_key] == inbound_hop
+        assert len({first[hop_key], second[hop_key], third[hop_key]}) == 3
+        assert current_handler_context().hop_id == inbound_hop
+        assert first[entrypoint_header_name()] == "rpc"
+        assert first[operation_header_name()] == "charge"
+        assert rpc_service_header_name() not in first
+        assert second[rpc_service_header_name()] == "billing"
+        assert rpc_service_header_name() not in third
+    finally:
+        reset_handler_scope(scope)

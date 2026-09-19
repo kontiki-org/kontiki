@@ -8,6 +8,7 @@ from kontiki.configuration.configuration import DEFAULT_LOG_FORMAT
 from kontiki.runtime.handler_scope import (
     FLOW_ID_LENGTH,
     FLOW_ID_UNSET,
+    apply_outbound_hop_headers,
     current_flow_id,
     flow_id_header_name,
     format_flow_id_for_log,
@@ -24,6 +25,7 @@ __all__ = [
     "FlowIdFilter",
     "ServiceIdentityFilter",
     "apply_outbound_flow_id",
+    "apply_outbound_hop_headers",
     "current_flow_id",
     "enter_flow_context",
     "enter_flow_from_headers",
