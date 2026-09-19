@@ -16,10 +16,16 @@ most of the leverage sits one layer deeper — identity, routing, delivery, flee
 health, configuration, and testing. You express **intentions in Kontiki terms**,
 not broker topology by hand.
 
-This repository is the runtime. The registry,
+This repository is the runtime. Together with the registry,
 [KontikiTUI](https://github.com/kontiki-org/kontiki-tui), and
-[kontiki-monitor](https://github.com/kontiki-org/kontiki-monitor) share the same
-process model.
+[kontiki-monitor](https://github.com/kontiki-org/kontiki-monitor) it is one
+model for building services, watching the fleet, and getting alerted — the
+same process for a domain worker or a backup job.
+
+Most applications don't need the full depth of a specialized ops stack.
+We'll say 80%. We have a Python runtime, not a survey.
+Kontiki takes the commonly useful part and aims to integrate it into the same service model,
+instead of giving you another platform to assemble and tune.
 
 ### Why conventions
 
@@ -165,6 +171,156 @@ RPC plus a chained event — the shape most meshes grow from. In production,
 peers resolve from config (`kontiki.peers`), delivery modes are set on handlers,
 and the registry tracks the fleet. See `examples/events/broadcast/`,
 `examples/events/session/`, and `examples/registry/`.
+
+---
+
+## Testing a service in isolation
+
+`kontiki.testing` lets you exercise one service on the bus without running
+its peers. The usual form is a Gherkin feature: an executable spec of the
+service boundary.
+
+The feature shows the timeline — config and initial state, incoming events
+or RPC, calls to peers and their controlled responses, published events,
+return values, state changes. That sequence stays in the `.feature`, not in
+Python fixtures.
+
+From Boomerang's alert-engine: a normalized alert in, a subscription RPC,
+controlled recipients, notification events out.
+
+```gherkin
+When a "alert.normalized" event is published with payload
+  """
+  {
+    "schema_version": "1.0",
+    "alert_id": "al_123",
+    "source": "test-source",
+    "category": "safety.fire",
+    "event_type": "wildfire",
+    "severity": "severe",
+    "occurred_at": "2026-04-01T18:00:00Z",
+    "title": "Wildfire emergency warning",
+    "body": "Evacuate affected areas immediately.",
+    "areas": [
+      {"type": "region", "value": "REGION-1"}
+    ],
+    "attributes": {},
+    "expires_at": "2026-04-02T04:00:00Z"
+  }
+  """
+Then the alert-engine calls subscription RPC get_recipients_for_alert with
+  """
+  {
+    "schema_version": "1.0",
+    "alert_id": "al_123",
+    "source": "test-source",
+    "category": "safety.fire",
+    "event_type": "wildfire",
+    "severity": "severe",
+    "occurred_at": "2026-04-01T18:00:00Z",
+    "title": "Wildfire emergency warning",
+    "body": "Evacuate affected areas immediately.",
+    "areas": [
+      {"type": "region", "value": "REGION-1"}
+    ],
+    "attributes": {},
+    "expires_at": "2026-04-02T04:00:00Z"
+  }
+  """
+When the alert-engine receives recipients from subscription RPC
+  """
+  [
+    {
+      "recipient_id": "usr_1",
+      "channel": "email",
+      "endpoint_key": "email_primary"
+    },
+    {
+      "recipient_id": "usr_1",
+      "channel": "sms",
+      "endpoint_key": "sms_primary"
+    },
+    {
+      "recipient_id": "usr_2",
+      "channel": "sms",
+      "endpoint_key": "sms_backup"
+    }
+  ]
+  """
+Then an "email.alerting.notification.requested" event is published
+  """
+  {
+    "channel": "email",
+    "recipient_id": "usr_1",
+    "endpoint_key": "email_primary",
+    "message": {
+      "title": "Wildfire emergency warning",
+      "body": "Evacuate affected areas immediately.",
+      "context": {
+        "kind": "alert",
+        "data": {
+          "alert_id": "al_123",
+          "category": "safety.fire",
+          "event_type": "wildfire",
+          "severity": "severe",
+          "attributes": {}
+        }
+      }
+    }
+  }
+  """
+And a "sms.alerting.notification.requested" event is published
+  """
+  {
+    "channel": "sms",
+    "recipient_id": "usr_1",
+    "endpoint_key": "sms_primary",
+    "message": {
+      "title": "Wildfire emergency warning",
+      "body": "Evacuate affected areas immediately.",
+      "context": {
+        "kind": "alert",
+        "data": {
+          "alert_id": "al_123",
+          "category": "safety.fire",
+          "event_type": "wildfire",
+          "severity": "severe",
+          "attributes": {}
+        }
+      }
+    }
+  }
+  """
+And a "sms.alerting.notification.requested" event is published
+  """
+  {
+    "channel": "sms",
+    "recipient_id": "usr_2",
+    "endpoint_key": "sms_backup",
+    "message": {
+      "title": "Wildfire emergency warning",
+      "body": "Evacuate affected areas immediately.",
+      "context": {
+        "kind": "alert",
+        "data": {
+          "alert_id": "al_123",
+          "category": "safety.fire",
+          "event_type": "wildfire",
+          "severity": "severe",
+          "attributes": {}
+        }
+      }
+    }
+  }
+  """
+```
+
+Mocks, controlled return values, and message capture live in
+`kontiki.testing`; Behave steps drive them. The feature is the behavioural
+source of truth. Steps execute it; they should not invent behaviour missing
+from it.
+
+See `docs/features.md` (Testing) and `tests/integration/`.
 
 ---
 
