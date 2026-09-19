@@ -185,134 +185,77 @@ or RPC, calls to peers and their controlled responses, published events,
 return values, state changes. That sequence stays in the `.feature`, not in
 Python fixtures.
 
-From Boomerang's alert-engine: a normalized alert in, a subscription RPC,
-controlled recipients, notification events out.
+From Boomerang's subscription-service: the service starts from its config,
+an RPC comes in, matching recipients come out.
 
 ```gherkin
-When a "alert.normalized" event is published with payload
-  """
-  {
-    "schema_version": "1.0",
-    "alert_id": "al_123",
-    "source": "test-source",
-    "category": "safety.fire",
-    "event_type": "wildfire",
-    "severity": "severe",
-    "occurred_at": "2026-04-01T18:00:00Z",
-    "title": "Wildfire emergency warning",
-    "body": "Evacuate affected areas immediately.",
-    "areas": [
-      {"type": "region", "value": "REGION-1"}
-    ],
-    "attributes": {},
-    "expires_at": "2026-04-02T04:00:00Z"
-  }
-  """
-Then the alert-engine calls subscription RPC get_recipients_for_alert with
-  """
-  {
-    "schema_version": "1.0",
-    "alert_id": "al_123",
-    "source": "test-source",
-    "category": "safety.fire",
-    "event_type": "wildfire",
-    "severity": "severe",
-    "occurred_at": "2026-04-01T18:00:00Z",
-    "title": "Wildfire emergency warning",
-    "body": "Evacuate affected areas immediately.",
-    "areas": [
-      {"type": "region", "value": "REGION-1"}
-    ],
-    "attributes": {},
-    "expires_at": "2026-04-02T04:00:00Z"
-  }
-  """
-When the alert-engine receives recipients from subscription RPC
-  """
-  [
+Scenario: Return matching recipient for exact area and category
+  Given the subscription service is running with the following configuration
+    """
+    kontiki:
+      amqp:
+        url: amqp://guest:guest@localhost/
+      http:
+        address: 127.0.0.1
+        port: 8000
+    logging:
+      directory: logs
+      handlers:
+        file:
+          class: logging.handlers.RotatingFileHandler
+          level: INFO
+          maxBytes: 10485760
+          backupCount: 5
+      root:
+        handlers: [file]
+        level: INFO
+    app:
+      subscriptions:
+        usr_1:
+          wind-fr69:
+            status: active
+            subscription:
+              rule:
+                category: weather.wind
+                event_type: "*"
+                criteria:
+                  all_of:
+                    - key: area.zone
+                      operator: eq
+                      value: FR-69
+              endpoints:
+                - email.email_primary
+    """
+  When I call the RPC get_recipients_for_alert on the subscription service with the following arguments
+    """
     {
-      "recipient_id": "usr_1",
-      "channel": "email",
-      "endpoint_key": "email_primary"
-    },
-    {
-      "recipient_id": "usr_1",
-      "channel": "sms",
-      "endpoint_key": "sms_primary"
-    },
-    {
-      "recipient_id": "usr_2",
-      "channel": "sms",
-      "endpoint_key": "sms_backup"
-    }
-  ]
-  """
-Then an "email.alerting.notification.requested" event is published
-  """
-  {
-    "channel": "email",
-    "recipient_id": "usr_1",
-    "endpoint_key": "email_primary",
-    "message": {
-      "title": "Wildfire emergency warning",
-      "body": "Evacuate affected areas immediately.",
-      "context": {
-        "kind": "alert",
-        "data": {
-          "alert_id": "al_123",
-          "category": "safety.fire",
-          "event_type": "wildfire",
-          "severity": "severe",
-          "attributes": {}
-        }
+      "alert": {
+        "schema_version": "1.0",
+        "alert_id": "wx_wind_fr69",
+        "source": "test",
+        "category": "weather.wind",
+        "event_type": "hail",
+        "severity": "moderate",
+        "occurred_at": "2026-01-15T12:00:00Z",
+        "title": "Wind warning",
+        "body": "Strong winds expected in FR-69.",
+        "areas": [
+          {"type": "zone", "value": "FR-69"}
+        ],
+        "attributes": {}
       }
     }
-  }
-  """
-And a "sms.alerting.notification.requested" event is published
-  """
-  {
-    "channel": "sms",
-    "recipient_id": "usr_1",
-    "endpoint_key": "sms_primary",
-    "message": {
-      "title": "Wildfire emergency warning",
-      "body": "Evacuate affected areas immediately.",
-      "context": {
-        "kind": "alert",
-        "data": {
-          "alert_id": "al_123",
-          "category": "safety.fire",
-          "event_type": "wildfire",
-          "severity": "severe",
-          "attributes": {}
-        }
+    """
+  Then the RPC response is
+    """
+    [
+      {
+        "recipient_id": "usr_1",
+        "channel": "email",
+        "endpoint_key": "email_primary"
       }
-    }
-  }
-  """
-And a "sms.alerting.notification.requested" event is published
-  """
-  {
-    "channel": "sms",
-    "recipient_id": "usr_2",
-    "endpoint_key": "sms_backup",
-    "message": {
-      "title": "Wildfire emergency warning",
-      "body": "Evacuate affected areas immediately.",
-      "context": {
-        "kind": "alert",
-        "data": {
-          "alert_id": "al_123",
-          "category": "safety.fire",
-          "event_type": "wildfire",
-          "severity": "severe",
-          "attributes": {}
-        }
-      }
-    }
-  }
-  """
+    ]
+    """
 ```
 
 Mocks, controlled return values, and message capture live in
