@@ -315,10 +315,10 @@ class ServiceContainer:
             log.warning("Service registration is disabled or unavailable..")
             return
 
-        flow_id, entrypoint, operation = exception_record_fields()
+        flow_id, entrypoint, operation, hop_id = exception_record_fields()
         try:
             await self.service_registry_client.register_exception(
-                exception, flow_id, entrypoint, operation
+                exception, flow_id, entrypoint, operation, hop_id
             )
             log.debug("Exception published successfully: %s.", exception)
         except Exception as e:

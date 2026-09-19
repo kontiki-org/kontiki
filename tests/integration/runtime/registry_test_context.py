@@ -5,9 +5,16 @@ import time
 
 from kontiki import __version__ as kontiki_version
 from kontiki.messaging.flow import FLOW_ID_LENGTH
+from kontiki.runtime.handler_scope import EXCEPTION_ID_LENGTH, HOP_ID_LENGTH
 
 REGISTER_LINE = re.compile(r"Published message to registry\.register: (.+)$")
 EXCEPTION_LINE = re.compile(r"Published message to registry\.exception: (.+)$")
+
+_HEX_PLACEHOLDERS = {
+    "[FLOW_ID]": FLOW_ID_LENGTH,
+    "[HOP_ID]": HOP_ID_LENGTH,
+    "[EXCEPTION_ID]": EXCEPTION_ID_LENGTH,
+}
 
 
 def _parse_logged_payload(raw_payload):
@@ -55,8 +62,8 @@ def placeholders_from_exception(exception_data):
     }
 
 
-def _is_flow_id(value):
-    if not isinstance(value, str) or len(value) != FLOW_ID_LENGTH:
+def _is_hex_id(value, length):
+    if not isinstance(value, str) or len(value) != length:
         return False
     return all(c in "0123456789abcdef" for c in value)
 
@@ -72,7 +79,7 @@ def resolve_placeholders(value, placeholders):
     if isinstance(value, list):
         return [resolve_placeholders(item, placeholders) for item in value]
     if isinstance(value, str):
-        if value in ("[TIMESTAMP]", "[FLOW_ID]"):
+        if value == "[TIMESTAMP]" or value in _HEX_PLACEHOLDERS:
             return value
         if value.startswith("[") and value.endswith("]"):
             key = value[1:-1]
@@ -89,10 +96,12 @@ def payload_matches(actual, expected, placeholders):
             if key not in actual or not actual[key]:
                 return False
             continue
-        if expected_value == "[FLOW_ID]":
-            if not _is_flow_id(actual.get(key)):
-                return False
-            continue
+        if isinstance(expected_value, str):
+            length = _HEX_PLACEHOLDERS.get(expected_value)
+            if length is not None:
+                if not _is_hex_id(actual.get(key), length):
+                    return False
+                continue
         if actual.get(key) != expected_value:
             return False
     return True
@@ -101,8 +110,10 @@ def payload_matches(actual, expected, placeholders):
 def matches_with_timestamps(actual, expected):
     if expected == "[TIMESTAMP]":
         return bool(actual)
-    if expected == "[FLOW_ID]":
-        return _is_flow_id(actual)
+    if isinstance(expected, str):
+        length = _HEX_PLACEHOLDERS.get(expected)
+        if length is not None:
+            return _is_hex_id(actual, length)
     if isinstance(expected, dict):
         if not isinstance(actual, dict) or actual.keys() != expected.keys():
             return False

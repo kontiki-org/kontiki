@@ -60,6 +60,8 @@ def exception_recorded_payload(exception_data):
         "message": exception_data["message"],
         "timestamp": exception_data["timestamp"],
         "flow_id": exception_data["flow_id"],
+        "hop_id": exception_data["hop_id"],
+        "exception_id": exception_data["exception_id"],
         "entrypoint": exception_data["entrypoint"],
         "operation": exception_data["operation"],
     }

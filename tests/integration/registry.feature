@@ -245,6 +245,8 @@ Feature: Service registry
                     "message": "test exception",
                     "timestamp": "[REGISTRY_TEST_EXCEPTION_TIMESTAMP]",
                     "flow_id": "[FLOW_ID]",
+                    "hop_id": "[HOP_ID]",
+                    "exception_id": "[EXCEPTION_ID]",
                     "entrypoint": "rpc",
                     "operation": "report_test_exception"
                 }
@@ -549,6 +551,8 @@ Feature: Service registry
                 "message": "test exception",
                 "timestamp": "[TIMESTAMP]",
                 "flow_id": "[FLOW_ID]",
+                "hop_id": "[HOP_ID]",
+                "exception_id": "[EXCEPTION_ID]",
                 "entrypoint": "rpc",
                 "operation": "report_test_exception"
             }

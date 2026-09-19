@@ -18,6 +18,12 @@ from kontiki.messaging.flow import (
     resolve_flow_id,
 )
 from kontiki.messaging.publisher.messenger import Messenger
+from kontiki.runtime.handler_scope import (
+    HOP_ID_LENGTH,
+    hop_id_header_name,
+    parent_hop_id_header_name,
+    rpc_service_header_name,
+)
 from kontiki.task.task import Task
 
 
@@ -219,3 +225,15 @@ async def test_sticky_flow_within_same_context_two_publishes():
         flow_id_header_name()
     ]
     assert first == second
+
+
+@pytest.mark.asyncio
+async def test_publish_stamps_new_hop_id_without_parent():
+    messenger = _stub_connected_messenger()
+    await messenger.publish("evt", {})
+    headers = messenger.event_exchange.publish.await_args.args[0].headers
+    hop = headers[hop_id_header_name()]
+    assert len(hop) == HOP_ID_LENGTH
+    assert all(c in "0123456789abcdef" for c in hop)
+    assert parent_hop_id_header_name() not in headers
+    assert rpc_service_header_name() not in headers

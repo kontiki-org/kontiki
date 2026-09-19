@@ -19,7 +19,7 @@ from kontiki.messaging.common import (
     get_rpc_timeout,
     is_amqp_required,
 )
-from kontiki.messaging.flow import apply_outbound_flow_id
+from kontiki.messaging.flow import apply_outbound_flow_id, apply_outbound_hop_headers
 from kontiki.messaging.publisher.rpc import (
     RpcClientError,
     RpcServerError,
@@ -176,6 +176,7 @@ class Messenger(ServiceDelegate):
         }
         headers = self.get_service_headers() | event_headers | extra_headers
         apply_outbound_flow_id(headers, flow_id=flow_id, extra_headers=extra_headers)
+        apply_outbound_hop_headers(headers)
         message = self.serializer.dumps(obj)
 
         try:
@@ -218,6 +219,7 @@ class Messenger(ServiceDelegate):
         remote_headers = {"remote_method": method_name}
         headers = self.get_service_headers() | remote_headers | extra_headers
         apply_outbound_flow_id(headers, flow_id=flow_id, extra_headers=extra_headers)
+        apply_outbound_hop_headers(headers, rpc_service=service_name)
 
         routing_key = f"{service_name}.{method_name}"
         if instance_id is not None:

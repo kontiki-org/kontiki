@@ -11,9 +11,13 @@ Feature: Automatic uncaught exception reporting
     registry.exception.recorded on the bus. That event is not
     stored in get_events.
 
-    The record carries top-level entrypoint, operation and
-    flow_id stamped from the handler scope. Manual
-    publish_exception inside a handler uses the same stamp.
+    The record carries top-level exception_id, hop_id,
+    entrypoint, operation and flow_id stamped from the
+    handler scope. hop_id is the inbound hop of the current
+    rpc or on_event handler, or null for http, task, and
+    outside a handler. exception_id is a new 16-hex id at
+    each record. Manual publish_exception inside a handler
+    uses the same stamp.
 
     Mapped HTTP errors (errors= on @http), HTTP error
     responses (HTTPException), and explicit rpc_error
@@ -158,6 +162,8 @@ Feature: Automatic uncaught exception reporting
                 "message": "uncaught rpc exception",
                 "timestamp": "[TIMESTAMP]",
                 "flow_id": "[FLOW_ID]",
+                "hop_id": "[HOP_ID]",
+                "exception_id": "[EXCEPTION_ID]",
                 "entrypoint": "rpc",
                 "operation": "raise_uncaught_exception"
             }
@@ -179,6 +185,8 @@ Feature: Automatic uncaught exception reporting
                     "message": "uncaught rpc exception",
                     "timestamp": "[TIMESTAMP]",
                     "flow_id": "[FLOW_ID]",
+                    "hop_id": "[HOP_ID]",
+                    "exception_id": "[EXCEPTION_ID]",
                     "entrypoint": "rpc",
                     "operation": "raise_uncaught_exception"
                 }
@@ -233,6 +241,8 @@ Feature: Automatic uncaught exception reporting
                 "message": "uncaught http exception",
                 "timestamp": "[TIMESTAMP]",
                 "flow_id": "[FLOW_ID]",
+                "hop_id": null,
+                "exception_id": "[EXCEPTION_ID]",
                 "entrypoint": "http",
                 "operation": "GET /raise_uncaught"
             }
@@ -436,6 +446,8 @@ Feature: Automatic uncaught exception reporting
                 "message": "uncaught task exception",
                 "timestamp": "[TIMESTAMP]",
                 "flow_id": "[FLOW_ID]",
+                "hop_id": null,
+                "exception_id": "[EXCEPTION_ID]",
                 "entrypoint": "task",
                 "operation": "raise_uncaught_task"
             }
