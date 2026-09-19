@@ -1,7 +1,7 @@
 <img src="./assets/kontiki_logo.png" width="500">
 
-> **Part of the Kontiki suite** — a compact open-source stack for teams that need
-> ops without the heavy stack.
+> **Part of the Kontiki suite** — Python runtime, registry, terminal UI, and
+> fleet monitoring for distributed services.
 >
 > Full suite overview → https://kontiki-org.github.io/
 >
@@ -10,21 +10,39 @@
 ---
 ## Overview
 
-**Kontiki** is a Python runtime for **distributed services**: a small surface
-(`@http`, `@rpc`, `@on_event`, `@task`) over a shared model for identity,
-routing, delivery, fleet health, configuration, and testing. Services talk
-through a message mesh (AMQP via aio-pika and asyncio); you express **intentions
-in Kontiki terms**, not broker topology by hand.
+**Kontiki** is a Python runtime for distributed services on RabbitMQ. You write
+`@http`, `@rpc`, `@on_event`, and `@task`. The decorators are the visible API;
+most of the leverage sits one layer deeper — identity, routing, delivery, fleet
+health, configuration, and testing. You express **intentions in Kontiki terms**,
+not broker topology by hand.
 
-The aim is **one stack** for the ordinary needs of a distributed system —
-business services, ops jobs, fleet visibility, and alerting — so teams delay
-adopting extra tooling until a need is genuinely specialized. Common features
-stay in the suite.
+This repository is the runtime. The registry,
+[KontikiTUI](https://github.com/kontiki-org/kontiki-tui), and
+[kontiki-monitor](https://github.com/kontiki-org/kontiki-monitor) share the same
+process model.
 
-Kontiki turns **recurring distributed-service decisions into platform conventions**.
-Configuration, service identity, RPC, event delivery, fleet health, flow correlation,
-and testing follow the same model across services, so **each new service does not have to
-redesign the same plumbing.**
+### Why conventions
+
+Services should differ primarily because of what they do, not because each one
+introduces another way of being built and operated.
+
+- An ops job fails months later: find the service in KontikiTUI instead of
+  rediscovering its crontab, script, and log file.
+- A request failed after crossing several services: follow its `flow_id`
+  tree in KontikiTUI instead of correlating timestamps across logs by hand.
+- Adding a new service — including a monitor: identity, configuration,
+  lifecycle, logging, health, and failure reporting already follow the same
+  conventions.
+
+### What Kontiki is not
+
+Kontiki does not aim for maximum infrastructure choice. It is intentionally
+Python-first, RabbitMQ-based, and convention-driven. It does not abstract every
+broker, become a language-neutral platform, replace orchestration, or reproduce
+a tracing, long-term metrics, or IAM product. Those can coexist outside the
+common model; they are not the default for everyday needs.
+
+### Runtime
 
 - **One model from dev to production**: merged YAML config, `cli.run`, and the
   same entrypoint decorators in tests (`kontiki.testing` mocks on the bus) and
@@ -40,11 +58,9 @@ redesign the same plumbing.**
   tracking, live instance ids (`list_instances` / `GET /instances/{service_name}`),
   and orchestrator live probes (`GET /live/{service_name}`). The bus
   runs without a registry; operating the fleet coherently assumes one.
-- **Integrated operations**: correlate flows with `flow_id`, browse the fleet in
+- **Integrated operations**: browse the fleet in
   [**KontikiTUI**](https://github.com/kontiki-org/kontiki-tui), alert from
   registry signals with [**kontiki-monitor**](https://github.com/kontiki-org/kontiki-monitor).
-
-The decorators are the visible API; most of the leverage sits one layer deeper.
 
 For gotchas, controlled failures (`rpc_error`), and patterns beyond this
 overview, see `docs/advanced-features.md`. For a feature-by-feature reference,
@@ -64,7 +80,7 @@ see `docs/features.md`.
 | Route an event | explicit `event_type` |
 | Caller target from deploy config | `RpcProxy(..., peer="…")` / `open_session(peer="…")` → `kontiki.peers` |
 | Fleet health | registry + `degraded_on` |
-| Cross-service debug | `flow_id` → filter in KontikiTUI Logs |
+| Cross-service debug | `flow_id` → KontikiTUI Flows (tree, exception, export) |
 | Tests on the bus | `kontiki.testing` |
 | Gateway into Kontiki from FastAPI, etc. | standalone `Messenger` |
 
@@ -72,18 +88,13 @@ see `docs/features.md`.
 
 ## Kontiki suite
 
-Kontiki is not only the Python runtime. The suite is **one stack** for business
-workloads, ops services, and monitoring: the same process model, the same
-registry, the same terminal UI. Calendar work (`@task`), fleet visibility, and
-alerting stay on that model so a crontab, a metrics sidecar, or an alerting
-product is not the default for everyday needs. Adopt third-party tools when the
-problem is specialized (long-term metrics store, tracing platform, IAM) — not
-for the common path.
+Kontiki is not only this runtime. The suite shares the same process model,
+registry, and terminal UI:
 
 | Component | Role |
 |-----------|------|
 | **Kontiki** (this repo) | Service runtime — entrypoints, messaging, registry client, config, testing |
-| [**kontiki-tui**](https://github.com/kontiki-org/kontiki-tui) | Terminal UI over the registry and local logs — browse services, filter by `flow_id`, inspect events and exceptions |
+| [**kontiki-tui**](https://github.com/kontiki-org/kontiki-tui) | Terminal UI over the registry and local logs — browse services, flows, and exceptions |
 | [**kontiki-monitor**](https://github.com/kontiki-org/kontiki-monitor) | Fleet checks, registry signals, and host disk alerts |
 
 When services register with the **Kontiki registry**, KontikiTUI gives a live
