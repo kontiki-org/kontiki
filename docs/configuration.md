@@ -52,7 +52,7 @@ for fixed platform targets.
 | `kontiki.amqp.url` | `amqp://guest:guest@localhost/` | AMQP connection URL. |
 | `kontiki.amqp.required` | `true` | `true`: fail-fast at start if the broker is unreachable. `false`: the local work (`@task`, `@http`) does not need AMQP and must run even if the broker is down; registry and exception reporting connect when it is up. Distinct from `kontiki.registration.disable`. |
 | `kontiki.amqp.rpc.timeout` | `10` | RPC call timeout in seconds. |
-| `kontiki.amqp.serialization` | `pickle` | AMQP message format: `pickle` (supported). `json` is deprecated — logs a warning at startup; removal planned in a future major release. |
+| `kontiki.amqp.serialization` | *(removed)* | Removed in V2.0. JSON is now the only supported AMQP message format. Object reconstruction uses type hints on handler parameters and the optional `response_model=` on `messenger.call()`. |
 | `kontiki.amqp.max_pending_messages` | `10` | Consumer prefetch (QoS): max unacknowledged messages per consumer. Limits how many messages a single instance can hold before acknowledging; useful for load balancing and backpressure. |
 | `kontiki.amqp.tls` | `{}` | Optional TLS. See below. |
 

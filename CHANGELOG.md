@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Breaking**: JSON-only AMQP serialization. `pickle` and `kontiki.amqp.serialization` removed.
+- **New**: Type-hint based object reconstruction for event/RPC handlers and `messenger.call(response_model=...)`.
+
+
 ## [1.16.0] - 2026-09-19
 
 - Each `publish` / `call` stamps `kontiki_hop_id` (new id per emission),
@@ -145,7 +151,7 @@
 
 ## [1.4.0] - 2026-07-22
 
-- Registration group: services send a first-class `group` field on registry `register` (`kontiki.registration.group`, default `business`). 
+- Registration group: services send a first-class `group` field on registry `register` (`kontiki.registration.group`, default `business`).
 - Documents `kontiki.registration.group` in `docs/configuration.md` and the example config.
 - Corrects `docs/features.md`: multi-file config merge does not override conflicting leaf values (complementary keys only; conflicts raise an error).
 

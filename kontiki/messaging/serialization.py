@@ -1,82 +1,66 @@
+import base64
 import json
-import pickle
+from datetime import date, datetime, time
+from uuid import UUID
 
-from kontiki.configuration.parameter import get_kontiki_parameter
 from kontiki.messaging.rpc import RpcErrorType, RpcReturn
-from kontiki.utils import log
-
-# -----------------------------------------------------------------------------
-
-DEFAULT_SERIALIZATION = "pickle"
-SUPPORTED_SERIALIZATIONS = ["pickle", "json"]
-
-_json_deprecation_warned = False
-
-
-def _warn_json_serialization_deprecated():
-    global _json_deprecation_warned
-    if _json_deprecation_warned:
-        return
-    _json_deprecation_warned = True
-    log.warning(
-        "kontiki.amqp.serialization=json is deprecated; pickle is the supported "
-        "AMQP format. JSON bus serialization will be removed in a future major release."
-    )
 
 
 class Serializer:
-    def __init__(self, config, serialization=DEFAULT_SERIALIZATION):
-        self.serialization = get_kontiki_parameter(
-            config, "amqp.serialization", serialization
-        )
-        if self.serialization not in SUPPORTED_SERIALIZATIONS:
-            msg = f"{self.serialization} serializer not supported."
-            log.error(msg)
-            raise RuntimeError(msg)
-        if self.serialization == "json":
-            _warn_json_serialization_deprecated()
+    """JSON-only serializer for Kontiki 2.0+."""
 
-    def _rpcreturn_object_hook(self, obj):
-        if obj.get("__rpcreturn__") is True:
-            error_type_str = obj.get("error_type", "NONE")
-            error_type = (
-                RpcErrorType[error_type_str]
-                if error_type_str in RpcErrorType.__members__
-                else RpcErrorType.NONE
-            )
-            return RpcReturn(
-                success=obj.get("success", False),
-                result=obj.get("result"),
-                message=obj.get("message"),
-                error_type=error_type,
-            )
-        return obj
+    def __init__(self, config):
+        self.config = config
 
     def _default_encoder(self, obj):
+        if isinstance(obj, (datetime, date, time)):
+            return obj.isoformat()
+        if isinstance(obj, UUID):
+            return str(obj)
+        if isinstance(obj, bytes):
+            return {"__bytes__": True, "data": base64.b64encode(obj).decode("ascii")}
         if isinstance(obj, RpcReturn):
-            log.debug(
-                "Encode RpcReturn object: %s",
-                obj.result if obj.success else obj.message,
-            )
             return {
                 "__rpcreturn__": True,
                 "success": obj.success,
                 "result": obj.result,
                 "message": obj.message,
                 "error_type": obj.error_type.name,
+                "error_code": obj.error_code,
             }
-        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+        if hasattr(obj, "__dict__"):
+            return obj.__dict__
+        if hasattr(obj, "model_dump"):
+            return obj.model_dump()
+        if hasattr(obj, "dict"):
+            return obj.dict()
+        try:
+            return dict(obj)
+        except TypeError:
+            raise TypeError(f"Cannot serialize {type(obj).__name__} to JSON")
 
-    def loads(self, message_body):
-        if self.serialization == "json":
-            return json.loads(
-                message_body.decode(), object_hook=self._rpcreturn_object_hook
+    def _object_hook(self, dct):
+        if dct.get("__rpcreturn__") is True:
+            error_type = (
+                RpcErrorType[dct["error_type"]]
+                if "error_type" in dct
+                else RpcErrorType.NONE
             )
+            return RpcReturn(
+                success=dct["success"],
+                result=dct.get("result"),
+                message=dct.get("message"),
+                error_type=error_type,
+                error_code=dct.get("error_code"),
+            )
+        if dct.get("__bytes__") is True:
+            return base64.b64decode(dct["data"])
+        return dct
 
-        return pickle.loads(message_body)
+    def dumps(self, obj):
+        return json.dumps(
+            obj, default=self._default_encoder, ensure_ascii=False
+        ).encode("utf-8")
 
-    def dumps(self, message_body):
-        if self.serialization == "json":
-            return json.dumps(message_body, default=self._default_encoder).encode()
-
-        return pickle.dumps(message_body)
+    def loads(self, data):
+        return json.loads(data.decode("utf-8"), object_hook=self._object_hook)

@@ -28,7 +28,7 @@ from kontiki.messaging.publisher.rpc import (
 )
 from kontiki.messaging.publisher.session import EventSession
 from kontiki.messaging.rpc import RpcErrorType, RpcReturn
-from kontiki.messaging.serialization import DEFAULT_SERIALIZATION, Serializer
+from kontiki.messaging.serialization import Serializer
 from kontiki.utils import KONTIKI, get_kontiki_header_name, log, setup_logger
 
 
@@ -42,7 +42,6 @@ class Messenger(ServiceDelegate):
         self,
         amqp_url=AMQP_DEFAULT_URL,
         event_exchange=EVENT_EXCHANGE,
-        serialization=DEFAULT_SERIALIZATION,
         standalone=False,
         client_name="client",
     ):
@@ -50,11 +49,11 @@ class Messenger(ServiceDelegate):
         self.connection = None
         self.channel = None
         self.futures = {}
+        self._response_models = {}
         self.callback_queue = None
         self._callback_consumer_tag = None
         self.event_exchange_name = event_exchange
         self.serializer = None
-        self.serialization = serialization
         self.amqp_url = amqp_url
         self.standalone = standalone
         self._reconnecting = False
@@ -92,7 +91,7 @@ class Messenger(ServiceDelegate):
             self._on_response
         )
         # Sets serializer
-        self.serializer = Serializer(config, serialization=self.serialization)
+        self.serializer = Serializer(config)
         # Cache RPC timeout from config (works both in container and standalone)
         self._rpc_timeout = get_rpc_timeout(config)
 
@@ -136,6 +135,8 @@ class Messenger(ServiceDelegate):
         self.channel = None
         self.callback_queue = None
         self._callback_consumer_tag = None
+        self.futures = {}
+        self._response_models = {}
         self._started = False
 
     async def _on_response(self, message):
@@ -203,6 +204,7 @@ class Messenger(ServiceDelegate):
         extra_headers=None,
         flow_id=None,
         instance_id=None,
+        response_model=None,
         **kwargs,
     ):
         self._require_amqp()
@@ -213,6 +215,7 @@ class Messenger(ServiceDelegate):
         # Create a future to wait for the response
         future = loop.create_future()
         self.futures[cid] = future
+        self._response_models[cid] = response_model
 
         if extra_headers is None:
             extra_headers = {}
@@ -252,9 +255,35 @@ class Messenger(ServiceDelegate):
             # Cleanup future on timeout
             if cid in self.futures:
                 del self.futures[cid]
+            if cid in self._response_models:
+                del self._response_models[cid]
             raise RpcTimeoutError(method_name)
 
+        # Get response_model if provided for this call
+        response_model = self._response_models.pop(cid, None)
+
         if isinstance(response, RpcReturn):
+            # Reconstruct result if response_model is provided and it's a success
+            if response.success and response_model is not None:
+                try:
+                    response = RpcReturn(
+                        success=True,
+                        result=response_model(**response.result)
+                        if isinstance(response.result, dict)
+                        else response.result,
+                        message=response.message,
+                        error_type=response.error_type,
+                        error_code=response.error_code,
+                    )
+                except (TypeError, AttributeError, KeyError) as e:
+                    log.warning(
+                        "Failed to reconstruct response with response_model=%s: %s",
+                        response_model.__name__
+                        if hasattr(response_model, "__name__")
+                        else response_model,
+                        e,
+                    )
+
             if response.success:
                 return response.result
 

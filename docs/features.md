@@ -106,7 +106,7 @@ Events in Kontiki are **asynchronous messages over AMQP**: publishers fire-and-f
   - `reject_on_redelivered=True` : reject messages that are redelivered (e.g. after a requeue).
   - `broadcast=True` : every instance of the service receives the event (per-instance queue).
   - `in_session=True` : event is targeted at a specific instance within a session (mutually exclusive with `broadcast`).
-- **Publisher** : `messenger.publish(event_type, payload, extra_headers=...)`. AMQP payloads use **`pickle`** by default (`kontiki.amqp.serialization`). **`json` is deprecated** — it logs a warning at startup and will be removed in a future major release; use pickle for RPC and events on the bus. HTTP request/response bodies use JSON independently of this setting.
+- **Publisher** : `messenger.publish(event_type, payload, extra_headers=...)`. AMQP payloads use **JSON** as the only format (V2.0+). Type hints on handler parameters enable automatic object reconstruction. HTTP request/response bodies use JSON independently.
 
 ---
 
@@ -247,8 +247,7 @@ If the registry **service** is down but the broker is up, the process still star
 
 ## Serialization
 
-- **Default** : Pickle. Handlers receive Python objects; `publish` accepts any picklable payload.
-- **JSON** : Can be configured (e.g. for interoperability). Request/response models for HTTP can be Pydantic models; the web layer can extract schemas and validate bodies.
+- **V2.0+** : JSON is the only supported AMQP format. Objects are serialized to JSON; custom classes are supported via type-hint based reconstruction on handler parameters and `response_model=` on `messenger.call()`. HTTP request/response bodies use JSON independently.
 
 ---
 

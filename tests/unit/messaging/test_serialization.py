@@ -1,42 +1,17 @@
-import kontiki.messaging.serialization as serialization_module
 from kontiki.messaging.serialization import Serializer
 
 
-def test_json_serialization_logs_deprecation_warning_once(monkeypatch):
-    warnings = []
-    monkeypatch.setattr(
-        serialization_module,
-        "_json_deprecation_warned",
-        False,
-    )
-    monkeypatch.setattr(
-        serialization_module.log,
-        "warning",
-        lambda msg, *args: warnings.append(msg % args if args else msg),
-    )
+def test_json_serializer_uses_json_format():
+    """V2.0 uses JSON-only serialization."""
+    config = {}
+    serializer = Serializer(config)
 
-    config = {"kontiki": {"amqp": {"serialization": "json"}}}
-    Serializer(config)
-    Serializer(config)
+    # Test serialization
+    test_data = {"key": "value", "number": 42}
+    serialized = serializer.dumps(test_data)
+    assert b'"key"' in serialized  # JSON should contain the key
+    assert b'"value"' in serialized
 
-    assert len(warnings) == 1
-    assert "deprecated" in warnings[0]
-    assert "pickle" in warnings[0]
-
-
-def test_pickle_serialization_does_not_warn(monkeypatch):
-    warnings = []
-    monkeypatch.setattr(
-        serialization_module,
-        "_json_deprecation_warned",
-        False,
-    )
-    monkeypatch.setattr(
-        serialization_module.log,
-        "warning",
-        lambda msg, *args: warnings.append(msg),
-    )
-
-    Serializer({})
-
-    assert warnings == []
+    # Test deserialization
+    deserialized = serializer.loads(serialized)
+    assert deserialized == test_data

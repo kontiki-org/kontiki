@@ -119,6 +119,26 @@ class OnEventTask:
 
         self._consumer_tag = await self.queue.consume(consume_message)
 
+    def _reconstruct_from_type_hint(self, data, handler):
+        if not isinstance(data, dict):
+            return data
+        try:
+            import inspect
+            from typing import get_origin, get_type_hints
+
+            sig = inspect.signature(handler)
+            type_hints = get_type_hints(handler)
+            for name, param in sig.parameters.items():
+                if name in ("self", "container", "_headers"):
+                    continue
+                if name in type_hints:
+                    expected_type = type_hints[name]
+                    if get_origin(expected_type) is None:
+                        return expected_type(**data)
+        except (TypeError, AttributeError, KeyError):
+            pass
+        return data
+
     async def _consume_message(self, message):
         scope = enter_handler_scope(
             "event",
@@ -139,9 +159,7 @@ class OnEventTask:
                     reject_on_redelivered=self.reject_on_redelivered,
                 ):
                     obj = self.serializer.loads(message.body)
-                    log.info(
-                        "Message received on %s: %s", self.event_type, message.body
-                    )
+                    obj = self._reconstruct_from_type_hint(obj, self.task)
 
                     headers = message.headers if self.include_headers else {}
                     if asyncio.iscoroutinefunction(self.task):

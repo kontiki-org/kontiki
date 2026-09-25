@@ -63,6 +63,51 @@ class RpcTask:
 
         self._consumer_tag = await self.queue.consume(handle_rpc)
 
+    def _reconstruct_rpc_args(self, args, kwargs, handler):
+        try:
+            import inspect
+            from typing import get_origin, get_type_hints
+
+            sig = inspect.signature(handler)
+            type_hints = get_type_hints(handler)
+            params = list(sig.parameters.items())
+
+            new_args = []
+            for i, param_value in enumerate(args):
+                if i + 1 >= len(params):
+                    new_args.append(param_value)
+                    continue
+                param_name, param = params[i + 1]
+                if param_name in ("self", "container", "_headers"):
+                    new_args.append(param_value)
+                    continue
+                if param_name in type_hints and isinstance(param_value, dict):
+                    expected_type = type_hints[param_name]
+                    if get_origin(expected_type) is None:
+                        try:
+                            param_value = expected_type(**param_value)
+                        except (TypeError, AttributeError, KeyError):
+                            pass
+                new_args.append(param_value)
+
+            new_kwargs = {}
+            for name, value in kwargs.items():
+                if name in ("self", "container", "_headers"):
+                    new_kwargs[name] = value
+                    continue
+                if name in type_hints and isinstance(value, dict):
+                    expected_type = type_hints[name]
+                    if get_origin(expected_type) is None:
+                        try:
+                            value = expected_type(**value)
+                        except (TypeError, AttributeError, KeyError):
+                            pass
+                new_kwargs[name] = value
+
+            return new_args, new_kwargs
+        except Exception:
+            return args, kwargs
+
     async def _handle_rpc(self, message):
         scope = enter_handler_scope(
             "rpc",
@@ -87,6 +132,7 @@ class RpcTask:
                     args = request.get("args", [])
                     kwargs = request.get("kwargs", {})
                     headers = message.headers if self.include_headers else None
+                    args, kwargs = self._reconstruct_rpc_args(args, kwargs, self.task)
                 except Exception as e:
                     log.error("Invalid RPC message format: %s", e)
                     del self.futures[cid]
