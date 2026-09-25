@@ -273,7 +273,7 @@ class ServiceContainer:
 
     async def _force_close(self):
         if self._amqp_ready():
-            # nack+requeue prefetch not yet handled
+            # Close connection: unacknowledged messages are nack+requeue by broker
             await self.amqp_consumer.force_close()
 
         for task in self.tasks:

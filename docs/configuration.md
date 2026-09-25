@@ -1,5 +1,7 @@
 # Kontiki configuration reference
 
+**Note**: Kontiki V2.0+ requires **RabbitMQ ≥ 4.3** for quorum queues and reliable execution features.
+
 Framework options live under the **`kontiki`** key. Logging uses a top-level
 **`logging`** block (Python dictConfig + Kontiki extensions). Facts shown in
 the registry (KontikiTUI Configuration pane) live under a top-level **`public`**

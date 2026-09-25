@@ -202,8 +202,6 @@ async def test_event_handler_reports_uncaught_exception():
         queue=MagicMock(),
         serializer=serializer,
         include_headers=False,
-        requeue_on_error=False,
-        reject_on_redelivered=False,
         container=container,
     )
 

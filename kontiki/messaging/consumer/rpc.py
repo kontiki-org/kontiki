@@ -116,7 +116,7 @@ class RpcTask:
             work_in_flight=self.container.amqp_consumer.work_in_flight,
         )
         try:
-            async with message.process():
+            async with message.process(requeue=True):
                 cid = message.correlation_id
                 log.debug("Message received for correlation_id=%s", cid)
                 if cid in self.futures:

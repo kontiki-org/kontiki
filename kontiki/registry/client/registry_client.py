@@ -5,7 +5,12 @@ from aio_pika import Message, connect_robust
 
 from kontiki import __version__
 from kontiki.configuration.parameter import get_kontiki_parameter
-from kontiki.messaging.common import create_tls_context, get_amqp_url, is_amqp_required
+from kontiki.messaging.common import (
+    DELIVERY_MODE_PERSISTENT,
+    create_tls_context,
+    get_amqp_url,
+    is_amqp_required,
+)
 from kontiki.messaging.serialization import Serializer
 from kontiki.registry.common import (
     EXCEPTION_RKEY,
@@ -32,7 +37,9 @@ def publish(routing_key):
 
             body = await func(self, *args, **kwargs)
 
-            message = Message(body=self.serializer.dumps(body))
+            message = Message(
+                body=self.serializer.dumps(body), delivery_mode=DELIVERY_MODE_PERSISTENT
+            )
             await self.registry_admin_exchange.publish(message, routing_key=routing_key)
             log.debug("Published message to %s: %s", routing_key, body)
 

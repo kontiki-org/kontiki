@@ -33,10 +33,9 @@ def on_event(
     use_config: bool = False,
     *,
     include_headers: bool = False,
-    requeue_on_error: bool = False,
-    reject_on_redelivered: bool = False,
     in_session: bool = False,
     broadcast: bool = False,
+    max_attempts: int | None = None,
 ):
     """Declare an event handler for a Kontiki service.
 
@@ -46,13 +45,13 @@ def on_event(
             a list of strings. An empty list fails fast at startup.
         use_config: When True, resolve event_type_or_key from configuration.
         include_headers: When True, pass AMQP headers to the handler via _headers.
-        requeue_on_error: When True, requeue messages on handler error.
-        reject_on_redelivered: When True, reject messages that were already redelivered.
         in_session: When True, the event is scoped to a specific service instance
             and session. This is a higher-level flag; internally it implies
             routing to a single instance.
         broadcast: When True, every instance of the service will receive the
             event (no competing consumers within the service).
+        max_attempts: Override the global max_attempts setting for this specific handler.
+            If None, uses the global kontiki.amqp.max_attempts (default 3).
     """
 
     def decorator(handler):
@@ -68,9 +67,8 @@ def on_event(
             # target_instance is an internal detail; it is derived from in_session.
             "target_instance": in_session,
             "include_headers": include_headers,
-            "requeue_on_error": requeue_on_error,
-            "reject_on_redelivered": reject_on_redelivered,
             "broadcast": broadcast,
+            "max_attempts": max_attempts,
         }
         return handler
 
@@ -85,18 +83,16 @@ class OnEventTask:
         queue,
         serializer,
         include_headers,
-        requeue_on_error,
-        reject_on_redelivered,
         container,
+        max_attempts=None,
     ):
         self.event_type = event_type
         self.task = task
         self.queue = queue
         self.serializer = serializer
         self.include_headers = include_headers
-        self.requeue_on_error = requeue_on_error
-        self.reject_on_redelivered = reject_on_redelivered
         self.container = container
+        self.max_attempts = max_attempts
         self._consumer_tag = None
 
     async def stop_accepting(self):
@@ -154,10 +150,7 @@ class OnEventTask:
                     message.redelivered,
                     message.headers,
                 )
-                async with message.process(
-                    requeue=self.requeue_on_error,
-                    reject_on_redelivered=self.reject_on_redelivered,
-                ):
+                async with message.process(requeue=True):
                     obj = self.serializer.loads(message.body)
                     obj = self._reconstruct_from_type_hint(obj, self.task)
 
@@ -178,6 +171,5 @@ class OnEventTask:
                     "Error occurred while consuming the event: %s", e, exc_info=True
                 )
                 await self.container.report_uncaught_exception(e)
-                await message.nack(requeue=False)
         finally:
             reset_handler_scope(scope)

@@ -89,12 +89,8 @@ class TestMockService(MockService):
 
 
 class TaskMockService(MockService):
-    @on_event("task_immediate_processed")
+    @on_event("task")
     async def on_task_immediate_processed(self, payload):
-        self.event_manager.store_event(payload)
-
-    @on_event("task_not_immediate_processed")
-    async def on_task_not_immediate_processed(self, payload):
         self.event_manager.store_event(payload)
 
     @on_event("task_from_config_processed")
@@ -159,7 +155,19 @@ def before_scenario(context, scenario):
         raise RuntimeError("No test suite has been started")
 
     if context.active_suite_tag == "registry":
-        context.manager.get_service("RegistryEventListener").clean_events()
+        context.manager.clean_events("RegistryEventListener")
+
+    # Clean events from mock services
+    context.manager.clean_events("TestMockService")
+    context.manager.clean_events("TaskMockService")
+
+    # Reset attempt counters for retry tests
+    for manager in context.service_managers:
+        service_instance = getattr(manager, "service_instance", None)
+        if service_instance and hasattr(service_instance, "delegate"):
+            delegate = service_instance.delegate
+            if hasattr(delegate, "_attempts"):
+                delegate._attempts = 0
 
 
 def after_scenario(context, scenario):

@@ -10,6 +10,7 @@ from kontiki.configuration.parameter import get_kontiki_parameter
 from kontiki.delegate import ServiceDelegate
 from kontiki.messaging.common import (
     AMQP_DEFAULT_URL,
+    DELIVERY_MODE_PERSISTENT,
     EVENT_EXCHANGE,
     KONTIKI_SESSION_OPEN_RPC,
     create_tls_context,
@@ -77,7 +78,7 @@ class Messenger(ServiceDelegate):
         self.connection = await connect_robust(
             amqp_url, ssl_context=tls_ctx, fail_fast=self._fail_fast()
         )
-        self.channel = await self.connection.channel()
+        self.channel = await self.connection.channel(publisher_confirms=True)
         # Create exchanges for async and sync communications
         self.event_exchange = await declare_event_exchange(
             self.channel, self.event_exchange_name
@@ -182,7 +183,12 @@ class Messenger(ServiceDelegate):
 
         try:
             await self.event_exchange.publish(
-                Message(body=message, headers=headers), routing_key=event_type
+                Message(
+                    body=message,
+                    headers=headers,
+                    delivery_mode=DELIVERY_MODE_PERSISTENT,
+                ),
+                routing_key=event_type,
             )
         except ChannelInvalidStateError:
             if not self._fail_fast():
@@ -190,7 +196,12 @@ class Messenger(ServiceDelegate):
             log.info("Channel is in an invalid state. Attempting to reconnect...")
             await self.reconnect()
             await self.event_exchange.publish(
-                Message(body=message, headers=headers), routing_key=event_type
+                Message(
+                    body=message,
+                    headers=headers,
+                    delivery_mode=DELIVERY_MODE_PERSISTENT,
+                ),
+                routing_key=event_type,
             )
 
         log.debug("Event published: %s -> %s", event_type, message)
@@ -235,6 +246,7 @@ class Messenger(ServiceDelegate):
                 correlation_id=cid,
                 reply_to=self.callback_queue.name,
                 headers=headers,
+                delivery_mode=DELIVERY_MODE_PERSISTENT,
             )
             log.debug("Call: %s(args=%s, kwargs=%s)", method_name, args, kwargs)
             await self.rpc_exchange.publish(request_message, routing_key=routing_key)

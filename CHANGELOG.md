@@ -3,7 +3,9 @@
 ## Unreleased
 
 - **Breaking**: JSON-only AMQP serialization. `pickle` and `kontiki.amqp.serialization` removed.
+- **Breaking**: **RabbitMQ ≥ 4.3** now required for quorum queues and reliable execution features.
 - **New**: Type-hint based object reconstruction for event/RPC handlers and `messenger.call(response_model=...)`.
+- **New**: Reliable execution: PERSISTENT messages + publisher confirms + `kontiki.amqp.max_attempts` config (default 3) + removal of `requeue_on_error`/`reject_on_redelivered` handler knobs.
 
 
 ## [1.16.0] - 2026-09-19

@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 from aio_pika import Message
 
+from kontiki.messaging.common import DELIVERY_MODE_PERSISTENT
 from kontiki.registry.common import HEARTBEAT_RKEY
 
 # -----------------------------------------------------------------------------
@@ -81,7 +82,7 @@ class HeartbeatManager:
                 )
                 registry_admin_exchange = self.core.registry_admin_exchange
                 rkey = f"{service_name}.{instance_id}.register_again"
-                message = Message(body=b"")
+                message = Message(body=b"", delivery_mode=DELIVERY_MODE_PERSISTENT)
                 await registry_admin_exchange.publish(message, routing_key=rkey)
                 logging.info("Published register_again message to %s", rkey)
 
