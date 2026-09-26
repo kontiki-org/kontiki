@@ -6,6 +6,8 @@
 - **Breaking**: **RabbitMQ ≥ 4.3** now required for quorum queues and reliable execution features.
 - **New**: Type-hint based object reconstruction for event/RPC handlers and `messenger.call(response_model=...)`.
 - **New**: Reliable execution: PERSISTENT messages + publisher confirms + `kontiki.amqp.max_attempts` config (default 3) + removal of `requeue_on_error`/`reject_on_redelivered` handler knobs.
+- **Breaking**: AMQP headers lose the `kontiki_` prefix (`flow_id`, `hop_id`, `entrypoint`, `service_name`, ...).
+- **New**: Reserved AMQP header names (`kontiki.utils.RESERVED_HEADERS`); `extra_headers` using one raises `ValueError` on `publish` / `call` / session publish. `Messenger.publish(session_id=...)` stamps the session header.
 
 
 ## [1.16.0] - 2026-09-19

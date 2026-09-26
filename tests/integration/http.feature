@@ -80,7 +80,7 @@ Feature: HTTP
     # ------------------------------------------------------------
     # Handler scope — flow_id
     # ------------------------------------------------------------
-    Scenario: HTTP response exposes kontiki_flow_id
+    Scenario: HTTP response exposes flow_id
         When I send an HTTP GET request to "/test_http"
         Then the HTTP response status should be 200
-        And the HTTP response header "kontiki_flow_id" is a 12-character hex flow id
+        And the HTTP response header "flow_id" is a 12-character hex flow id
