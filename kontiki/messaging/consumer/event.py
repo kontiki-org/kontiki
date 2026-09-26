@@ -50,7 +50,8 @@ def on_event(
             routing to a single instance.
         broadcast: When True, every instance of the service will receive the
             event (no competing consumers within the service).
-        max_attempts: Override the global max_attempts setting for this specific handler.
+        max_attempts: Override the global max_attempts setting for this
+            specific handler.
             If None, uses the global kontiki.amqp.max_attempts (default 3).
     """
 

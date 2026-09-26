@@ -183,9 +183,7 @@ class ServiceRegistryClient:
         return body
 
     @publish(CONTEXT_RKEY)
-    async def add_context(
-        self, context, flow_id, entrypoint, operation, hop_id
-    ):
+    async def add_context(self, context, flow_id, entrypoint, operation, hop_id):
         body = {
             "service_name": self.container.service_name,
             "instance_id": self.container.instance_id,

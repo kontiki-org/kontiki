@@ -164,8 +164,13 @@ class Messenger(ServiceDelegate):
                 log.warning("Unknown correlation_id: %s", cid)
 
     async def publish(
-        self, event_type, obj, reply_to=None, extra_headers=None, flow_id=None,
-        session_id=None
+        self,
+        event_type,
+        obj,
+        reply_to=None,
+        extra_headers=None,
+        flow_id=None,
+        session_id=None,
     ):
         self._require_amqp()
         if extra_headers is None:
