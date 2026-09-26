@@ -6,7 +6,6 @@ from kontiki.configuration.parameter import get_parameter
 from kontiki.messaging.common import declare_event_exchange, declare_rpc_exchange
 from kontiki.registry.common import declare_registry_event_exchange
 from kontiki.registry.events import EXCEPTION_RECORDED
-from kontiki.utils import get_kontiki_prefix
 
 # -----------------------------------------------------------------------------
 
@@ -64,27 +63,17 @@ class EventTracker:
     async def _handle_event(self, message):
         async with message.process():
             try:
-                raw_headers = message.headers or {}
-
-                # Normalise Kontiki-specific headers while preserving all headers.
-                normalized = dict(raw_headers)
-                prefix = get_kontiki_prefix()
-                for key, value in raw_headers.items():
-                    if key.startswith(prefix):
-                        bare_key = key[len(prefix) :]
-                        # Do not overwrite potential user headers with the same name.
-                        normalized.setdefault(bare_key, value)
-
-                event_type = normalized.get("event_type", "_rpc_event")
+                headers = message.headers or {}
+                event_type = headers.get("event_type", "_rpc_event")
                 if event_type == EXCEPTION_RECORDED:
                     return
-                service = normalized.get("service_name")
-                uuid = normalized.get("instance_id")
-                host = normalized.get("host")
+                service = headers.get("service_name")
+                uuid = headers.get("instance_id")
+                host = headers.get("host")
                 logging.debug(
                     "Received %s from %s#%s [%s]", event_type, service, uuid, host
                 )
-                self.events.append(normalized)
+                self.events.append(dict(headers))
 
             except Exception as e:
                 logging.error("Error processing event: %s", e)

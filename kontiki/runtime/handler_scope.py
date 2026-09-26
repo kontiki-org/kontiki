@@ -2,8 +2,6 @@ import secrets
 from contextvars import ContextVar
 from dataclasses import dataclass
 
-from kontiki.utils import get_kontiki_header_name
-
 FLOW_ID_LENGTH = 12
 FLOW_ID_UNSET = "[no flow]"
 HOP_ID_LENGTH = 16
@@ -28,27 +26,27 @@ _handler_context_var = ContextVar("kontiki_handler_context", default=None)
 
 
 def flow_id_header_name():
-    return get_kontiki_header_name("flow_id")
+    return "flow_id"
 
 
 def hop_id_header_name():
-    return get_kontiki_header_name("hop_id")
+    return "hop_id"
 
 
 def parent_hop_id_header_name():
-    return get_kontiki_header_name("parent_hop_id")
+    return "parent_hop_id"
 
 
 def entrypoint_header_name():
-    return get_kontiki_header_name("entrypoint")
+    return "entrypoint"
 
 
 def operation_header_name():
-    return get_kontiki_header_name("operation")
+    return "operation"
 
 
 def rpc_service_header_name():
-    return get_kontiki_header_name("rpc_service")
+    return "rpc_service"
 
 
 def generate_flow_id():

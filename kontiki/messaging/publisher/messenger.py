@@ -30,7 +30,7 @@ from kontiki.messaging.publisher.rpc import (
 from kontiki.messaging.publisher.session import EventSession
 from kontiki.messaging.rpc import RpcErrorType, RpcReturn
 from kontiki.messaging.serialization import Serializer
-from kontiki.utils import KONTIKI, get_kontiki_header_name, log, setup_logger
+from kontiki.utils import KONTIKI, log, setup_logger, validate_extra_headers
 
 
 class AmqpDisconnectedError(Exception):
@@ -164,11 +164,13 @@ class Messenger(ServiceDelegate):
                 log.warning("Unknown correlation_id: %s", cid)
 
     async def publish(
-        self, event_type, obj, reply_to=None, extra_headers=None, flow_id=None
+        self, event_type, obj, reply_to=None, extra_headers=None, flow_id=None,
+        session_id=None
     ):
         self._require_amqp()
         if extra_headers is None:
             extra_headers = {}
+        validate_extra_headers(extra_headers)
 
         event_headers = {
             "event_type": event_type,
@@ -176,6 +178,8 @@ class Messenger(ServiceDelegate):
             # Normal Kontiki flows should prefer call() for request/reply.
             "reply_to": reply_to,
         }
+        if session_id is not None:
+            event_headers["session_id"] = session_id
         headers = self.get_service_headers() | event_headers | extra_headers
         apply_outbound_flow_id(headers, flow_id=flow_id, extra_headers=extra_headers)
         apply_outbound_hop_headers(headers)
@@ -230,6 +234,7 @@ class Messenger(ServiceDelegate):
 
         if extra_headers is None:
             extra_headers = {}
+        validate_extra_headers(extra_headers)
         remote_headers = {"remote_method": method_name}
         headers = self.get_service_headers() | remote_headers | extra_headers
         apply_outbound_flow_id(headers, flow_id=flow_id, extra_headers=extra_headers)
@@ -360,14 +365,14 @@ class Messenger(ServiceDelegate):
         now_utc_iso = datetime.now(timezone.utc).isoformat()
         if self.container:
             return {
-                get_kontiki_header_name("service_name"): self.container.service_name,
-                get_kontiki_header_name("instance_id"): str(self.container.instance_id),
-                get_kontiki_header_name("host"): self.container.host,
-                get_kontiki_header_name("timestamp"): now_utc_iso,
+                "service_name": self.container.service_name,
+                "instance_id": str(self.container.instance_id),
+                "host": self.container.host,
+                "timestamp": now_utc_iso,
             }
         return {
-            get_kontiki_header_name("service_name"): self.service_name,
-            get_kontiki_header_name("instance_id"): self.instance_id,
-            get_kontiki_header_name("host"): socket.gethostname(),
-            get_kontiki_header_name("timestamp"): now_utc_iso,
+            "service_name": self.service_name,
+            "instance_id": self.instance_id,
+            "host": socket.gethostname(),
+            "timestamp": now_utc_iso,
         }

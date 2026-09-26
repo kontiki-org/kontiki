@@ -85,7 +85,7 @@ async def test_competing_event_queue_is_durable():
     assert declares[0]["name"] == "Svc.plain_event.queue"
     assert declares[0]["durable"] is True
     assert declares[0]["arguments"]["x-queue-type"] == "quorum"
-    assert declares[0]["arguments"]["x-delivery-limit"] == 3
+    assert declares[0]["arguments"]["x-delivery-limit"] == 2
 
 
 @pytest.mark.asyncio

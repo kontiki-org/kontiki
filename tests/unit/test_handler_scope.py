@@ -138,7 +138,7 @@ def test_scope_calls_work_in_flight_begin_and_end():
     assert work.count == 0
 
 
-def test_prepare_http_response_sets_kontiki_flow_id_header():
+def test_prepare_http_response_sets_flow_id_header():
     response = web.Response()
     prepare_http_response(response, "abc123def456")
     assert response.headers[flow_id_header_name()] == "abc123def456"
@@ -212,7 +212,12 @@ async def test_event_handler_reports_uncaught_exception():
     assert isinstance(exc, RuntimeError)
     assert str(exc) == "event blew up"
     assert container.report_uncaught_exception.await_args.kwargs == {}
-    message.nack.assert_awaited_once_with(requeue=False)
+
+    message.process.assert_called_once_with(requeue=True)
+    exc_type, exc_val, _ = message.process.return_value.__aexit__.await_args.args
+    assert exc_type is RuntimeError
+    assert str(exc_val) == "event blew up"
+    message.nack.assert_not_awaited()
 
 
 def _hex_hop_id(value):
