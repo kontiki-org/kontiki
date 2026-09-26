@@ -73,9 +73,7 @@ class ActivityTracker:
 
         # Exceptions and contexts each keep their entry path, with the same
         # retention as the timeline.
-        await self.core.create_and_consume_queue(
-            EXCEPTION_RKEY, self._handle_exception
-        )
+        await self.core.create_and_consume_queue(EXCEPTION_RKEY, self._handle_exception)
         await self.core.create_and_consume_queue(CONTEXT_RKEY, self._handle_context)
 
         self.cleanup_task = asyncio.create_task(self._cleanup())

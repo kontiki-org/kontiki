@@ -1,7 +1,5 @@
 import asyncio
 
-from aio_pika import message
-
 from examples.events.serialization.common import ObjectToSerialize
 from kontiki.messaging import Messenger, RpcProxy
 
