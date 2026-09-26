@@ -5,7 +5,7 @@ import pytest
 
 from kontiki.messaging.serialization import Serializer
 from kontiki.registry.events import CONTEXT_RECORDED, EXCEPTION_RECORDED
-from kontiki.registry.server.delegates.event_tracking import EventTracker
+from kontiki.registry.server.delegates.activity_tracking import ActivityTracker
 
 
 class DummyCore:
@@ -35,7 +35,7 @@ def _make_message(headers):
 @pytest.mark.asyncio
 async def test_handle_event_stores_headers_as_is():
     core = DummyCore()
-    tracker = EventTracker(core)
+    tracker = ActivityTracker(core)
 
     headers = {
         "service_name": "internal-svc",
@@ -53,7 +53,7 @@ async def test_handle_event_stores_headers_as_is():
 @pytest.mark.asyncio
 async def test_handle_event_skips_registry_exception_recorded():
     core = DummyCore()
-    tracker = EventTracker(core)
+    tracker = ActivityTracker(core)
 
     msg = AsyncMock()
     msg.headers = {"event_type": EXCEPTION_RECORDED}
@@ -76,7 +76,7 @@ async def test_handle_event_skips_registry_exception_recorded():
 async def test_handle_context_appends_to_event_timeline():
     core = DummyCore()
     core.serializer = Serializer({})
-    tracker = EventTracker(core)
+    tracker = ActivityTracker(core)
 
     body = {
         "service_name": "internal-svc",
@@ -110,12 +110,12 @@ async def test_handle_context_appends_to_event_timeline():
 def test_purge_expired_events_handles_offset_aware_timestamp():
     # Prevent regression: cleanup must not crash with timezone-aware ISO timestamps.
     core = DummyCore()
-    tracker = EventTracker(core)
-    tracker.event_ttl = 60
+    tracker = ActivityTracker(core)
+    tracker.ttl = 60
 
     tracker.events = [
         {"timestamp": datetime.now(timezone.utc).isoformat()},
     ]
 
-    tracker._purge_expired_events()
+    tracker._purge_expired(tracker.events)
     assert len(tracker.events) == 1

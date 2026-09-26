@@ -4,7 +4,11 @@ from datetime import datetime, timedelta, timezone
 
 from kontiki.configuration.parameter import get_parameter
 from kontiki.messaging.common import declare_event_exchange, declare_rpc_exchange
-from kontiki.registry.common import CONTEXT_RKEY, declare_registry_event_exchange
+from kontiki.registry.common import (
+    CONTEXT_RKEY,
+    EXCEPTION_RKEY,
+    declare_registry_event_exchange,
+)
 from kontiki.registry.events import CONTEXT_RECORDED, EXCEPTION_RECORDED
 
 # Event types kept out of the timeline: each has its own dedicated store.
@@ -13,33 +17,38 @@ TIMELINE_EXCLUDED_EVENTS = frozenset({EXCEPTION_RECORDED})
 # -----------------------------------------------------------------------------
 
 
-class EventTracker:
+class ActivityTracker:
+    """Records registry activity: bus hops and contexts in the event timeline,
+    exception records in their own store. Both share one retention policy."""
+
     def __init__(self, core):
         self.core = core
-        self.consumers = {}
         self.events = []
+        self.exceptions = []
 
     async def setup(self):
-        self.event_ttl_minutes = get_parameter(
-            self.core.container.config, "event_tracker.ttl_minutes", 0
+        self.ttl_minutes = get_parameter(
+            self.core.container.config, "activity_tracker.ttl_minutes", 0
         )
 
-        self.event_ttl_hours = get_parameter(
-            self.core.container.config, "event_tracker.ttl_hours", 24 * 7
+        self.ttl_hours = get_parameter(
+            self.core.container.config, "activity_tracker.ttl_hours", 24 * 7
         )
 
         # Use minutes if set, otherwise use hours.
-        if self.event_ttl_minutes > 0:
-            self.event_ttl = self.event_ttl_minutes
-        elif self.event_ttl_hours > 0:
-            self.event_ttl = self.event_ttl_hours * 60
+        if self.ttl_minutes > 0:
+            self.ttl = self.ttl_minutes
+        elif self.ttl_hours > 0:
+            self.ttl = self.ttl_hours * 60
 
         self.disable_tracking = get_parameter(
-            self.core.container.config, "event_tracker.disable", False
+            self.core.container.config, "activity_tracker.disable", False
         )
 
         self.cleanup_interval = get_parameter(
-            self.core.container.config, "event_tracker.cleanup_interval_seconds", 3600
+            self.core.container.config,
+            "activity_tracker.cleanup_interval_seconds",
+            3600,
         )
 
         if self.is_disabled():
@@ -58,21 +67,24 @@ class EventTracker:
             await queue.bind(self.registry_event_exchange, routing_key="#")
             await queue.consume(self._handle_event)
 
-            self.cleanup_task = asyncio.create_task(self._cleanup_events())
-            logging.debug("EventTracker setup completed.")
+            logging.debug("Timeline queue %s set up.", queue_name)
         except Exception as e:
             logging.error("Error creating or consuming queue %s: %s", queue_name, e)
 
-        # Contexts join the event timeline: single store, single retention.
+        # Exceptions and contexts each keep their entry path, with the same
+        # retention as the timeline.
+        await self.core.create_and_consume_queue(
+            EXCEPTION_RKEY, self._handle_exception
+        )
         await self.core.create_and_consume_queue(CONTEXT_RKEY, self._handle_context)
 
-    async def _handle_context(self, message):
-        async with message.process():
-            try:
-                data = self.core.serializer.loads(message.body)
-                self.events.append({**data, "event_type": CONTEXT_RECORDED})
-            except Exception as e:
-                logging.error("Error processing context: %s", e)
+        self.cleanup_task = asyncio.create_task(self._cleanup())
+        logging.debug("ActivityTracker setup completed.")
+
+    def is_disabled(self):
+        if self.disable_tracking:
+            logging.info("Activity tracking is disabled.")
+        return self.disable_tracking
 
     async def _handle_event(self, message):
         async with message.process():
@@ -92,17 +104,39 @@ class EventTracker:
             except Exception as e:
                 logging.error("Error processing event: %s", e)
 
-    async def _cleanup_events(self):
+    async def _handle_context(self, message):
+        async with message.process():
+            try:
+                data = self.core.serializer.loads(message.body)
+                self.events.append({**data, "event_type": CONTEXT_RECORDED})
+            except Exception as e:
+                logging.error("Error processing context: %s", e)
+
+    async def _handle_exception(self, message):
+        async with message.process():
+            logging.debug("Received exception: %s", message.body)
+            try:
+                data = self.core.serializer.loads(message.body)
+                self.exceptions.append(data)
+                logging.debug("Exception recorded: %s", data)
+                await self.core.on_exception_recorded(data)
+            except Exception as e:
+                logging.error("Error processing exception: %s", e)
+
+    def get_exceptions(self):
+        return self.exceptions
+
+    async def _cleanup(self):
         logging.info(
             "Starting cleanup task with %s seconds." "interval (TTL: %s minutes)",
             self.cleanup_interval,
-            self.event_ttl,
+            self.ttl,
         )
 
         while True:
             try:
-                self._purge_expired_events()
-
+                self._purge_expired(self.events)
+                self._purge_expired(self.exceptions)
                 await asyncio.sleep(self.cleanup_interval)
             except asyncio.CancelledError:
                 logging.info("Cleanup task cancelled.")
@@ -112,45 +146,40 @@ class EventTracker:
                 # Avoid a tight error loop that can spam logs and fill disk.
                 await asyncio.sleep(self.cleanup_interval)
 
-    def is_disabled(self):
-        if self.disable_tracking:
-            logging.info("Event tracking is disabled.")
-        return self.disable_tracking
-
-    def _purge_expired_events(self):
-        expiration_time = datetime.now(timezone.utc) - timedelta(minutes=self.event_ttl)
+    def _purge_expired(self, items):
+        expiration_time = datetime.now(timezone.utc) - timedelta(minutes=self.ttl)
         cutoff = 0
-        for index, event in enumerate(self.events):
-            event_timestamp = event.get("timestamp")
-            if event_timestamp is None:
+        for index, item in enumerate(items):
+            item_timestamp = item.get("timestamp")
+            if item_timestamp is None:
                 cutoff = index + 1
                 continue
 
-            if isinstance(event_timestamp, str):
+            if isinstance(item_timestamp, str):
                 try:
-                    event_timestamp = datetime.fromisoformat(event_timestamp)
+                    item_timestamp = datetime.fromisoformat(item_timestamp)
                 except Exception:
-                    logging.warning("Invalid timestamp format: %s", event_timestamp)
+                    logging.warning("Invalid timestamp format: %s", item_timestamp)
                     cutoff = index + 1
                     continue
 
             # Normalise to UTC-aware datetime to avoid naive/aware comparisons.
-            if isinstance(event_timestamp, datetime):
-                if event_timestamp.tzinfo is None:
-                    event_timestamp = event_timestamp.replace(tzinfo=timezone.utc)
+            if isinstance(item_timestamp, datetime):
+                if item_timestamp.tzinfo is None:
+                    item_timestamp = item_timestamp.replace(tzinfo=timezone.utc)
                 else:
-                    event_timestamp = event_timestamp.astimezone(timezone.utc)
+                    item_timestamp = item_timestamp.astimezone(timezone.utc)
 
-            if event_timestamp <= expiration_time:
+            if item_timestamp <= expiration_time:
                 cutoff = index + 1
                 continue
 
-            # Keep events that are not expired.
+            # Keep items that are not expired.
             break
 
-        # Remove expired events.
+        # Remove expired entries.
         if cutoff > 0:
-            del self.events[:cutoff]
-            logging.debug("Cleaned up %s expired events.", cutoff)
+            del items[:cutoff]
+            logging.debug("Cleaned up %s expired entries.", cutoff)
         else:
-            logging.debug("No expired events found.")
+            logging.debug("No expired entries found.")

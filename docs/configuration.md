@@ -184,9 +184,8 @@ See [advanced-features.md](advanced-features.md) (`logging.directory`, `flow_id`
 
 The **Kontiki registry** service uses the same `kontiki.*` keys where relevant (e.g. `kontiki.amqp`, `kontiki.http`). In addition, its config supports top-level keys (not under `kontiki`) for its own features:
 
-- **`event_tracker.ttl_minutes`** (default: `0`), **`event_tracker.ttl_hours`** (default: `24 * 7`): event retention.
-- **`event_tracker.disable`** (default: `false`): disable event tracking.
-- **`event_tracker.cleanup_interval_seconds`** (default: `3600`): cleanup interval.
-- **`exception_tracking.*`**: analogous options for exception retention and cleanup.
+- **`activity_tracker.ttl_minutes`** (default: `0`), **`activity_tracker.ttl_hours`** (default: `24 * 7`): retention of the registry's activity records (event timeline, contexts, exception records).
+- **`activity_tracker.disable`** (default: `false`): disable activity tracking. No tracking queue is declared; published events, contexts, and exceptions are dropped by the broker, and `registry.exception.recorded` is no longer published.
+- **`activity_tracker.cleanup_interval_seconds`** (default: `3600`): cleanup interval.
 
 See the registry example config and source if you run the registry yourself.

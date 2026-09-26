@@ -10,6 +10,7 @@
 - **New**: Reserved AMQP header names (`kontiki.utils.RESERVED_HEADERS`); `extra_headers` using one raises `ValueError` on `publish` / `call` / session publish. `Messenger.publish(session_id=...)` stamps the session header.
 - **New**: `ServiceDelegate.add_context(context)` records business context into the registry event timeline: the entry appears in `get_events` / `get_filtered_events` with `event_type` `registry.context.recorded`, stamped `flow_id`, `hop_id`, `entrypoint`, `operation`, and a unique `context_id`. Shares the event timeline retention; not published on the bus.
 - **Breaking**: `kontiki.runtime.exception_record_fields` renamed to `get_handler_ctx_fields`.
+- **Breaking**: registry `EventTracker` / `ExceptionTracker` delegates fused into a single `ActivityTracker`. `event_tracker.*` and `exception_tracker.*` config keys replaced by `activity_tracker.*` (`ttl_minutes`, `ttl_hours`, `disable`, `cleanup_interval_seconds`) — one retention policy for the event timeline, contexts, and exception records.
 
 
 ## [1.16.0] - 2026-09-19
