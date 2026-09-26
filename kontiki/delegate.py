@@ -19,3 +19,6 @@ class ServiceDelegate:
         # Vestigial: the registry records the exception automatically if it
         # propagates (RPC, unmapped HTTP, @on_event, @task). Remove on next major.
         await self.container.report_exception(exception)
+
+    async def add_context(self, context):
+        await self.container.add_context(context)

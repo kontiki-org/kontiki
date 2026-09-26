@@ -15,7 +15,7 @@ from kontiki.messaging.flow import prepare_logging_config
 from kontiki.messaging.publisher.messenger import Messenger
 from kontiki.registry.client.heartbeat_publisher import HeartbeatPublisher
 from kontiki.registry.client.registry_client import ServiceRegistryClient
-from kontiki.runtime.handler_scope import exception_record_fields
+from kontiki.runtime.handler_scope import get_handler_ctx_fields
 from kontiki.task.task import Task, resolve_task_cron, resolve_task_interval
 from kontiki.utils import log
 from kontiki.web.web import HttpServer
@@ -315,7 +315,7 @@ class ServiceContainer:
             log.warning("Service registration is disabled or unavailable..")
             return
 
-        flow_id, entrypoint, operation, hop_id = exception_record_fields()
+        flow_id, entrypoint, operation, hop_id = get_handler_ctx_fields()
         try:
             await self.service_registry_client.register_exception(
                 exception, flow_id, entrypoint, operation, hop_id
@@ -331,6 +331,16 @@ class ServiceContainer:
         if not enabled:
             return
         await self.report_exception(exception)
+
+    async def add_context(self, context):
+        if not self.service_registry_client:
+            log.warning("Service registration is disabled or unavailable.")
+            return
+
+        flow_id, entrypoint, operation, hop_id = get_handler_ctx_fields()
+        await self.service_registry_client.add_context(
+            context, flow_id, entrypoint, operation, hop_id
+        )
 
     # Internal methods
 

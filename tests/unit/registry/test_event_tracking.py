@@ -3,7 +3,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from kontiki.registry.events import EXCEPTION_RECORDED
+from kontiki.messaging.serialization import Serializer
+from kontiki.registry.events import CONTEXT_RECORDED, EXCEPTION_RECORDED
 from kontiki.registry.server.delegates.event_tracking import EventTracker
 
 
@@ -69,6 +70,41 @@ async def test_handle_event_skips_registry_exception_recorded():
     await tracker._handle_event(msg)
 
     assert tracker.events == []
+
+
+@pytest.mark.asyncio
+async def test_handle_context_appends_to_event_timeline():
+    core = DummyCore()
+    core.serializer = Serializer({})
+    tracker = EventTracker(core)
+
+    body = {
+        "service_name": "internal-svc",
+        "instance_id": "123",
+        "context": {"decision": "queued"},
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "flow_id": "85f847c72921",
+        "hop_id": "ae78ac0b9d0c3564",
+        "context_id": "a1b2c3d4",
+        "entrypoint": "event",
+        "operation": "alert.open",
+    }
+
+    msg = AsyncMock()
+    msg.body = core.serializer.dumps(body)
+
+    class _Ctx:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+    msg.process = Mock(return_value=_Ctx())
+
+    await tracker._handle_context(msg)
+
+    assert tracker.events == [{**body, "event_type": CONTEXT_RECORDED}]
 
 
 def test_purge_expired_events_handles_offset_aware_timestamp():

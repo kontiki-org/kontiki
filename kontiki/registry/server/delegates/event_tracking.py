@@ -4,8 +4,11 @@ from datetime import datetime, timedelta, timezone
 
 from kontiki.configuration.parameter import get_parameter
 from kontiki.messaging.common import declare_event_exchange, declare_rpc_exchange
-from kontiki.registry.common import declare_registry_event_exchange
-from kontiki.registry.events import EXCEPTION_RECORDED
+from kontiki.registry.common import CONTEXT_RKEY, declare_registry_event_exchange
+from kontiki.registry.events import CONTEXT_RECORDED, EXCEPTION_RECORDED
+
+# Event types kept out of the timeline: each has its own dedicated store.
+TIMELINE_EXCLUDED_EVENTS = frozenset({EXCEPTION_RECORDED})
 
 # -----------------------------------------------------------------------------
 
@@ -60,12 +63,23 @@ class EventTracker:
         except Exception as e:
             logging.error("Error creating or consuming queue %s: %s", queue_name, e)
 
+        # Contexts join the event timeline: single store, single retention.
+        await self.core.create_and_consume_queue(CONTEXT_RKEY, self._handle_context)
+
+    async def _handle_context(self, message):
+        async with message.process():
+            try:
+                data = self.core.serializer.loads(message.body)
+                self.events.append({**data, "event_type": CONTEXT_RECORDED})
+            except Exception as e:
+                logging.error("Error processing context: %s", e)
+
     async def _handle_event(self, message):
         async with message.process():
             try:
                 headers = message.headers or {}
                 event_type = headers.get("event_type", "_rpc_event")
-                if event_type == EXCEPTION_RECORDED:
+                if event_type in TIMELINE_EXCLUDED_EVENTS:
                     return
                 service = headers.get("service_name")
                 uuid = headers.get("instance_id")

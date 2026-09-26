@@ -20,7 +20,7 @@ from kontiki.runtime.handler_scope import (
     current_handler_context,
     enter_handler_scope,
     entrypoint_header_name,
-    exception_record_fields,
+    get_handler_ctx_fields,
     hop_id_header_name,
     operation_header_name,
     parent_hop_id_header_name,
@@ -105,10 +105,10 @@ def test_flow_only_context_has_no_handler_context():
     resolve_flow_id()
     assert current_flow_id() is not None
     assert current_handler_context() is None
-    assert exception_record_fields() == (None, None, None, None)
+    assert get_handler_ctx_fields() == (None, None, None, None)
 
 
-def test_exception_record_fields_by_kind():
+def test_get_handler_ctx_fields():
     cases = [
         ("rpc", "compute"),
         ("event", "alert.open"),
@@ -118,7 +118,7 @@ def test_exception_record_fields_by_kind():
     for kind, operation in cases:
         scope = enter_handler_scope(kind, operation)
         try:
-            flow_id, entrypoint, recorded_operation, hop_id = exception_record_fields()
+            flow_id, entrypoint, recorded_operation, hop_id = get_handler_ctx_fields()
             ctx = current_handler_context()
             assert entrypoint == kind
             assert recorded_operation == operation
@@ -127,7 +127,7 @@ def test_exception_record_fields_by_kind():
         finally:
             reset_handler_scope(scope)
 
-    assert exception_record_fields() == (None, None, None, None)
+    assert get_handler_ctx_fields() == (None, None, None, None)
 
 
 def test_scope_calls_work_in_flight_begin_and_end():
@@ -234,7 +234,7 @@ def test_rpc_scope_remembers_inbound_hop_id():
     )
     try:
         assert current_handler_context().hop_id == inbound_hop
-        _, _, _, hop_id = exception_record_fields()
+        _, _, _, hop_id = get_handler_ctx_fields()
         assert hop_id == inbound_hop
     finally:
         reset_handler_scope(scope)
@@ -248,7 +248,7 @@ def test_http_scope_ignores_inbound_hop_header():
     )
     try:
         assert current_handler_context().hop_id is None
-        _, _, _, hop_id = exception_record_fields()
+        _, _, _, hop_id = get_handler_ctx_fields()
         assert hop_id is None
     finally:
         reset_handler_scope(scope)

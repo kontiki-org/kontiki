@@ -202,6 +202,10 @@ class RegistryTestService:
         self.delegate.set_degraded(degraded, reason=reason)
 
     @rpc
+    async def add_test_context(self, **context):
+        await self.delegate.add_context(context)
+
+    @rpc
     async def report_test_exception(self):
         try:
             raise Exception("test exception")

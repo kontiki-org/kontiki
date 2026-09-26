@@ -8,6 +8,8 @@
 - **New**: Reliable execution: PERSISTENT messages + publisher confirms + `kontiki.amqp.max_attempts` config (default 3) + removal of `requeue_on_error`/`reject_on_redelivered` handler knobs.
 - **Breaking**: AMQP headers lose the `kontiki_` prefix (`flow_id`, `hop_id`, `entrypoint`, `service_name`, ...).
 - **New**: Reserved AMQP header names (`kontiki.utils.RESERVED_HEADERS`); `extra_headers` using one raises `ValueError` on `publish` / `call` / session publish. `Messenger.publish(session_id=...)` stamps the session header.
+- **New**: `ServiceDelegate.add_context(context)` records business context into the registry event timeline: the entry appears in `get_events` / `get_filtered_events` with `event_type` `registry.context.recorded`, stamped `flow_id`, `hop_id`, `entrypoint`, `operation`, and a unique `context_id`. Shares the event timeline retention; not published on the bus.
+- **Breaking**: `kontiki.runtime.exception_record_fields` renamed to `get_handler_ctx_fields`.
 
 
 ## [1.16.0] - 2026-09-19

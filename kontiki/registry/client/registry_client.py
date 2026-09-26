@@ -13,6 +13,7 @@ from kontiki.messaging.common import (
 )
 from kontiki.messaging.serialization import Serializer
 from kontiki.registry.common import (
+    CONTEXT_RKEY,
     EXCEPTION_RKEY,
     HEARTBEAT_RKEY,
     REGISTER_RKEY,
@@ -21,7 +22,7 @@ from kontiki.registry.common import (
     get_heartbeat_interval,
     get_registration_group,
 )
-from kontiki.runtime.handler_scope import generate_exception_id
+from kontiki.runtime.handler_scope import generate_context_id, generate_exception_id
 from kontiki.utils import log
 
 # -----------------------------------------------------------------------------
@@ -176,6 +177,23 @@ class ServiceRegistryClient:
             "flow_id": flow_id,
             "hop_id": hop_id,
             "exception_id": generate_exception_id(),
+            "entrypoint": entrypoint,
+            "operation": operation,
+        }
+        return body
+
+    @publish(CONTEXT_RKEY)
+    async def add_context(
+        self, context, flow_id, entrypoint, operation, hop_id
+    ):
+        body = {
+            "service_name": self.container.service_name,
+            "instance_id": self.container.instance_id,
+            "context": context,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "flow_id": flow_id,
+            "hop_id": hop_id,
+            "context_id": generate_context_id(),
             "entrypoint": entrypoint,
             "operation": operation,
         }

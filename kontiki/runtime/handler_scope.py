@@ -6,6 +6,7 @@ FLOW_ID_LENGTH = 12
 FLOW_ID_UNSET = "[no flow]"
 HOP_ID_LENGTH = 16
 EXCEPTION_ID_LENGTH = 16
+CONTEXT_ID_LENGTH = 16
 
 
 @dataclass
@@ -58,6 +59,10 @@ def generate_hop_id():
 
 
 def generate_exception_id():
+    return secrets.token_hex(8)
+
+
+def generate_context_id():
     return secrets.token_hex(8)
 
 
@@ -126,7 +131,7 @@ def reset_handler_scope(scope_token):
     reset_handler_context(scope_token.context_token)
 
 
-def exception_record_fields():
+def get_handler_ctx_fields():
     ctx = current_handler_context()
     if ctx is None:
         return None, None, None, None
