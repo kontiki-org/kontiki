@@ -28,10 +28,10 @@ class Serializer:
                 "error_type": obj.error_type.name,
                 "error_code": obj.error_code,
             }
+        if hasattr(obj, "model_dump"):
+            return obj.model_dump(mode="json")
         if hasattr(obj, "__dict__"):
             return obj.__dict__
-        if hasattr(obj, "model_dump"):
-            return obj.model_dump()
         if hasattr(obj, "dict"):
             return obj.dict()
         try:
