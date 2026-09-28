@@ -286,25 +286,18 @@ class Messenger(ServiceDelegate):
 
         if isinstance(response, RpcReturn):
             # Reconstruct result if response_model is provided and it's a success
-            if response.success and response_model is not None:
-                try:
-                    response = RpcReturn(
-                        success=True,
-                        result=response_model(**response.result)
-                        if isinstance(response.result, dict)
-                        else response.result,
-                        message=response.message,
-                        error_type=response.error_type,
-                        error_code=response.error_code,
-                    )
-                except (TypeError, AttributeError, KeyError) as e:
-                    log.warning(
-                        "Failed to reconstruct response with response_model=%s: %s",
-                        response_model.__name__
-                        if hasattr(response_model, "__name__")
-                        else response_model,
-                        e,
-                    )
+            if (
+                response.success
+                and response_model is not None
+                and isinstance(response.result, dict)
+            ):
+                response = RpcReturn(
+                    success=True,
+                    result=response_model(**response.result),
+                    message=response.message,
+                    error_type=response.error_type,
+                    error_code=response.error_code,
+                )
 
             if response.success:
                 return response.result

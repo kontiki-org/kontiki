@@ -18,6 +18,7 @@ kontiki:
       timeout: 10
     # serialization: removed in V2.0 (JSON is now the only format)
     max_pending_messages: 10  # prefetch: limits unacknowledged messages per consumer (load balancing, backpressure)
+    max_attempts: 3  # competing event queues: deliveries before RabbitMQ drops the message
     # tls:
     #   enabled: true
     #   ca_cert: /path/to/ca.pem

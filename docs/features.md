@@ -102,11 +102,13 @@ Events in Kontiki are **asynchronous messages over AMQP**: publishers fire-and-f
   A list declares **one queue and one bind per type**; the same handler and
   options apply to every type. Options:
   - `include_headers=True` : pass message headers to the handler.
-  - `requeue_on_error=True` : requeue the message on handler failure.
-  - `reject_on_redelivered=True` : reject messages that are redelivered (e.g. after a requeue).
-  - `broadcast=True` : every instance of the service receives the event (per-instance queue).
-  - `in_session=True` : event is targeted at a specific instance within a session (mutually exclusive with `broadcast`).
-- **Publisher** : `messenger.publish(event_type, payload, extra_headers=...)`. AMQP payloads use **JSON** as the only format (V2.0+). Type hints on handler parameters enable automatic object reconstruction. HTTP request/response bodies use JSON independently.
+  - `max_attempts=N` : competing queues only. Overrides `kontiki.amqp.max_attempts`
+    (default 3). After N failed deliveries RabbitMQ drops the message.
+  - `broadcast=True` : every instance of the service receives the event (per-instance
+    exclusive queue). The first handler failure drops the message.
+  - `in_session=True` : event is targeted at a specific instance within a session
+    (mutually exclusive with `broadcast`). Same drop-on-failure rule as `broadcast`.
+- **Publisher** : `messenger.publish(event_type, payload, extra_headers=...)`. AMQP payloads use **JSON** as the only format (V2.0+). A handler parameter annotated `Model` or `Model | None` is rebuilt from the JSON object. A payload that does not match raises, and the delivery follows the retry rule above. HTTP request/response bodies use JSON independently.
 
 ---
 
@@ -117,7 +119,7 @@ HTTP entrypoints are a **built-in façade**: they let you expose and document a 
 - **Routes** : Decorate methods with `@http(path_or_config_key, method, use_config=False, ...)`. Methods receive the aiohttp `request`; for POST/PUT/PATCH with `validate_request=True`, a validated `body` (from `request_model`) is passed as well.
 - **Options** : `version`, `summary`, `description`, `tags`, `request_model`, `response_model`, `status_code`, `responses`, `errors`, `skip_documentation`, `validate_request`. Use your own config namespace for paths when `use_config=True`.
 - **Error mapping** : On the service class, set `http_error_handlers = {SomeError: (status_code, "message")}`. List exception types in `errors=[...]` on the decorator for documentation. When a handler raises a mapped exception, the response is the configured status and body. aiohttp `HTTPException` is a controlled HTTP response.
-- **Flow correlation** : Each `@http` handler gets a `flow_id` (12 hex) at entry. Normalized responses include the header `kontiki_flow_id` (same value as in service logs). Inbound `kontiki_flow_id` on the request is ignored. `publish` / `call` during the handler propagate the id on AMQP headers.
+- **Flow correlation** : Each `@http` handler gets a `flow_id` (12 hex) at entry. Normalized responses include the header `flow_id` (same value as in service logs). Inbound `flow_id` on the request is ignored. `publish` / `call` during the handler propagate the id on AMQP headers.
 - **Documentation** : OpenAPI and Swagger UI are registered automatically when `http.documentation.enabled` is true (path template and title/description are configurable under `kontiki.http.documentation`).
 
 ---
@@ -204,7 +206,7 @@ Top-level `logging` block (Python dictConfig). Kontiki injects identity and
 
 - **Files** : Set `logging.directory` (recommended) and declare a `FileHandler` / `RotatingFileHandler` without `filename`. Kontiki writes `{directory}/{service_name}-{short_instance_id}.log` so replicas do not overwrite each other and KontikiTUI / lnav can join files to the registry. Without `directory`, an explicit `filename` is kept.
 - **Line format** : If you omit `formatters`, the default is `short_instance_id`, `levelname` (unpadded), padded `flow_id`, then the message. The **service name is not in the line** — it is in the filename. `%(service_name)s` and `%(short_instance_id)s` remain on the record for custom formatters. If you declare your own formatters, include `%(flow_id)s` yourself; Kontiki does not rewrite them.
-- **`flow_id`** : `[flow=…]` inside `@http` / `@rpc` / `@on_event` / `@task` (generated at entry, or reused from inbound AMQP `kontiki_flow_id` for rpc/event). `[no flow]` outside a handler. Same value as AMQP header and HTTP response `kontiki_flow_id`.
+- **`flow_id`** : `[flow=…]` inside `@http` / `@rpc` / `@on_event` / `@task` (generated at entry, or reused from inbound AMQP `flow_id` for rpc/event). `[no flow]` outside a handler. Same value as the AMQP header and the HTTP response header `flow_id`.
 - **Framework logs** : If `loggers.kontiki` is omitted, Kontiki injects it (`INFO`, propagate) so `disable_existing_loggers: true` does not hide framework lines.
 
 See [configuration.md](configuration.md) and [advanced-features.md](advanced-features.md).
@@ -248,7 +250,7 @@ If the registry **service** is down but the broker is up, the process still star
 
 ## Serialization
 
-- **V2.0+** : JSON is the only supported AMQP format. Objects are serialized to JSON; custom classes are supported via type-hint based reconstruction on handler parameters and `response_model=` on `messenger.call()`. HTTP request/response bodies use JSON independently.
+- **V2.0+** : JSON is the only supported AMQP format. A handler parameter annotated `Model` or `Model | None` is rebuilt from the JSON object; a mismatch raises. `response_model=` on `messenger.call()` does the same for a successful RPC result. HTTP request/response bodies use JSON independently.
 
 ---
 

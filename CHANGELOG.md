@@ -5,7 +5,9 @@
 - **Breaking**: JSON-only AMQP serialization. `pickle` and `kontiki.amqp.serialization` removed.
 - **Breaking**: **RabbitMQ ≥ 4.3** now required for quorum queues and reliable execution features.
 - **New**: Type-hint based object reconstruction for event/RPC handlers and `messenger.call(response_model=...)`.
-- **New**: Reliable execution: PERSISTENT messages + publisher confirms + `kontiki.amqp.max_attempts` config (default 3) + removal of `requeue_on_error`/`reject_on_redelivered` handler knobs.
+- **New**: Reliable execution: PERSISTENT messages + publisher confirms + `kontiki.amqp.max_attempts` config (default 3). A competing `@on_event` requeues a failed delivery until that limit, then RabbitMQ drops the message. No dead-letter queue. `broadcast` and `in_session` drop the message on the first handler failure. Each failed attempt is an exception record. Before upgrading, delete existing classic `{service}.{event}.queue` queues: they cannot be redeclared as quorum.
+- **Breaking**: `requeue_on_error` and `reject_on_redelivered` handler knobs removed.
+- **New**: Handler annotations `Model` and `Model | None` reconstruct the JSON payload. A payload that does not match the model raises.
 - **Breaking**: AMQP headers lose the `kontiki_` prefix (`flow_id`, `hop_id`, `entrypoint`, `service_name`, ...).
 - **New**: Reserved AMQP header names (`kontiki.utils.RESERVED_HEADERS`); `extra_headers` using one raises `ValueError` on `publish` / `call` / session publish. `Messenger.publish(session_id=...)` stamps the session header.
 - **New**: `ServiceDelegate.add_context(context)` records business context into the registry event timeline: the entry appears in `get_events` / `get_filtered_events` with `event_type` `registry.context.recorded`, stamped `flow_id`, `hop_id`, `entrypoint`, `operation`, and a unique `context_id`. Shares the event timeline retention; not published on the bus.

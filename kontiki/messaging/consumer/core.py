@@ -149,6 +149,8 @@ class Consumer:
             effective_max_attempts = (
                 max_attempts if max_attempts is not None else self.max_attempts
             )
+            # broadcast / in_session: one consumer, exclusive queue, drop on failure.
+            requeue = not (broadcast or target_instance)
 
             for event_type in event_types:
                 # broadcast and in_session both need a per-instance queue so
@@ -188,6 +190,7 @@ class Consumer:
                     include_headers,
                     self.container,
                     max_attempts=effective_max_attempts,
+                    requeue=requeue,
                 )
                 self.on_event_tasks.append(on_event_task)
                 log.debug("On event task registered for event: %s", event_type)

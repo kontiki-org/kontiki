@@ -17,6 +17,7 @@ class TaskServiceDelegate(ServiceDelegate):
 class TestServiceDelegate(ServiceDelegate):
     def __init__(self):
         self._attempts = 0
+        self._drop_attempts = 0
 
 
 class TestHttpRequestModel(BaseModel):
@@ -78,6 +79,12 @@ class TestService:
             raise RuntimeError(f"Attempt #{self.delegate._attempts} failed")
         else:
             await self.messenger.publish("retry_ok_processed", payload)
+
+    @on_event("retry_drop", max_attempts=2)
+    async def on_retry_drop(self, payload):
+        self.delegate._drop_attempts = self.delegate._drop_attempts + 1
+        await self.messenger.publish("retry_drop_attempt", payload)
+        raise RuntimeError(f"retry_drop attempt #{self.delegate._drop_attempts}")
 
     @on_event("broadcast_off")
     async def on_broadcast_off(self, payload):

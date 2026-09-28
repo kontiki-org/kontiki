@@ -56,6 +56,7 @@ for fixed platform targets.
 | `kontiki.amqp.rpc.timeout` | `10` | RPC call timeout in seconds. |
 | `kontiki.amqp.serialization` | *(removed)* | Removed in V2.0. JSON is now the only supported AMQP message format. Object reconstruction uses type hints on handler parameters and the optional `response_model=` on `messenger.call()`. |
 | `kontiki.amqp.max_pending_messages` | `10` | Consumer prefetch (QoS): max unacknowledged messages per consumer. Limits how many messages a single instance can hold before acknowledging; useful for load balancing and backpressure. |
+| `kontiki.amqp.max_attempts` | `3` | Competing `@on_event` queues only. Failed deliveries are requeued until this many attempts, then RabbitMQ drops the message. Per-handler override: `@on_event(..., max_attempts=N)`. `broadcast` and `in_session` drop on the first failure. Minimum 1. |
 | `kontiki.amqp.tls` | `{}` | Optional TLS. See below. |
 
 `amqp.required: false` is for work that does not use the bus and must still run
@@ -65,6 +66,11 @@ to the registry (TUI / Monitor). `registration.disable: true` never registers.
 If both are set, disable wins (no registry client). There is no local buffer:
 `publish` / `call` raise while disconnected. Losing the broker after start does
 not stop the process.
+
+Upgrading to V2.0: competing event queues become quorum queues with the same
+name (`{service}.{event}.queue`). Delete the existing classic queues before
+starting the service. RabbitMQ refuses the redeclaration while the classic
+queue is still there.
 
 ### `kontiki.amqp.tls`
 

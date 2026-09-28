@@ -107,6 +107,34 @@ Feature: Events
             """
 
     # ------------------------------------------------------------
+    # Retry then drop
+    # ------------------------------------------------------------
+    @single_instance
+    Scenario: a competing event is dropped after max_attempts
+        When I publish the retry_drop event with the following payload
+            """
+            {
+                "message": "retry_drop"
+            }
+            """
+        Then the mock TestMockService should receive 2 events
+            """
+            [
+                {
+                    "message": "retry_drop"
+                },
+                {
+                    "message": "retry_drop"
+                }
+            ]
+            """
+        When I wait for 2 seconds
+        Then the mock TestMockService should receive 0 events
+            """
+            []
+            """
+
+    # ------------------------------------------------------------
     # Event type list — literal
     # ------------------------------------------------------------
     @single_instance

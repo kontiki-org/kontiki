@@ -1,7 +1,10 @@
 import asyncio
+import inspect
+from typing import get_type_hints
 
 from aio_pika import IncomingMessage
 
+from kontiki.messaging.reconstruct import model_type
 from kontiki.runtime.handler_scope import enter_handler_scope, reset_handler_scope
 from kontiki.utils import log
 
@@ -50,9 +53,10 @@ def on_event(
             routing to a single instance.
         broadcast: When True, every instance of the service will receive the
             event (no competing consumers within the service).
-        max_attempts: Override the global max_attempts setting for this
-            specific handler.
-            If None, uses the global kontiki.amqp.max_attempts (default 3).
+        max_attempts: Competing queues only. Overrides kontiki.amqp.max_attempts
+            (default 3). After that many failed deliveries RabbitMQ drops the
+            message. broadcast and in_session ignore it and drop on the first
+            failure.
     """
 
     def decorator(handler):
@@ -86,6 +90,7 @@ class OnEventTask:
         include_headers,
         container,
         max_attempts=None,
+        requeue=True,
     ):
         self.event_type = event_type
         self.task = task
@@ -94,6 +99,7 @@ class OnEventTask:
         self.include_headers = include_headers
         self.container = container
         self.max_attempts = max_attempts
+        self.requeue = requeue
         self._consumer_tag = None
 
     async def stop_accepting(self):
@@ -119,21 +125,17 @@ class OnEventTask:
     def _reconstruct_from_type_hint(self, data, handler):
         if not isinstance(data, dict):
             return data
-        try:
-            import inspect
-            from typing import get_origin, get_type_hints
-
-            sig = inspect.signature(handler)
-            type_hints = get_type_hints(handler)
-            for name, param in sig.parameters.items():
-                if name in ("self", "container", "_headers"):
-                    continue
-                if name in type_hints:
-                    expected_type = type_hints[name]
-                    if get_origin(expected_type) is None:
-                        return expected_type(**data)
-        except (TypeError, AttributeError, KeyError):
-            pass
+        sig = inspect.signature(handler)
+        type_hints = get_type_hints(handler)
+        for name in sig.parameters:
+            if name in ("self", "container", "_headers"):
+                continue
+            if name not in type_hints:
+                continue
+            model = model_type(type_hints[name])
+            if model is None:
+                continue
+            return model(**data)
         return data
 
     async def _consume_message(self, message):
@@ -151,7 +153,7 @@ class OnEventTask:
                     message.redelivered,
                     message.headers,
                 )
-                async with message.process(requeue=True):
+                async with message.process(requeue=self.requeue):
                     obj = self.serializer.loads(message.body)
                     obj = self._reconstruct_from_type_hint(obj, self.task)
 

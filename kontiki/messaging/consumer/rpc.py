@@ -1,7 +1,10 @@
 import asyncio
+import inspect
+from typing import get_type_hints
 
 from aio_pika import Message
 
+from kontiki.messaging.reconstruct import model_type
 from kontiki.messaging.rpc import RpcErrorType, RpcReturn
 from kontiki.runtime.handler_scope import enter_handler_scope, reset_handler_scope
 from kontiki.utils import log
@@ -63,50 +66,42 @@ class RpcTask:
 
         self._consumer_tag = await self.queue.consume(handle_rpc)
 
+    def _apply_hint(self, hint, value):
+        if not isinstance(value, dict):
+            return value
+        model = model_type(hint)
+        if model is None:
+            return value
+        return model(**value)
+
     def _reconstruct_rpc_args(self, args, kwargs, handler):
-        try:
-            import inspect
-            from typing import get_origin, get_type_hints
+        sig = inspect.signature(handler)
+        type_hints = get_type_hints(handler)
+        params = list(sig.parameters.items())
 
-            sig = inspect.signature(handler)
-            type_hints = get_type_hints(handler)
-            params = list(sig.parameters.items())
-
-            new_args = []
-            for i, param_value in enumerate(args):
-                if i + 1 >= len(params):
-                    new_args.append(param_value)
-                    continue
-                param_name, param = params[i + 1]
-                if param_name in ("self", "container", "_headers"):
-                    new_args.append(param_value)
-                    continue
-                if param_name in type_hints and isinstance(param_value, dict):
-                    expected_type = type_hints[param_name]
-                    if get_origin(expected_type) is None:
-                        try:
-                            param_value = expected_type(**param_value)
-                        except (TypeError, AttributeError, KeyError):
-                            pass
+        new_args = []
+        for i, param_value in enumerate(args):
+            if i + 1 >= len(params):
                 new_args.append(param_value)
+                continue
+            param_name, _param = params[i + 1]
+            if param_name in ("self", "container", "_headers"):
+                new_args.append(param_value)
+                continue
+            if param_name in type_hints:
+                param_value = self._apply_hint(type_hints[param_name], param_value)
+            new_args.append(param_value)
 
-            new_kwargs = {}
-            for name, value in kwargs.items():
-                if name in ("self", "container", "_headers"):
-                    new_kwargs[name] = value
-                    continue
-                if name in type_hints and isinstance(value, dict):
-                    expected_type = type_hints[name]
-                    if get_origin(expected_type) is None:
-                        try:
-                            value = expected_type(**value)
-                        except (TypeError, AttributeError, KeyError):
-                            pass
+        new_kwargs = {}
+        for name, value in kwargs.items():
+            if name in ("self", "container", "_headers"):
                 new_kwargs[name] = value
+                continue
+            if name in type_hints:
+                value = self._apply_hint(type_hints[name], value)
+            new_kwargs[name] = value
 
-            return new_args, new_kwargs
-        except Exception:
-            return args, kwargs
+        return new_args, new_kwargs
 
     async def _handle_rpc(self, message):
         scope = enter_handler_scope(
@@ -131,17 +126,18 @@ class RpcTask:
                     request = self.serializer.loads(message.body)
                     args = request.get("args", [])
                     kwargs = request.get("kwargs", {})
-                    headers = message.headers if self.include_headers else None
-                    args, kwargs = self._reconstruct_rpc_args(args, kwargs, self.task)
                 except Exception as e:
                     log.error("Invalid RPC message format: %s", e)
                     del self.futures[cid]
                     return
 
+                headers = message.headers if self.include_headers else None
+
                 msg = "RPC request received: method=%s args=%s, kwargs=%s"
                 log.info(msg, self.name, args, kwargs)
 
                 try:
+                    args, kwargs = self._reconstruct_rpc_args(args, kwargs, self.task)
                     if headers:
                         response_data = await self.task(
                             self.container, *args, **kwargs, _headers=headers

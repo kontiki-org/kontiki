@@ -32,8 +32,6 @@ class Serializer:
             return obj.model_dump(mode="json")
         if hasattr(obj, "__dict__"):
             return obj.__dict__
-        if hasattr(obj, "dict"):
-            return obj.dict()
         try:
             return dict(obj)
         except TypeError:

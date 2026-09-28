@@ -71,6 +71,10 @@ class TestMockService(MockService):
     async def on_retry_ok_processed(self, payload):
         self.event_manager.store_event(payload)
 
+    @on_event("retry_drop_attempt")
+    async def on_retry_drop_attempt(self, payload):
+        self.event_manager.store_event(payload)
+
     @on_event("broadcast_off_processed")
     async def on_broadcast_off_processed(self, payload):
         self.event_manager.store_event(payload)

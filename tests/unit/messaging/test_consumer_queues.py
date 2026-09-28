@@ -86,6 +86,7 @@ async def test_competing_event_queue_is_durable():
     assert declares[0]["durable"] is True
     assert declares[0]["arguments"]["x-queue-type"] == "quorum"
     assert declares[0]["arguments"]["x-delivery-limit"] == 2
+    assert consumer.on_event_tasks[0].requeue is True
 
 
 @pytest.mark.asyncio
@@ -98,6 +99,7 @@ async def test_broadcast_queue_is_ephemeral():
     assert declares[0].get("exclusive") is True
     assert declares[0].get("auto_delete") is True
     assert declares[0].get("durable") is not True
+    assert consumer.on_event_tasks[0].requeue is False
 
 
 @pytest.mark.asyncio
@@ -110,3 +112,4 @@ async def test_in_session_queue_is_ephemeral():
     assert declares[0].get("exclusive") is True
     assert declares[0].get("auto_delete") is True
     assert declares[0].get("durable") is not True
+    assert consumer.on_event_tasks[0].requeue is False

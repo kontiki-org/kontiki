@@ -14,6 +14,3 @@ class SimpleEventService:
     @on_event("event.name", use_config=True)
     async def handle_dynamic_event_name(self, payload):
         logging.info("Service received event.name: %s", payload)
-
-    # Removed in V2.0: requeue_on_error and reject_on_redelivered are now handled
-    # by RabbitMQ via max_attempts. Retry logic is managed by the broker, not Kontiki.

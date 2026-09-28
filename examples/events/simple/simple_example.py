@@ -16,16 +16,6 @@ async def main():
         )
         print("dynamic_event_name published.")
 
-        print(
-            "Publishing retry_then_reject_event (will be requeued on first error, "
-            "rejected on redelivery)..."
-        )
-        await messenger.publish(
-            "retry_then_reject_event",
-            {"message": "This will be requeued first, then rejected on redelivery"},
-        )
-        print("retry_then_reject_event published.")
-
 
 if __name__ == "__main__":
     asyncio.run(main())
