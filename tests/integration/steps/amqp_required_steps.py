@@ -24,10 +24,7 @@ def start_database_ops_service(context, config_text, wait_until_up=True):
     if wait_until_up:
         manager.start(timeout=20)
     else:
-        try:
-            manager.start(timeout=20, max_attempts=1)
-        except (RuntimeError, TimeoutError):
-            pass
+        manager.spawn()
     context.amqp_required_manager = manager
 
 
@@ -42,8 +39,4 @@ def step_start_service_with_config(context):
 def step_service_is_not_running(context):
     manager = context.amqp_required_manager
     assert manager is not None, "No service was started."
-    process = manager.process
-    assert process is None or process.poll() is not None, (
-        f"Expected service '{manager.name}' to have exited. "
-        f"Check logs: {manager.log_file_path}"
-    )
+    manager.wait_for_exit(timeout=10)

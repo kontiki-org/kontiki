@@ -52,7 +52,7 @@ Feature: Optional AMQP
             kontiki:
               service_name: DatabaseOps
               amqp:
-                url: amqp://guest:guest@127.0.0.1:1/
+                url: amqp://guest:guest@127.0.0.1:59999/
                 required: false
               registration:
                 disable: false
@@ -136,7 +136,7 @@ Feature: Optional AMQP
             kontiki:
               service_name: DatabaseOps
               amqp:
-                url: amqp://guest:guest@127.0.0.1:1/
+                url: amqp://guest:guest@127.0.0.1:59999/
               registration:
                 disable: false
                 delay: 0

@@ -25,6 +25,24 @@ class ServiceProcessManager:
         self.log_file_path = self.log_dir / f"{self.name}.log"
         self._log_handle = None
 
+    def spawn(self):
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        if self.log_file_path.exists():
+            self.log_file_path.unlink()
+        self._log_handle = self.log_file_path.open("w", encoding="utf-8")
+        self._start_process()
+
+    def wait_for_exit(self, timeout):
+        if self.process is None:
+            return
+        try:
+            self.process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            raise TimeoutError(
+                f"Expected service '{self.name}' to have exited. "
+                f"Check logs: {self.log_file_path}"
+            )
+
     def start(self, timeout=15, amqp_ready_timeout=30, max_attempts=4):
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self._log_handle = self.log_file_path.open("w", encoding="utf-8")
