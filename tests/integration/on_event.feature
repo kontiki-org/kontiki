@@ -44,26 +44,6 @@ Feature: Events
             """
 
     # ------------------------------------------------------------
-    # Retry Ok
-    # ------------------------------------------------------------
-    @single_instance
-    Scenario: retry_ok is handled and processed
-        When I publish the retry_ok event with the following payload
-            """
-            {
-                "message": "retry_ok"
-            }
-            """
-        Then the mock TestMockService should receive 1 event
-            """
-            [
-                {
-                    "message": "retry_ok"
-                }
-            ]
-            """
-
-    # ------------------------------------------------------------
     # Broadcast Off
     # ------------------------------------------------------------
     @multi_instance
@@ -104,6 +84,54 @@ Feature: Events
                     "message": "broadcast_on"
                 }
             ]
+            """
+
+    # ------------------------------------------------------------
+    # Retry Ok
+    # ------------------------------------------------------------
+    @single_instance
+    Scenario: retry_ok is handled and processed
+        When I publish the retry_ok event with the following payload
+            """
+            {
+                "message": "retry_ok"
+            }
+            """
+        Then the mock TestMockService should receive 1 event
+            """
+            [
+                {
+                    "message": "retry_ok"
+                }
+            ]
+            """
+
+    # ------------------------------------------------------------
+    # Retry then drop
+    # ------------------------------------------------------------
+    @single_instance
+    Scenario: a competing event is dropped after max_attempts
+        When I publish the retry_drop event with the following payload
+            """
+            {
+                "message": "retry_drop"
+            }
+            """
+        Then the mock TestMockService should receive 2 events
+            """
+            [
+                {
+                    "message": "retry_drop"
+                },
+                {
+                    "message": "retry_drop"
+                }
+            ]
+            """
+        When I wait for 2 seconds
+        Then the mock TestMockService should receive 0 events
+            """
+            []
             """
 
     # ------------------------------------------------------------

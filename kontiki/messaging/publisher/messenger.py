@@ -10,6 +10,7 @@ from kontiki.configuration.parameter import get_kontiki_parameter
 from kontiki.delegate import ServiceDelegate
 from kontiki.messaging.common import (
     AMQP_DEFAULT_URL,
+    DELIVERY_MODE_PERSISTENT,
     EVENT_EXCHANGE,
     KONTIKI_SESSION_OPEN_RPC,
     create_tls_context,
@@ -28,8 +29,8 @@ from kontiki.messaging.publisher.rpc import (
 )
 from kontiki.messaging.publisher.session import EventSession
 from kontiki.messaging.rpc import RpcErrorType, RpcReturn
-from kontiki.messaging.serialization import DEFAULT_SERIALIZATION, Serializer
-from kontiki.utils import KONTIKI, get_kontiki_header_name, log, setup_logger
+from kontiki.messaging.serialization import Serializer
+from kontiki.utils import KONTIKI, log, setup_logger, validate_extra_headers
 
 
 class AmqpDisconnectedError(Exception):
@@ -42,7 +43,6 @@ class Messenger(ServiceDelegate):
         self,
         amqp_url=AMQP_DEFAULT_URL,
         event_exchange=EVENT_EXCHANGE,
-        serialization=DEFAULT_SERIALIZATION,
         standalone=False,
         client_name="client",
     ):
@@ -50,11 +50,11 @@ class Messenger(ServiceDelegate):
         self.connection = None
         self.channel = None
         self.futures = {}
+        self._response_models = {}
         self.callback_queue = None
         self._callback_consumer_tag = None
         self.event_exchange_name = event_exchange
         self.serializer = None
-        self.serialization = serialization
         self.amqp_url = amqp_url
         self.standalone = standalone
         self._reconnecting = False
@@ -78,7 +78,7 @@ class Messenger(ServiceDelegate):
         self.connection = await connect_robust(
             amqp_url, ssl_context=tls_ctx, fail_fast=self._fail_fast()
         )
-        self.channel = await self.connection.channel()
+        self.channel = await self.connection.channel(publisher_confirms=True)
         # Create exchanges for async and sync communications
         self.event_exchange = await declare_event_exchange(
             self.channel, self.event_exchange_name
@@ -92,7 +92,7 @@ class Messenger(ServiceDelegate):
             self._on_response
         )
         # Sets serializer
-        self.serializer = Serializer(config, serialization=self.serialization)
+        self.serializer = Serializer(config)
         # Cache RPC timeout from config (works both in container and standalone)
         self._rpc_timeout = get_rpc_timeout(config)
 
@@ -136,6 +136,8 @@ class Messenger(ServiceDelegate):
         self.channel = None
         self.callback_queue = None
         self._callback_consumer_tag = None
+        self.futures = {}
+        self._response_models = {}
         self._started = False
 
     async def _on_response(self, message):
@@ -162,11 +164,18 @@ class Messenger(ServiceDelegate):
                 log.warning("Unknown correlation_id: %s", cid)
 
     async def publish(
-        self, event_type, obj, reply_to=None, extra_headers=None, flow_id=None
+        self,
+        event_type,
+        obj,
+        reply_to=None,
+        extra_headers=None,
+        flow_id=None,
+        session_id=None,
     ):
         self._require_amqp()
         if extra_headers is None:
             extra_headers = {}
+        validate_extra_headers(extra_headers)
 
         event_headers = {
             "event_type": event_type,
@@ -174,6 +183,8 @@ class Messenger(ServiceDelegate):
             # Normal Kontiki flows should prefer call() for request/reply.
             "reply_to": reply_to,
         }
+        if session_id is not None:
+            event_headers["session_id"] = session_id
         headers = self.get_service_headers() | event_headers | extra_headers
         apply_outbound_flow_id(headers, flow_id=flow_id, extra_headers=extra_headers)
         apply_outbound_hop_headers(headers)
@@ -181,7 +192,12 @@ class Messenger(ServiceDelegate):
 
         try:
             await self.event_exchange.publish(
-                Message(body=message, headers=headers), routing_key=event_type
+                Message(
+                    body=message,
+                    headers=headers,
+                    delivery_mode=DELIVERY_MODE_PERSISTENT,
+                ),
+                routing_key=event_type,
             )
         except ChannelInvalidStateError:
             if not self._fail_fast():
@@ -189,7 +205,12 @@ class Messenger(ServiceDelegate):
             log.info("Channel is in an invalid state. Attempting to reconnect...")
             await self.reconnect()
             await self.event_exchange.publish(
-                Message(body=message, headers=headers), routing_key=event_type
+                Message(
+                    body=message,
+                    headers=headers,
+                    delivery_mode=DELIVERY_MODE_PERSISTENT,
+                ),
+                routing_key=event_type,
             )
 
         log.debug("Event published: %s -> %s", event_type, message)
@@ -203,6 +224,7 @@ class Messenger(ServiceDelegate):
         extra_headers=None,
         flow_id=None,
         instance_id=None,
+        response_model=None,
         **kwargs,
     ):
         self._require_amqp()
@@ -213,9 +235,11 @@ class Messenger(ServiceDelegate):
         # Create a future to wait for the response
         future = loop.create_future()
         self.futures[cid] = future
+        self._response_models[cid] = response_model
 
         if extra_headers is None:
             extra_headers = {}
+        validate_extra_headers(extra_headers)
         remote_headers = {"remote_method": method_name}
         headers = self.get_service_headers() | remote_headers | extra_headers
         apply_outbound_flow_id(headers, flow_id=flow_id, extra_headers=extra_headers)
@@ -232,6 +256,7 @@ class Messenger(ServiceDelegate):
                 correlation_id=cid,
                 reply_to=self.callback_queue.name,
                 headers=headers,
+                delivery_mode=DELIVERY_MODE_PERSISTENT,
             )
             log.debug("Call: %s(args=%s, kwargs=%s)", method_name, args, kwargs)
             await self.rpc_exchange.publish(request_message, routing_key=routing_key)
@@ -252,9 +277,28 @@ class Messenger(ServiceDelegate):
             # Cleanup future on timeout
             if cid in self.futures:
                 del self.futures[cid]
+            if cid in self._response_models:
+                del self._response_models[cid]
             raise RpcTimeoutError(method_name)
 
+        # Get response_model if provided for this call
+        response_model = self._response_models.pop(cid, None)
+
         if isinstance(response, RpcReturn):
+            # Reconstruct result if response_model is provided and it's a success
+            if (
+                response.success
+                and response_model is not None
+                and isinstance(response.result, dict)
+            ):
+                response = RpcReturn(
+                    success=True,
+                    result=response_model(**response.result),
+                    message=response.message,
+                    error_type=response.error_type,
+                    error_code=response.error_code,
+                )
+
             if response.success:
                 return response.result
 
@@ -319,14 +363,14 @@ class Messenger(ServiceDelegate):
         now_utc_iso = datetime.now(timezone.utc).isoformat()
         if self.container:
             return {
-                get_kontiki_header_name("service_name"): self.container.service_name,
-                get_kontiki_header_name("instance_id"): str(self.container.instance_id),
-                get_kontiki_header_name("host"): self.container.host,
-                get_kontiki_header_name("timestamp"): now_utc_iso,
+                "service_name": self.container.service_name,
+                "instance_id": str(self.container.instance_id),
+                "host": self.container.host,
+                "timestamp": now_utc_iso,
             }
         return {
-            get_kontiki_header_name("service_name"): self.service_name,
-            get_kontiki_header_name("instance_id"): self.instance_id,
-            get_kontiki_header_name("host"): socket.gethostname(),
-            get_kontiki_header_name("timestamp"): now_utc_iso,
+            "service_name": self.service_name,
+            "instance_id": self.instance_id,
+            "host": socket.gethostname(),
+            "timestamp": now_utc_iso,
         }

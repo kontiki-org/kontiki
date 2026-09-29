@@ -20,7 +20,7 @@ from kontiki.runtime.handler_scope import (
     current_handler_context,
     enter_handler_scope,
     entrypoint_header_name,
-    exception_record_fields,
+    get_handler_ctx_fields,
     hop_id_header_name,
     operation_header_name,
     parent_hop_id_header_name,
@@ -105,10 +105,10 @@ def test_flow_only_context_has_no_handler_context():
     resolve_flow_id()
     assert current_flow_id() is not None
     assert current_handler_context() is None
-    assert exception_record_fields() == (None, None, None, None)
+    assert get_handler_ctx_fields() == (None, None, None, None)
 
 
-def test_exception_record_fields_by_kind():
+def test_get_handler_ctx_fields():
     cases = [
         ("rpc", "compute"),
         ("event", "alert.open"),
@@ -118,7 +118,7 @@ def test_exception_record_fields_by_kind():
     for kind, operation in cases:
         scope = enter_handler_scope(kind, operation)
         try:
-            flow_id, entrypoint, recorded_operation, hop_id = exception_record_fields()
+            flow_id, entrypoint, recorded_operation, hop_id = get_handler_ctx_fields()
             ctx = current_handler_context()
             assert entrypoint == kind
             assert recorded_operation == operation
@@ -127,7 +127,7 @@ def test_exception_record_fields_by_kind():
         finally:
             reset_handler_scope(scope)
 
-    assert exception_record_fields() == (None, None, None, None)
+    assert get_handler_ctx_fields() == (None, None, None, None)
 
 
 def test_scope_calls_work_in_flight_begin_and_end():
@@ -138,7 +138,7 @@ def test_scope_calls_work_in_flight_begin_and_end():
     assert work.count == 0
 
 
-def test_prepare_http_response_sets_kontiki_flow_id_header():
+def test_prepare_http_response_sets_flow_id_header():
     response = web.Response()
     prepare_http_response(response, "abc123def456")
     assert response.headers[flow_id_header_name()] == "abc123def456"
@@ -202,8 +202,6 @@ async def test_event_handler_reports_uncaught_exception():
         queue=MagicMock(),
         serializer=serializer,
         include_headers=False,
-        requeue_on_error=False,
-        reject_on_redelivered=False,
         container=container,
     )
 
@@ -214,7 +212,12 @@ async def test_event_handler_reports_uncaught_exception():
     assert isinstance(exc, RuntimeError)
     assert str(exc) == "event blew up"
     assert container.report_uncaught_exception.await_args.kwargs == {}
-    message.nack.assert_awaited_once_with(requeue=False)
+
+    message.process.assert_called_once_with(requeue=True)
+    exc_type, exc_val, _ = message.process.return_value.__aexit__.await_args.args
+    assert exc_type is RuntimeError
+    assert str(exc_val) == "event blew up"
+    message.nack.assert_not_awaited()
 
 
 def _hex_hop_id(value):
@@ -231,7 +234,7 @@ def test_rpc_scope_remembers_inbound_hop_id():
     )
     try:
         assert current_handler_context().hop_id == inbound_hop
-        _, _, _, hop_id = exception_record_fields()
+        _, _, _, hop_id = get_handler_ctx_fields()
         assert hop_id == inbound_hop
     finally:
         reset_handler_scope(scope)
@@ -245,7 +248,7 @@ def test_http_scope_ignores_inbound_hop_header():
     )
     try:
         assert current_handler_context().hop_id is None
-        _, _, _, hop_id = exception_record_fields()
+        _, _, _, hop_id = get_handler_ctx_fields()
         assert hop_id is None
     finally:
         reset_handler_scope(scope)

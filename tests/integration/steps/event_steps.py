@@ -26,8 +26,15 @@ def step_receive_processed_payloads(context, mock_name, event_count):
     events = context.manager.get_events(
         mock_name, wait_for_events=event_count, timeout=65
     )
+    if event_count == 0:
+        assert (
+            events == expected_events
+        ), f"Expected no events for mock '{mock_name}', got {len(events)}."
+        context.manager.clean_events(mock_name)
+        return
+
     assert (
-        len(events) >= event_count
+        len(events) == event_count
     ), f"Expected {event_count} events, got {len(events)}."
     actual_events = events[:event_count]
     expected_for_compare = expected_events

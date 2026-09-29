@@ -5,7 +5,11 @@ import time
 
 from kontiki import __version__ as kontiki_version
 from kontiki.messaging.flow import FLOW_ID_LENGTH
-from kontiki.runtime.handler_scope import EXCEPTION_ID_LENGTH, HOP_ID_LENGTH
+from kontiki.runtime.handler_scope import (
+    CONTEXT_ID_LENGTH,
+    EXCEPTION_ID_LENGTH,
+    HOP_ID_LENGTH,
+)
 
 REGISTER_LINE = re.compile(r"Published message to registry\.register: (.+)$")
 EXCEPTION_LINE = re.compile(r"Published message to registry\.exception: (.+)$")
@@ -14,6 +18,7 @@ _HEX_PLACEHOLDERS = {
     "[FLOW_ID]": FLOW_ID_LENGTH,
     "[HOP_ID]": HOP_ID_LENGTH,
     "[EXCEPTION_ID]": EXCEPTION_ID_LENGTH,
+    "[CONTEXT_ID]": CONTEXT_ID_LENGTH,
 }
 
 

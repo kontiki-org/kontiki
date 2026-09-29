@@ -6,6 +6,7 @@ INSTANCE_REGISTERED = "registry.instance.registered"
 INSTANCE_DEREGISTERED = "registry.instance.deregistered"
 INSTANCE_STATUS_CHANGED = "registry.instance.status_changed"
 EXCEPTION_RECORDED = "registry.exception.recorded"
+CONTEXT_RECORDED = "registry.context.recorded"
 
 
 def _utc_now_iso():

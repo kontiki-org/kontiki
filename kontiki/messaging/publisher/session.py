@@ -1,4 +1,4 @@
-from kontiki.utils import get_kontiki_header_name
+from kontiki.utils import validate_extra_headers
 
 
 class EventSession:
@@ -11,12 +11,13 @@ class EventSession:
     async def publish(self, event_type, obj, extra_headers=None, flow_id=None):
         if extra_headers is None:
             extra_headers = {}
+        validate_extra_headers(extra_headers)
 
         routing_key = f"{event_type}.{self.instance_id}"
-        headers = {
-            get_kontiki_header_name("session_id"): self.session_id,
-            **extra_headers,
-        }
         await self._messenger.publish(
-            routing_key, obj, extra_headers=headers, flow_id=flow_id
+            routing_key,
+            obj,
+            extra_headers=extra_headers,
+            flow_id=flow_id,
+            session_id=self.session_id,
         )

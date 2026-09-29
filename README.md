@@ -275,7 +275,7 @@ See `docs/features.md` (Testing) and `tests/integration/`.
 - Contributing guidelines: `CONTRIBUTING.md`
 - License: `LICENSE`
 
-Kontiki requires **RabbitMQ**. You do not declare exchanges or queues yourself —
+Kontiki requires **RabbitMQ ≥ 4.3** (for V2.0+ features like quorum queues). You do not declare exchanges or queues yourself —
 decorators and config declare the topology. To start a broker locally:
 
 ```bash

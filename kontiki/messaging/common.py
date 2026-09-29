@@ -12,6 +12,9 @@ EVENT_EXCHANGE = "event_exchange"
 RPC_EXCHANGE = "rpc_exchange"
 KONTIKI_SESSION_OPEN_RPC = f"___{KONTIKI}__internal_session_open__"
 
+# AMQP delivery modes
+DELIVERY_MODE_PERSISTENT = 2
+
 
 async def declare_event_exchange(channel, name=EVENT_EXCHANGE):
     return await channel.declare_exchange(name, ExchangeType.TOPIC)

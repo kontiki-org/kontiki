@@ -97,7 +97,7 @@ def _stub_connected_messenger():
 
 
 @pytest.mark.asyncio
-async def test_publish_sets_kontiki_flow_id_header():
+async def test_publish_sets_flow_id_header():
     messenger = _stub_connected_messenger()
 
     await messenger.publish("evt", {"a": 1})
@@ -107,6 +107,16 @@ async def test_publish_sets_kontiki_flow_id_header():
     assert len(flow) == FLOW_ID_LENGTH
     assert all(c in "0123456789abcdef" for c in flow)
     assert current_flow_id() == flow
+
+
+@pytest.mark.asyncio
+async def test_publish_rejects_reserved_extra_headers():
+    messenger = _stub_connected_messenger()
+
+    with pytest.raises(ValueError):
+        await messenger.publish("evt", {"a": 1}, extra_headers={"flow_id": "spoofed"})
+
+    messenger.event_exchange.publish.assert_not_awaited()
 
 
 @pytest.mark.asyncio

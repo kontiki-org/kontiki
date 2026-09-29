@@ -10,6 +10,7 @@ REGISTER_RKEY = "registry.register"
 UNREGISTER_RKEY = "registry.unregister"
 HEARTBEAT_RKEY = "registry.heartbeat"
 EXCEPTION_RKEY = "registry.exception"
+CONTEXT_RKEY = "registry.context"
 HEARTBEAT_DEFAULT_INTERVAL = 60
 REGISTRATION_GROUP_DEFAULT = "business"
 

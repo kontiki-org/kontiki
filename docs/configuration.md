@@ -1,5 +1,7 @@
 # Kontiki configuration reference
 
+**Note**: Kontiki V2.0+ requires **RabbitMQ ≥ 4.3** for quorum queues and reliable execution features.
+
 Framework options live under the **`kontiki`** key. Logging uses a top-level
 **`logging`** block (Python dictConfig + Kontiki extensions). Facts shown in
 the registry (KontikiTUI Configuration pane) live under a top-level **`public`**
@@ -52,8 +54,9 @@ for fixed platform targets.
 | `kontiki.amqp.url` | `amqp://guest:guest@localhost/` | AMQP connection URL. |
 | `kontiki.amqp.required` | `true` | `true`: fail-fast at start if the broker is unreachable. `false`: the local work (`@task`, `@http`) does not need AMQP and must run even if the broker is down; registry and exception reporting connect when it is up. Distinct from `kontiki.registration.disable`. |
 | `kontiki.amqp.rpc.timeout` | `10` | RPC call timeout in seconds. |
-| `kontiki.amqp.serialization` | `pickle` | AMQP message format: `pickle` (supported). `json` is deprecated — logs a warning at startup; removal planned in a future major release. |
+| `kontiki.amqp.serialization` | *(removed)* | Removed in V2.0. JSON is now the only supported AMQP message format. Object reconstruction uses type hints on handler parameters and the optional `response_model=` on `messenger.call()`. |
 | `kontiki.amqp.max_pending_messages` | `10` | Consumer prefetch (QoS): max unacknowledged messages per consumer. Limits how many messages a single instance can hold before acknowledging; useful for load balancing and backpressure. |
+| `kontiki.amqp.max_attempts` | `3` | Competing `@on_event` queues only. Failed deliveries are requeued until this many attempts, then RabbitMQ drops the message. Per-handler override: `@on_event(..., max_attempts=N)`. `broadcast` and `in_session` drop on the first failure. Minimum 1. |
 | `kontiki.amqp.tls` | `{}` | Optional TLS. See below. |
 
 `amqp.required: false` is for work that does not use the bus and must still run
@@ -63,6 +66,11 @@ to the registry (TUI / Monitor). `registration.disable: true` never registers.
 If both are set, disable wins (no registry client). There is no local buffer:
 `publish` / `call` raise while disconnected. Losing the broker after start does
 not stop the process.
+
+Upgrading to V2.0: competing event queues become quorum queues with the same
+name (`{service}.{event}.queue`). Delete the existing classic queues before
+starting the service. RabbitMQ refuses the redeclaration while the classic
+queue is still there.
 
 ### `kontiki.amqp.tls`
 
@@ -182,9 +190,8 @@ See [advanced-features.md](advanced-features.md) (`logging.directory`, `flow_id`
 
 The **Kontiki registry** service uses the same `kontiki.*` keys where relevant (e.g. `kontiki.amqp`, `kontiki.http`). In addition, its config supports top-level keys (not under `kontiki`) for its own features:
 
-- **`event_tracker.ttl_minutes`** (default: `0`), **`event_tracker.ttl_hours`** (default: `24 * 7`): event retention.
-- **`event_tracker.disable`** (default: `false`): disable event tracking.
-- **`event_tracker.cleanup_interval_seconds`** (default: `3600`): cleanup interval.
-- **`exception_tracking.*`**: analogous options for exception retention and cleanup.
+- **`activity_tracker.ttl_minutes`** (default: `0`), **`activity_tracker.ttl_hours`** (default: `24 * 7`): retention of the registry's activity records (event timeline, contexts, exception records).
+- **`activity_tracker.disable`** (default: `false`): disable activity tracking. No tracking queue is declared; published events, contexts, and exceptions are dropped by the broker, and `registry.exception.recorded` is no longer published.
+- **`activity_tracker.cleanup_interval_seconds`** (default: `3600`): cleanup interval.
 
 See the registry example config and source if you run the registry yourself.

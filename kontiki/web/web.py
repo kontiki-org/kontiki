@@ -91,6 +91,10 @@ class HttpServer:
         self.app = web.Application()
         self.entrypoints = entrypoints
         self.container = container
+        # Assigned by setup()/start(); None until then so the shutdown
+        # path works when setup failed partway.
+        self.runner = None
+        self.site = None
         self._openapi_cache = {}
         self._docs_registered = False
         self.add_entrypoints(entrypoints)

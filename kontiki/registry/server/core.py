@@ -19,8 +19,7 @@ from kontiki.registry.events import (
     registered_payload,
     status_changed_payload,
 )
-from kontiki.registry.server.delegates.event_tracking import EventTracker
-from kontiki.registry.server.delegates.exception_tracking import ExceptionTracker
+from kontiki.registry.server.delegates.activity_tracking import ActivityTracker
 from kontiki.registry.server.delegates.heartbeat_manager import HeartbeatManager
 from kontiki.registry.server.delegates.registry import Registry
 
@@ -62,10 +61,9 @@ class ServiceRegistryCore(ServiceDelegate):
         self.default_timeout_factor = 3
         self._tracked_status = {}
 
-        self.event_tracker = EventTracker(self)
+        self.activity_tracker = ActivityTracker(self)
         self.registry = Registry(self)
         self.heartbeat_manager = HeartbeatManager(self)
-        self.exception_tracker = ExceptionTracker(self)
         super().__init__()
 
     async def setup(self):
@@ -85,10 +83,9 @@ class ServiceRegistryCore(ServiceDelegate):
         self.serializer = Serializer(self.container.config)
 
         # Sets delegates up.
-        await self.event_tracker.setup()
+        await self.activity_tracker.setup()
         await self.registry.setup()
         await self.heartbeat_manager.setup()
-        await self.exception_tracker.setup()
 
     async def stop(self):
         if self.connection:
@@ -247,7 +244,7 @@ class ServiceRegistryCore(ServiceDelegate):
         return False
 
     def get_events(self):
-        return make_serializable(self.event_tracker.events)
+        return make_serializable(self.activity_tracker.events)
 
     def get_exceptions(self):
-        return make_serializable(self.exception_tracker.exceptions)
+        return make_serializable(self.activity_tracker.exceptions)

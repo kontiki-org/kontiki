@@ -9,9 +9,15 @@ from kontiki.task.task import task
 from kontiki.web import http
 
 
+class TaskServiceDelegate(ServiceDelegate):
+    def __init__(self):
+        self._count = 0
+
+
 class TestServiceDelegate(ServiceDelegate):
     def __init__(self):
-        self._retry = False
+        self._attempts = 0
+        self._drop_attempts = 0
 
 
 class TestHttpRequestModel(BaseModel):
@@ -66,13 +72,19 @@ class TestService:
     async def on_multi_event_from_config(self, payload):
         await self.messenger.publish("multi_event_config_processed", payload)
 
-    @on_event("retry_ok", requeue_on_error=True, reject_on_redelivered=True)
+    @on_event("retry_ok", max_attempts=4)
     async def on_retry_ok(self, payload):
-        if not self.delegate._retry:
-            self.delegate._retry = True
-            raise RuntimeError("Retry should be enabled")
-        if self.delegate._retry:
+        self.delegate._attempts = self.delegate._attempts + 1
+        if self.delegate._attempts < 4:
+            raise RuntimeError(f"Attempt #{self.delegate._attempts} failed")
+        else:
             await self.messenger.publish("retry_ok_processed", payload)
+
+    @on_event("retry_drop", max_attempts=2)
+    async def on_retry_drop(self, payload):
+        self.delegate._drop_attempts = self.delegate._drop_attempts + 1
+        await self.messenger.publish("retry_drop_attempt", payload)
+        raise RuntimeError(f"retry_drop attempt #{self.delegate._drop_attempts}")
 
     @on_event("broadcast_off")
     async def on_broadcast_off(self, payload):
@@ -142,21 +154,16 @@ class RpcProxyCallerService:
 
 class TaskService:
     messenger = Messenger()
+    delegate = TaskServiceDelegate()
 
     # ------------------------------------------------------------
     # Tasks
     # ------------------------------------------------------------
 
-    @task(interval=10, immediate=True)
-    async def task_immediate(self):
-        await self._publish("task_immediate_processed")
-
     @task(interval=10, immediate=False)
-    async def task_not_immediate(self):
-        await self._publish("task_not_immediate_processed")
-
-    async def _publish(self, msg):
-        await self.messenger.publish(msg, msg)
+    async def task_immediate(self):
+        self.delegate._count = self.delegate._count + 1
+        await self.messenger.publish("task", f"task#{self.delegate._count}")
 
 
 class TaskConfigService:
@@ -200,6 +207,10 @@ class RegistryTestService:
     @rpc
     async def set_degraded(self, degraded, reason=None):
         self.delegate.set_degraded(degraded, reason=reason)
+
+    @rpc
+    async def add_test_context(self, **context):
+        await self.delegate.add_context(context)
 
     @rpc
     async def report_test_exception(self):

@@ -5,9 +5,15 @@ from aio_pika import Message, connect_robust
 
 from kontiki import __version__
 from kontiki.configuration.parameter import get_kontiki_parameter
-from kontiki.messaging.common import create_tls_context, get_amqp_url, is_amqp_required
+from kontiki.messaging.common import (
+    DELIVERY_MODE_PERSISTENT,
+    create_tls_context,
+    get_amqp_url,
+    is_amqp_required,
+)
 from kontiki.messaging.serialization import Serializer
 from kontiki.registry.common import (
+    CONTEXT_RKEY,
     EXCEPTION_RKEY,
     HEARTBEAT_RKEY,
     REGISTER_RKEY,
@@ -16,7 +22,7 @@ from kontiki.registry.common import (
     get_heartbeat_interval,
     get_registration_group,
 )
-from kontiki.runtime.handler_scope import generate_exception_id
+from kontiki.runtime.handler_scope import generate_context_id, generate_exception_id
 from kontiki.utils import log
 
 # -----------------------------------------------------------------------------
@@ -32,7 +38,9 @@ def publish(routing_key):
 
             body = await func(self, *args, **kwargs)
 
-            message = Message(body=self.serializer.dumps(body))
+            message = Message(
+                body=self.serializer.dumps(body), delivery_mode=DELIVERY_MODE_PERSISTENT
+            )
             await self.registry_admin_exchange.publish(message, routing_key=routing_key)
             log.debug("Published message to %s: %s", routing_key, body)
 
@@ -169,6 +177,21 @@ class ServiceRegistryClient:
             "flow_id": flow_id,
             "hop_id": hop_id,
             "exception_id": generate_exception_id(),
+            "entrypoint": entrypoint,
+            "operation": operation,
+        }
+        return body
+
+    @publish(CONTEXT_RKEY)
+    async def add_context(self, context, flow_id, entrypoint, operation, hop_id):
+        body = {
+            "service_name": self.container.service_name,
+            "instance_id": self.container.instance_id,
+            "context": context,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "flow_id": flow_id,
+            "hop_id": hop_id,
+            "context_id": generate_context_id(),
             "entrypoint": entrypoint,
             "operation": operation,
         }

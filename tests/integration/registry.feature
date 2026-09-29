@@ -569,6 +569,40 @@ Feature: Service registry
             []
             """
 
+    Scenario: added context is stored in the event timeline
+        When I call the add_test_context method with the following parameters
+            """
+            {
+                "decision": "queued"
+            }
+            """
+        When I call the get_filtered_events method with the following parameters
+            """
+            {
+                "filter_field": "event_type",
+                "value": "registry.context.recorded"
+            }
+            """
+        Then the registry service should return the result
+            """
+            [
+                {
+                    "event_type": "registry.context.recorded",
+                    "service_name": "RegistryTestService",
+                    "instance_id": "[REGISTRY_TEST_INSTANCE_ID]",
+                    "context": {
+                        "decision": "queued"
+                    },
+                    "timestamp": "[TIMESTAMP]",
+                    "flow_id": "[FLOW_ID]",
+                    "hop_id": "[HOP_ID]",
+                    "context_id": "[CONTEXT_ID]",
+                    "entrypoint": "rpc",
+                    "operation": "add_test_context"
+                }
+            ]
+            """
+
     Scenario: a missed heartbeat publishes registry.instance.status_changed to down
         And I wait for the next registry heartbeat
         When I kill the registry test service without unregistering

@@ -16,8 +16,9 @@ kontiki:
     required: true  # false: @task/@http that don't need the bus still run if RabbitMQ is down; registry/exceptions when it is up
     rpc:
       timeout: 10
-    serialization: "pickle"   # json is deprecated (startup warning); removal planned in a future major release
+    # serialization: removed in V2.0 (JSON is now the only format)
     max_pending_messages: 10  # prefetch: limits unacknowledged messages per consumer (load balancing, backpressure)
+    max_attempts: 3  # competing event queues: deliveries before RabbitMQ drops the message
     # tls:
     #   enabled: true
     #   ca_cert: /path/to/ca.pem

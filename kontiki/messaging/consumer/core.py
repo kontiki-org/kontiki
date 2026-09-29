@@ -55,6 +55,7 @@ class Consumer:
         self.connection = None
         self.work_in_flight = WorkInFlight()
         self._handler_tasks = set()
+        self.max_attempts = 3  # Default value, overridden in setup()
 
     def register_handler_task(self, task):
         self._handler_tasks.add(task)
@@ -68,7 +69,7 @@ class Consumer:
         self.connection = await connect_robust(
             self.amqp_url, ssl_context=tls_ctx, fail_fast=fail_fast
         )
-        self.channel = await self.connection.channel()
+        self.channel = await self.connection.channel(publisher_confirms=True)
         prefetch_count = get_kontiki_parameter(
             self.container.config, "amqp.max_pending_messages", 10
         )
@@ -76,6 +77,9 @@ class Consumer:
         self.event_exchange = await declare_event_exchange(self.channel)
         self.rpc_exchange = await declare_rpc_exchange(self.channel)
         self.serializer = Serializer(self.container.config)
+        self.max_attempts = get_kontiki_parameter(
+            self.container.config, "amqp.max_attempts", 3
+        )
         await self._add_internal_session_rpc()
 
     async def start(self):
@@ -133,9 +137,8 @@ class Consumer:
             use_config = task_data["use_config"]
             target_instance = task_data["target_instance"]
             include_headers = task_data["include_headers"]
-            requeue_on_error = task_data["requeue_on_error"]
-            reject_on_redelivered = task_data["reject_on_redelivered"]
             broadcast = task_data.get("broadcast", False)
+            max_attempts = task_data.get("max_attempts")
 
             resolved = resolve_parameter_path(
                 self.container.config, event_type_or_key, use_config
@@ -143,6 +146,11 @@ class Consumer:
             event_types = normalize_event_types(resolved)
 
             bound_task = task.__get__(self.container.service_instance)
+            effective_max_attempts = (
+                max_attempts if max_attempts is not None else self.max_attempts
+            )
+            # broadcast / in_session: one consumer, exclusive queue, drop on failure.
+            requeue = not (broadcast or target_instance)
 
             for event_type in event_types:
                 # broadcast and in_session both need a per-instance queue so
@@ -150,14 +158,21 @@ class Consumer:
                 # queue. Bindings differ: broadcast → {event}, in_session →
                 # {event}.{instance_id}.
                 if broadcast or target_instance:
+                    # Profil O (One-off): exclusive queue, no retry
                     qname = (
                         f"{self.service_name}.{event_type}."
                         f"{self.container.instance_id}.queue"
                     )
                     queue = await self._declare_queue(qname, durable=False)
                 else:
+                    # Profil W (Work): quorum queue with max_attempts
                     qname = f"{self.service_name}.{event_type}.queue"
-                    queue = await self._declare_queue(qname, durable=True)
+                    queue = await self._declare_queue(
+                        qname,
+                        durable=True,
+                        is_work_queue=True,
+                        max_attempts=effective_max_attempts,
+                    )
 
                 routing_key = (
                     f"{event_type}.{self.container.instance_id}"
@@ -173,14 +188,31 @@ class Consumer:
                     queue,
                     self.serializer,
                     include_headers,
-                    requeue_on_error,
-                    reject_on_redelivered,
                     self.container,
+                    max_attempts=effective_max_attempts,
+                    requeue=requeue,
                 )
                 self.on_event_tasks.append(on_event_task)
                 log.debug("On event task registered for event: %s", event_type)
 
-    async def _declare_queue(self, qname, durable):
+    async def _declare_queue(
+        self, qname, durable, is_work_queue=False, max_attempts=None
+    ):
+        if is_work_queue:
+            # Profil W: quorum queue avec max_attempts
+            effective_max = (
+                max_attempts if max_attempts is not None else self.max_attempts
+            )
+            if effective_max < 1:
+                raise ValueError("max_attempts must be at least 1")
+            return await self.channel.declare_queue(
+                qname,
+                durable=True,
+                arguments={
+                    "x-queue-type": "quorum",
+                    "x-delivery-limit": effective_max - 1,
+                },
+            )
         if durable:
             return await self.channel.declare_queue(qname, durable=True)
         return await self.channel.declare_queue(qname, exclusive=True, auto_delete=True)

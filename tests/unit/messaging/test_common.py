@@ -7,7 +7,6 @@ from kontiki.messaging.common import (
     is_amqp_required,
 )
 from kontiki.messaging.publisher.messenger import Messenger
-from kontiki.utils import get_kontiki_header_name
 
 
 def test_get_amqp_url_with_config():
@@ -95,7 +94,6 @@ def test_is_amqp_required_false():
 def test_messenger_service_headers_timestamp_is_utc_iso_string():
     messenger = Messenger(standalone=True)
     headers = messenger.get_service_headers()
-    ts_key = get_kontiki_header_name("timestamp")
 
-    assert isinstance(headers[ts_key], str)
-    assert headers[ts_key].endswith("+00:00")
+    assert isinstance(headers["timestamp"], str)
+    assert headers["timestamp"].endswith("+00:00")

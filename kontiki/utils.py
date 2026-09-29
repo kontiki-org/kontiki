@@ -19,9 +19,31 @@ def setup_logger():
         log.setLevel(logging.INFO)
 
 
-def get_kontiki_prefix():
-    return f"{KONTIKI}_"
+# Header names Kontiki writes on the wire. User extra_headers must not use them.
+RESERVED_HEADERS = frozenset(
+    {
+        "event_type",
+        "remote_method",
+        "reply_to",
+        "session_id",
+        "flow_id",
+        "hop_id",
+        "parent_hop_id",
+        "entrypoint",
+        "operation",
+        "rpc_service",
+        "service_name",
+        "instance_id",
+        "host",
+        "timestamp",
+    }
+)
 
 
-def get_kontiki_header_name(name):
-    return f"{get_kontiki_prefix()}{name}"
+def validate_extra_headers(extra_headers):
+    reserved = sorted(name for name in extra_headers if name in RESERVED_HEADERS)
+    if reserved:
+        raise ValueError(
+            f"Reserved header names are not allowed in extra_headers: "
+            f"{', '.join(reserved)}"
+        )

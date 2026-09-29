@@ -2,12 +2,11 @@ import secrets
 from contextvars import ContextVar
 from dataclasses import dataclass
 
-from kontiki.utils import get_kontiki_header_name
-
 FLOW_ID_LENGTH = 12
 FLOW_ID_UNSET = "[no flow]"
 HOP_ID_LENGTH = 16
 EXCEPTION_ID_LENGTH = 16
+CONTEXT_ID_LENGTH = 16
 
 
 @dataclass
@@ -28,27 +27,27 @@ _handler_context_var = ContextVar("kontiki_handler_context", default=None)
 
 
 def flow_id_header_name():
-    return get_kontiki_header_name("flow_id")
+    return "flow_id"
 
 
 def hop_id_header_name():
-    return get_kontiki_header_name("hop_id")
+    return "hop_id"
 
 
 def parent_hop_id_header_name():
-    return get_kontiki_header_name("parent_hop_id")
+    return "parent_hop_id"
 
 
 def entrypoint_header_name():
-    return get_kontiki_header_name("entrypoint")
+    return "entrypoint"
 
 
 def operation_header_name():
-    return get_kontiki_header_name("operation")
+    return "operation"
 
 
 def rpc_service_header_name():
-    return get_kontiki_header_name("rpc_service")
+    return "rpc_service"
 
 
 def generate_flow_id():
@@ -60,6 +59,10 @@ def generate_hop_id():
 
 
 def generate_exception_id():
+    return secrets.token_hex(8)
+
+
+def generate_context_id():
     return secrets.token_hex(8)
 
 
@@ -128,7 +131,7 @@ def reset_handler_scope(scope_token):
     reset_handler_context(scope_token.context_token)
 
 
-def exception_record_fields():
+def get_handler_ctx_fields():
     ctx = current_handler_context()
     if ctx is None:
         return None, None, None, None

@@ -20,7 +20,7 @@ features** that are easy to miss and worth knowing early.
 | Filter services by kind in KontikiTUI | `kontiki.registration.group` |
 | Crash visibility | let exceptions propagate |
 | Expected RPC failures | `rpc_error` + `RpcClientError.code` |
-| Retry event once then stop | `requeue_on_error` + `reject_on_redelivered` |
+| Retry a competing event, then drop | `kontiki.amqp.max_attempts` (default 3) |
 | Cross-service debug | `flow_id` → filter in KontikiTUI Logs |
 | Predictable per-instance log files (TUI / replicas) | `logging.directory` (recommended) |
 | Route by business field | encode it in `event_type` |
@@ -357,10 +357,10 @@ Same idea for `@rpc(..., include_headers=True)`.
 **Gotcha:** Headers other than `flow_id` are **not** propagated automatically
 across hops. Whatever custom metadata you need downstream must be passed again
 on the next `publish` / `call`. `flow_id` is the exception — Kontiki propagates
-it via ContextVar + `kontiki_flow_id` (see below).
+it via ContextVar and the AMQP header `flow_id` (see below).
 
-Kontiki already adds its own headers (`kontiki_service_name`, `kontiki_instance_id`,
-`kontiki_flow_id`, …). Do not confuse those with AMQP `correlation_id` (used for
+Kontiki already adds its own headers (`service_name`, `instance_id`,
+`flow_id`, …). Do not confuse those with AMQP `correlation_id` (used for
 RPC reply matching).
 
 ---
@@ -438,7 +438,7 @@ rebuild; pools do not compete on each other’s messages.
 
 Pass a **list of exact type strings**, or resolve one from config (`use_config=True`
 → string or list). Kontiki declares **one durable queue and one TOPIC bind per
-type**; options (`broadcast`, `in_session`, `requeue_on_error`, …) apply to every
+type**; options (`broadcast`, `in_session`, `max_attempts`, …) apply to every
 type in the list.
 
 **Gotcha:** Empty list → fail fast at startup. No TOPIC wildcards (`*`, `#`) and
@@ -487,10 +487,10 @@ Changing the YAML value requires a **restart** so the queue is rebound.
 every log file by hand.
 
 **Origins:** Every handler (`@http`, `@task`, `@rpc`, `@on_event`) gets a
-`flow_id` at entry. `@rpc` / `@on_event` reuse inbound header `kontiki_flow_id`
+`flow_id` at entry. `@rpc` / `@on_event` reuse inbound header `flow_id`
 when present, otherwise generate. `@http` and `@task` always generate (inbound
-HTTP `kontiki_flow_id` is ignored). `@http` responses expose the id in header
-`kontiki_flow_id`. `publish` / `call` propagate the current id. Exception
+HTTP `flow_id` is ignored). `@http` responses expose the id in header
+`flow_id`. `publish` / `call` propagate the current id. Exception
 records in the registry carry the same `flow_id` (body field; see uncaught
 exceptions above).
 
@@ -654,7 +654,7 @@ queue.
 Clients first `open_session(service_name)` or `open_session(peer="…")` (RPC),
 then publish through the
 returned `EventSession`, which routes to **that instance of that service** and
-attaches a `kontiki_session_id` header. Other replicas do not compete on the
+attaches a `session_id` header. Other replicas do not compete on the
 target’s queue (same per-instance queue pattern as `broadcast`, different
 binding).
 
@@ -726,27 +726,25 @@ loop (see `list_instances` above). Runnable example: `examples/rpc/`
 
 ---
 
-### Event delivery: `requeue_on_error` and `reject_on_redelivered`
+### Event delivery: `max_attempts`
 
-**When:** A handler can fail transiently (downstream timeout) and you want **one
-retry** from the broker, then give up instead of looping forever.
+**When:** A competing `@on_event` handler can fail transiently and the message
+should be tried again, then dropped.
 
 ```python
-@on_event(
-    "jobs.run",
-    requeue_on_error=True,
-    reject_on_redelivered=True,
-)
+@on_event("jobs.run", max_attempts=3)
 async def on_job(self, payload):
     await self.delegate.run_job(payload)  # may raise
 ```
 
-What happens:
+The queue is a quorum queue. A failed delivery is `basic.reject` with requeue.
+RabbitMQ counts those failures against `x-delivery-limit` (`max_attempts - 1`,
+so the default 3 is three deliveries). The next failure after the limit drops
+the message. There is no dead-letter queue. Each failed attempt is recorded
+as an exception.
 
-1. **First failure** + `requeue_on_error=True` → message is requeued (broker
-   delivers again, typically with `redelivered=True`).
-2. **Second failure** on that redelivery + `reject_on_redelivered=True` → message
-   is **rejected** (not requeued again) → stops the poison loop.
+`broadcast` and `in_session` use an exclusive queue with a single consumer.
+A handler failure drops the message. `max_attempts` does not apply.
 
 ```mermaid
 sequenceDiagram
@@ -755,18 +753,14 @@ sequenceDiagram
   B->>H: deliver #1
   H--xB: raise
   Note over B: requeue
-  B->>H: deliver #2 (redelivered)
+  B->>H: deliver #N (limit)
   H--xB: raise
-  Note over B: reject — stop
+  Note over B: drop
 ```
 
-Use both flags together for “retry once then drop”. Use only `requeue_on_error`
-if you accept unbounded retries (usually you do not). Leave both off (default)
-when failures should not bounce the message (e.g. bad payload — fix publisher).
-
-**Gotcha:** Requeue does not fix poison data. Prefer validating early and using
-`rpc_error`-style discipline on the producer when possible. Rejected messages
-are not a dead-letter queue unless you configure one in RabbitMQ.
+Omit `max_attempts` to use `kontiki.amqp.max_attempts` (default 3). The minimum
+is 1. A bad payload still burns the attempts: validate before publishing when
+the sender can.
 
 ---
 

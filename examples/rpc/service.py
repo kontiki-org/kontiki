@@ -1,8 +1,7 @@
 import logging
 
-from kontiki.configuration import get_parameter
 from kontiki.delegate import ServiceDelegate
-from kontiki.messaging import on_event, rpc, rpc_error
+from kontiki.messaging import rpc, rpc_error
 
 
 class RpcServiceDelegate(ServiceDelegate):

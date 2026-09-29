@@ -83,6 +83,10 @@ integration-test-amqp-required: run-amqp
 	@echo "Running integration tests (amqp_required suite)..."
 	$(PY) -m behave tests/integration --tags @amqp_required --stop --no-skipped
 
+integration-test-tag: run-amqp
+		@echo "Running integration tests (amqp_required suite)..."
+		$(PY) -m behave tests/integration --tags $(TAG) --stop --no-skipped
+
 # EXAMPLES
 # -----------------------------------------------------------------------------
 # RPC Service

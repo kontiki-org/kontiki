@@ -13,15 +13,9 @@ Feature: Tasks
     @task_service
     Scenario: Tasks with literal interval
         When I wait for 25 seconds
-        Then the mock TaskMockService should have received 5 events
+        Then the mock TaskMockService should have received 2 events
             """
-            [
-                "task_immediate_processed",
-                "task_immediate_processed",
-                "task_not_immediate_processed",
-                "task_immediate_processed",
-                "task_not_immediate_processed"
-            ]
+                ["task#1","task#2"]
             """
 
     # ------------------------------------------------------------
