@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       rabbitmq:
-        image: rabbitmq:3-management
+        image: rabbitmq:4.3-management
         ports:
           - 5672:5672
         options: >-
@@ -77,4 +77,7 @@ jobs:
           poetry run python -m behave tests/integration --tags @task_service --stop --no-skipped
           poetry run python -m behave tests/integration --tags @task_config_service --stop --no-skipped
           poetry run python -m behave tests/integration --tags @registry --stop --no-skipped
+          poetry run python -m behave tests/integration --tags @service_name --stop --no-skipped
+          poetry run python -m behave tests/integration --tags @logging --stop --no-skipped
+          poetry run python -m behave tests/integration --tags @amqp_required --stop --no-skipped
 

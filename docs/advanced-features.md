@@ -654,7 +654,7 @@ queue.
 Clients first `open_session(service_name)` or `open_session(peer="…")` (RPC),
 then publish through the
 returned `EventSession`, which routes to **that instance of that service** and
-attaches a `kontiki_session_id` header. Other replicas do not compete on the
+attaches a `session_id` header. Other replicas do not compete on the
 target’s queue (same per-instance queue pattern as `broadcast`, different
 binding).
 

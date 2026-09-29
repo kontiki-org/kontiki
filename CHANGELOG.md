@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [2.0.0] - 2026-09-29
 
 - **Breaking**: JSON-only AMQP serialization. `pickle` and `kontiki.amqp.serialization` removed.
 - **Breaking**: **RabbitMQ ≥ 4.3** now required for quorum queues and reliable execution features.
