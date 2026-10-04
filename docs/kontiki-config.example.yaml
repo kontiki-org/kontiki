@@ -38,6 +38,7 @@ kontiki:
     grace_seconds: 25
 
   http:
+    # disable: true  # do not bind; use_config route paths are not read
     address: "0.0.0.0"
     port: 8080
     documentation:

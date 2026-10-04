@@ -80,4 +80,5 @@ jobs:
           poetry run python -m behave tests/integration --tags @service_name --stop --no-skipped
           poetry run python -m behave tests/integration --tags @logging --stop --no-skipped
           poetry run python -m behave tests/integration --tags @amqp_required --stop --no-skipped
+          poetry run python -m behave tests/integration --tags @http_disable --stop --no-skipped
 

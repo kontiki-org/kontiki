@@ -36,11 +36,17 @@ def _store_http_response(context, response):
 
 
 def _perform_request(context, req):
+    context.http_error = None
     try:
         with request.urlopen(req, timeout=10) as response:
             _store_http_response(context, response)
     except error.HTTPError as exc:
         _store_http_response(context, exc)
+    except error.URLError as exc:
+        context.http_status = None
+        context.http_body = None
+        context.http_headers = None
+        context.http_error = exc
 
 
 @when('I send an HTTP GET request to "{path}"')
@@ -60,6 +66,17 @@ def step_send_http_post(context, path):
         headers={"Content-Type": "application/json"},
     )
     _perform_request(context, req)
+
+
+@then("the HTTP connection is refused")
+def step_http_connection_refused(context):
+    assert (
+        context.http_error is not None
+    ), "Expected a refused connection, got an HTTP response."
+    reason = context.http_error.reason
+    assert isinstance(
+        reason, ConnectionRefusedError
+    ), f"Expected a refused connection, got {context.http_error!r}."
 
 
 @then("the HTTP response status should be {status_code:d}")

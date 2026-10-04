@@ -118,10 +118,14 @@ class ServiceContainer:
         log.info("Service setup completed")
 
     async def setup_http_endpoints(self):
-        if self.has_endpoints("http"):
-            http_endpoints = self.get_endpoints("http")
-            self.http_server = HttpServer(self, http_endpoints)
-            await self.http_server.setup()
+        if not self.has_endpoints("http"):
+            return
+        if get_kontiki_parameter(self.config, "http.disable", False):
+            log.info("HTTP is disabled; endpoints are not served.")
+            return
+        http_endpoints = self.get_endpoints("http")
+        self.http_server = HttpServer(self, http_endpoints)
+        await self.http_server.setup()
 
     async def setup_amqp_endpoints(self):
         if self.has_endpoints("on_event") or self.has_endpoints("rpc"):

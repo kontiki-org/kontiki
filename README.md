@@ -210,20 +210,15 @@ Scenario: Return matching recipient for exact area and category
         level: INFO
     app:
       subscriptions:
-        usr_1:
-          wind-fr69:
-            status: active
-            subscription:
-              rule:
-                category: weather.wind
-                event_type: "*"
-                criteria:
-                  all_of:
-                    - key: area.zone
-                      operator: eq
-                      value: FR-69
-              endpoints:
-                - email.email_primary
+        wind-fr69:
+          category: weather.wind
+          event_type: "*"
+          criteria:
+            - key: area.zone
+              operator: eq
+              value: FR-69
+          endpoints:
+            - email.email_primary
     """
   When I call the RPC get_recipients_for_alert on the subscription service with the following arguments
     """
@@ -249,7 +244,6 @@ Scenario: Return matching recipient for exact area and category
     """
     [
       {
-        "recipient_id": "usr_1",
         "channel": "email",
         "endpoint_key": "email_primary"
       }
