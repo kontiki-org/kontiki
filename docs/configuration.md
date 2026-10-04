@@ -120,8 +120,9 @@ For services that expose HTTP entrypoints (`@http`).
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `kontiki.http.address` | `0.0.0.0` | Bind address. |
-| `kontiki.http.port` | `8080` | Bind port. |
+| `kontiki.http.disable` | `false` | When `true`, declared `@http` routes are not served. The process does not bind, and route paths read from configuration are not resolved. Address, port, and documentation are ignored. Other entrypoints still run. |
+| `kontiki.http.address` | `0.0.0.0` | Bind address. Ignored when `disable` is true. |
+| `kontiki.http.port` | `8080` | Bind port. Ignored when `disable` is true. |
 | `kontiki.http.documentation.enabled` | `true` | Whether to register OpenAPI / Swagger endpoints. |
 | `kontiki.http.documentation.path_template` | `/api/{version}/docs` | URL path template for docs; `{version}` is replaced by the endpoint version. |
 | `kontiki.http.documentation.title` | service name | Title used in OpenAPI. |

@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+- **New**: `kontiki.http.disable` (default `false`). When `true`, declared `@http` routes are not served: no bind, and `use_config` route paths are not resolved. Other entrypoints still run.
+
+
 ## [2.0.0] - 2026-09-29
 
 - **Breaking**: JSON-only AMQP serialization. `pickle` and `kontiki.amqp.serialization` removed.

@@ -117,6 +117,7 @@ Events in Kontiki are **asynchronous messages over AMQP**: publishers fire-and-f
 HTTP entrypoints are a **built-in façade**: they let you expose and document a small HTTP surface *in the same service and with the same configuration model* as your AMQP entrypoints (validation, error mapping, OpenAPI/Swagger), so you can ship service APIs and operational endpoints without having to add and maintain a separate Flask/FastAPI layer.
 
 - **Routes** : Decorate methods with `@http(path_or_config_key, method, use_config=False, ...)`. Methods receive the aiohttp `request`; for POST/PUT/PATCH with `validate_request=True`, a validated `body` (from `request_model`) is passed as well.
+- **Disabled** : `kontiki.http.disable: true` (default `false`). The process does not bind an HTTP port. `use_config` route paths are not resolved, so this deployment does not need those keys. RPC, events, and tasks still run.
 - **Options** : `version`, `summary`, `description`, `tags`, `request_model`, `response_model`, `status_code`, `responses`, `errors`, `skip_documentation`, `validate_request`. Use your own config namespace for paths when `use_config=True`.
 - **Error mapping** : On the service class, set `http_error_handlers = {SomeError: (status_code, "message")}`. List exception types in `errors=[...]` on the decorator for documentation. When a handler raises a mapped exception, the response is the configured status and body. aiohttp `HTTPException` is a controlled HTTP response.
 - **Flow correlation** : Each `@http` handler gets a `flow_id` (12 hex) at entry. Normalized responses include the header `flow_id` (same value as in service logs). Inbound `flow_id` on the request is ignored. `publish` / `call` during the handler propagate the id on AMQP headers.
@@ -273,6 +274,6 @@ Kontiki ships with lightweight testing utilities under `kontiki.testing` to help
 
 For Behave integration tests using these helpers, see this repository's suite in `tests/integration/` and run:
 
-- `make integration-test` (runs `@single_instance`, `@multi_instance`, `@task_service`, `@task_config_service`, `@registry`, `@service_name`, `@logging`, and `@amqp_required`)
+- `make integration-test` (runs `@single_instance`, `@multi_instance`, `@task_service`, `@task_config_service`, `@registry`, `@service_name`, `@logging`, `@amqp_required`, and `@http_disable`)
 
 The suite covers RPC, events, tasks, registry, and multi-instance config merge (e.g. separate HTTP ports in complementary config files, without conflicting leaf keys).

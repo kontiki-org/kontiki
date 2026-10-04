@@ -473,7 +473,8 @@ app:
 The first argument is a **config path** (dot-separated), not the literal event
 name. At startup Kontiki reads that path and binds the queue(s) to the resolved
 value. Same pattern exists for `@http(..., use_config=True)` (path from config)
-and config-driven `@task` intervals.
+and config-driven `@task` intervals. `kontiki.http.disable: true` skips
+`@http` path resolution.
 
 **Gotcha:** Missing path → startup failure (`ConfigParameterError`). Publishers
 must use the **same** resolved name(s) (share the key, or document the contract).
