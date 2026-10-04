@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.0.1] - 2026-10-04
+
+- **Fix**: A heartbeat publish interrupted by an AMQP disconnect retries after the interval. The task still stops when the service shuts down. After reconnect, a finished heartbeat task is started again.
+
 ## [2.0.0] - 2026-09-29
 
 - **Breaking**: JSON-only AMQP serialization. `pickle` and `kontiki.amqp.serialization` removed.

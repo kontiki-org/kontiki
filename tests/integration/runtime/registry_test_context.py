@@ -3,7 +3,6 @@ import json
 import re
 import time
 
-from kontiki import __version__ as kontiki_version
 from kontiki.messaging.flow import FLOW_ID_LENGTH
 from kontiki.runtime.handler_scope import (
     CONTEXT_ID_LENGTH,
@@ -57,7 +56,7 @@ def placeholders_from_registration(registration):
         "REGISTRY_TEST_INSTANCE_ID": registration["instance_id"],
         "REGISTRY_TEST_PID": registration["pid"],
         "REGISTRY_TEST_HOST": registration["host"],
-        "KONTIKI_VERSION": kontiki_version,
+        "KONTIKI_VERSION": registration["kontiki_version"],
     }
 
 

@@ -68,6 +68,7 @@ class ServiceContainer:
         self._amqp_setup_task = None
 
         self.service_registry_client = None
+        self.heartbeat = None
         if config_paths:
             self.config = self.load_config_files(config_paths)
         elif config:
@@ -156,6 +157,9 @@ class ServiceContainer:
         if self.service_registry_client is None:
             return
         await self.service_registry_client.setup()
+
+    async def ensure_heartbeat_running(self):
+        await self.heartbeat.ensure_running()
 
     # --------------------------------------------------------------------------
     # Start
@@ -370,8 +374,5 @@ class ServiceContainer:
         return delegates
 
     def _get_internal_delegates(self):
-        delegates = {}
-        delegates["_kontiki_heartbeat"] = HeartbeatPublisher(
-            self.service_registry_client
-        )
-        return delegates
+        self.heartbeat = HeartbeatPublisher(self.service_registry_client)
+        return {"_kontiki_heartbeat": self.heartbeat}

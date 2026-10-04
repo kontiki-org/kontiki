@@ -119,6 +119,7 @@ class ServiceRegistryClient:
             return
         log.info("AMQP reconnected; registering with the registry.")
         await self.register()
+        await self.container.ensure_heartbeat_running()
 
     def _get_config(self):
         public = self.container.config.get("public")
