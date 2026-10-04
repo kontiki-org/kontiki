@@ -56,6 +56,11 @@ class HeartbeatPublisher(ServiceDelegate):
         if self.service_registry_client:
             self.task = asyncio.create_task(self._send_heartbeat())
 
+    async def ensure_running(self):
+        if self.task is not None and not self.task.done():
+            return
+        await self.start()
+
     async def stop(self):
         if self.task:
             self.task.cancel()
@@ -94,9 +99,21 @@ class HeartbeatPublisher(ServiceDelegate):
                 if not self._is_degraded:
                     reason = None
 
-                await self.service_registry_client.heartbeat(
-                    self._is_degraded, reason=reason
-                )
+                try:
+                    await self.service_registry_client.heartbeat(
+                        self._is_degraded, reason=reason
+                    )
+                except asyncio.CancelledError:
+                    current = asyncio.current_task()
+                    if current is not None and current.cancelling():
+                        raise
+                    if not error_logged:
+                        log.error("Heartbeat publish interrupted, retrying.")
+                        error_logged = True
+                    await asyncio.sleep(
+                        self.interval if self.interval is not None else 10
+                    )
+                    continue
                 error_logged = False
 
                 if self.interval is not None:
