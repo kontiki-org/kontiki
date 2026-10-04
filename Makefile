@@ -3,6 +3,7 @@
 	integration-test integration-test-single integration-test-multi \
 	integration-test-task integration-test-registry \
 	integration-test-service-name integration-test-amqp-required \
+	integration-test-http-disable \
 	run-amqp down-amqp \
 	run-rpc-service run-rpc-example run-rpc-instance-example \
 	run-session-service run-session-example \
@@ -52,6 +53,7 @@ integration-test: run-amqp
 	@$(MAKE) integration-test-service-name
 	@$(MAKE) integration-test-logging
 	@$(MAKE) integration-test-amqp-required
+	@$(MAKE) integration-test-http-disable
 
 integration-test-single: run-amqp
 	@echo "Running integration tests (single_instance suite)..."
@@ -82,6 +84,10 @@ integration-test-logging: run-amqp
 integration-test-amqp-required: run-amqp
 	@echo "Running integration tests (amqp_required suite)..."
 	$(PY) -m behave tests/integration --tags @amqp_required --stop --no-skipped
+
+integration-test-http-disable: run-amqp
+	@echo "Running integration tests (http_disable suite)..."
+	$(PY) -m behave tests/integration --tags @http_disable --stop --no-skipped
 
 integration-test-tag: run-amqp
 		@echo "Running integration tests (amqp_required suite)..."

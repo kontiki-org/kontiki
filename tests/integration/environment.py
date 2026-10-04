@@ -54,6 +54,7 @@ SERVICE_DEFINITIONS_BY_TAG = {
     "service_name": [],
     "logging": [],
     "amqp_required": [],
+    "http_disable": [],
 }
 EXCLUSIVE_SUITE_TAGS = list(SERVICE_DEFINITIONS_BY_TAG.keys())
 
@@ -132,6 +133,7 @@ def before_all(context):
     context.service_name_manager = None
     context.rpc_proxy_caller_manager = None
     context.amqp_required_manager = None
+    context.http_disable_manager = None
     # Mutable bag on the root context layer so the registry process
     # handle survives Behave's per-scenario context pop.
     context.registry = {"manager": None, "config_text": None}
@@ -187,6 +189,9 @@ def after_scenario(context, scenario):
     if context.amqp_required_manager is not None:
         context.amqp_required_manager.stop(timeout=5)
         context.amqp_required_manager = None
+    if context.http_disable_manager is not None:
+        context.http_disable_manager.stop(timeout=5)
+        context.http_disable_manager = None
 
 
 def _start_test_suite(context, suite_tag):
