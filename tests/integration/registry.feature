@@ -11,6 +11,10 @@ Feature: Service registry
     and kontiki_version (framework version at register()).
     Both appear in get_services metadata and on
     registry.instance.registered.
+    Each registration also lists the entrypoints armed on that
+    instance. RegistryTestService announces its RPC methods, then
+    the HTTP routes it serves. The internal session RPC and the
+    automatic OpenAPI routes are absent.
 
     Each instance in get_services carries status, last_heartbeat
     (ISO-8601 UTC of the last heartbeat received by the registry,
@@ -102,7 +106,52 @@ Feature: Service registry
                             "service_version": "1.0.0",
                             "kontiki_version": "[KONTIKI_VERSION]",
                             "heartbeat_interval": 2,
-                            "group": "business"
+                            "group": "business",
+                            "entrypoints": [
+                                {
+                                    "type": "rpc",
+                                    "name": "add_test_context",
+                                    "handler": "add_test_context"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "raise_uncaught_exception",
+                                    "handler": "raise_uncaught_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "report_test_exception",
+                                    "handler": "report_test_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "return_rpc_error",
+                                    "handler": "return_rpc_error"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "set_degraded",
+                                    "handler": "set_degraded"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_http_error",
+                                    "handler": "raise_http_error"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_mapped",
+                                    "handler": "raise_mapped_http"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_uncaught",
+                                    "handler": "raise_uncaught_http"
+                                }
+                            ]
                         }
                     }
                 }
@@ -137,7 +186,52 @@ Feature: Service registry
                             "service_version": "1.0.0",
                             "kontiki_version": "[KONTIKI_VERSION]",
                             "heartbeat_interval": 2,
-                            "group": "business"
+                            "group": "business",
+                            "entrypoints": [
+                                {
+                                    "type": "rpc",
+                                    "name": "add_test_context",
+                                    "handler": "add_test_context"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "raise_uncaught_exception",
+                                    "handler": "raise_uncaught_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "report_test_exception",
+                                    "handler": "report_test_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "return_rpc_error",
+                                    "handler": "return_rpc_error"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "set_degraded",
+                                    "handler": "set_degraded"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_http_error",
+                                    "handler": "raise_http_error"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_mapped",
+                                    "handler": "raise_mapped_http"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_uncaught",
+                                    "handler": "raise_uncaught_http"
+                                }
+                            ]
                         }
                     }
                 }
@@ -173,7 +267,52 @@ Feature: Service registry
                             "service_version": "1.0.0",
                             "kontiki_version": "[KONTIKI_VERSION]",
                             "heartbeat_interval": 2,
-                            "group": "business"
+                            "group": "business",
+                            "entrypoints": [
+                                {
+                                    "type": "rpc",
+                                    "name": "add_test_context",
+                                    "handler": "add_test_context"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "raise_uncaught_exception",
+                                    "handler": "raise_uncaught_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "report_test_exception",
+                                    "handler": "report_test_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "return_rpc_error",
+                                    "handler": "return_rpc_error"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "set_degraded",
+                                    "handler": "set_degraded"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_http_error",
+                                    "handler": "raise_http_error"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_mapped",
+                                    "handler": "raise_mapped_http"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_uncaught",
+                                    "handler": "raise_uncaught_http"
+                                }
+                            ]
                         }
                     }
                 }
@@ -216,7 +355,52 @@ Feature: Service registry
                             "service_version": "1.0.0",
                             "kontiki_version": "[KONTIKI_VERSION]",
                             "heartbeat_interval": 2,
-                            "group": "business"
+                            "group": "business",
+                            "entrypoints": [
+                                {
+                                    "type": "rpc",
+                                    "name": "add_test_context",
+                                    "handler": "add_test_context"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "raise_uncaught_exception",
+                                    "handler": "raise_uncaught_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "report_test_exception",
+                                    "handler": "report_test_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "return_rpc_error",
+                                    "handler": "return_rpc_error"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "set_degraded",
+                                    "handler": "set_degraded"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_http_error",
+                                    "handler": "raise_http_error"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_mapped",
+                                    "handler": "raise_mapped_http"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_uncaught",
+                                    "handler": "raise_uncaught_http"
+                                }
+                            ]
                         }
                     }
                 }
@@ -265,6 +449,51 @@ Feature: Service registry
                 "kontiki_version": "[KONTIKI_VERSION]",
                 "heartbeat_interval": 2,
                 "group": "business",
+                "entrypoints": [
+                    {
+                        "type": "rpc",
+                        "name": "add_test_context",
+                        "handler": "add_test_context"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "raise_uncaught_exception",
+                        "handler": "raise_uncaught_exception"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "report_test_exception",
+                        "handler": "report_test_exception"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "return_rpc_error",
+                        "handler": "return_rpc_error"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "set_degraded",
+                        "handler": "set_degraded"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_http_error",
+                        "handler": "raise_http_error"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_mapped",
+                        "handler": "raise_mapped_http"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_uncaught",
+                        "handler": "raise_uncaught_http"
+                    }
+                ],
                 "timestamp": "[TIMESTAMP]"
             }
             """
@@ -322,7 +551,52 @@ Feature: Service registry
                             "service_version": "1.0.0",
                             "kontiki_version": "[KONTIKI_VERSION]",
                             "heartbeat_interval": 2,
-                            "group": "platform"
+                            "group": "platform",
+                            "entrypoints": [
+                                {
+                                    "type": "rpc",
+                                    "name": "add_test_context",
+                                    "handler": "add_test_context"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "raise_uncaught_exception",
+                                    "handler": "raise_uncaught_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "report_test_exception",
+                                    "handler": "report_test_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "return_rpc_error",
+                                    "handler": "return_rpc_error"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "set_degraded",
+                                    "handler": "set_degraded"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_http_error",
+                                    "handler": "raise_http_error"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_mapped",
+                                    "handler": "raise_mapped_http"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_uncaught",
+                                    "handler": "raise_uncaught_http"
+                                }
+                            ]
                         }
                     }
                 }
@@ -339,6 +613,51 @@ Feature: Service registry
                 "kontiki_version": "[KONTIKI_VERSION]",
                 "heartbeat_interval": 2,
                 "group": "platform",
+                "entrypoints": [
+                    {
+                        "type": "rpc",
+                        "name": "add_test_context",
+                        "handler": "add_test_context"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "raise_uncaught_exception",
+                        "handler": "raise_uncaught_exception"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "report_test_exception",
+                        "handler": "report_test_exception"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "return_rpc_error",
+                        "handler": "return_rpc_error"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "set_degraded",
+                        "handler": "set_degraded"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_http_error",
+                        "handler": "raise_http_error"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_mapped",
+                        "handler": "raise_mapped_http"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_uncaught",
+                        "handler": "raise_uncaught_http"
+                    }
+                ],
                 "timestamp": "[TIMESTAMP]"
             }
             """
@@ -396,7 +715,52 @@ Feature: Service registry
                             "service_version": "1.0.0",
                             "kontiki_version": "[KONTIKI_VERSION]",
                             "heartbeat_interval": 2,
-                            "group": "business"
+                            "group": "business",
+                            "entrypoints": [
+                                {
+                                    "type": "rpc",
+                                    "name": "add_test_context",
+                                    "handler": "add_test_context"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "raise_uncaught_exception",
+                                    "handler": "raise_uncaught_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "report_test_exception",
+                                    "handler": "report_test_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "return_rpc_error",
+                                    "handler": "return_rpc_error"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "set_degraded",
+                                    "handler": "set_degraded"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_http_error",
+                                    "handler": "raise_http_error"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_mapped",
+                                    "handler": "raise_mapped_http"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_uncaught",
+                                    "handler": "raise_uncaught_http"
+                                }
+                            ]
                         }
                     }
                 }
@@ -413,6 +777,51 @@ Feature: Service registry
                 "kontiki_version": "[KONTIKI_VERSION]",
                 "heartbeat_interval": 2,
                 "group": "business",
+                "entrypoints": [
+                    {
+                        "type": "rpc",
+                        "name": "add_test_context",
+                        "handler": "add_test_context"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "raise_uncaught_exception",
+                        "handler": "raise_uncaught_exception"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "report_test_exception",
+                        "handler": "report_test_exception"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "return_rpc_error",
+                        "handler": "return_rpc_error"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "set_degraded",
+                        "handler": "set_degraded"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_http_error",
+                        "handler": "raise_http_error"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_mapped",
+                        "handler": "raise_mapped_http"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_uncaught",
+                        "handler": "raise_uncaught_http"
+                    }
+                ],
                 "timestamp": "[TIMESTAMP]"
             }
             """
@@ -470,7 +879,52 @@ Feature: Service registry
                             "service_version": "1.0.0",
                             "kontiki_version": "[KONTIKI_VERSION]",
                             "heartbeat_interval": 2,
-                            "group": "ops-mesh"
+                            "group": "ops-mesh",
+                            "entrypoints": [
+                                {
+                                    "type": "rpc",
+                                    "name": "add_test_context",
+                                    "handler": "add_test_context"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "raise_uncaught_exception",
+                                    "handler": "raise_uncaught_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "report_test_exception",
+                                    "handler": "report_test_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "return_rpc_error",
+                                    "handler": "return_rpc_error"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "set_degraded",
+                                    "handler": "set_degraded"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_http_error",
+                                    "handler": "raise_http_error"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_mapped",
+                                    "handler": "raise_mapped_http"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_uncaught",
+                                    "handler": "raise_uncaught_http"
+                                }
+                            ]
                         }
                     }
                 }
@@ -487,6 +941,51 @@ Feature: Service registry
                 "kontiki_version": "[KONTIKI_VERSION]",
                 "heartbeat_interval": 2,
                 "group": "ops-mesh",
+                "entrypoints": [
+                    {
+                        "type": "rpc",
+                        "name": "add_test_context",
+                        "handler": "add_test_context"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "raise_uncaught_exception",
+                        "handler": "raise_uncaught_exception"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "report_test_exception",
+                        "handler": "report_test_exception"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "return_rpc_error",
+                        "handler": "return_rpc_error"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "set_degraded",
+                        "handler": "set_degraded"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_http_error",
+                        "handler": "raise_http_error"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_mapped",
+                        "handler": "raise_mapped_http"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_uncaught",
+                        "handler": "raise_uncaught_http"
+                    }
+                ],
                 "timestamp": "[TIMESTAMP]"
             }
             """
@@ -640,7 +1139,52 @@ Feature: Service registry
                             "service_version": "1.0.0",
                             "kontiki_version": "[KONTIKI_VERSION]",
                             "heartbeat_interval": 2,
-                            "group": "business"
+                            "group": "business",
+                            "entrypoints": [
+                                {
+                                    "type": "rpc",
+                                    "name": "add_test_context",
+                                    "handler": "add_test_context"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "raise_uncaught_exception",
+                                    "handler": "raise_uncaught_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "report_test_exception",
+                                    "handler": "report_test_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "return_rpc_error",
+                                    "handler": "return_rpc_error"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "set_degraded",
+                                    "handler": "set_degraded"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_http_error",
+                                    "handler": "raise_http_error"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_mapped",
+                                    "handler": "raise_mapped_http"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_uncaught",
+                                    "handler": "raise_uncaught_http"
+                                }
+                            ]
                         }
                     }
                 }
