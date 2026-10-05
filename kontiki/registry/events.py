@@ -23,8 +23,10 @@ def registered_payload(data):
         "kontiki_version": data.get("kontiki_version"),
         "heartbeat_interval": data.get("heartbeat_interval"),
         "group": normalize_registration_group(data.get("group")),
-        "timestamp": _utc_now_iso(),
     }
+    if "entrypoints" in data:
+        payload["entrypoints"] = data["entrypoints"]
+    payload["timestamp"] = _utc_now_iso()
     if data.get("config"):
         payload["config"] = data["config"]
     return payload

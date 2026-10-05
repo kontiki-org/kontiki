@@ -90,6 +90,51 @@ Feature: Registration exports only the top-level public mapping
                 "kontiki_version": "[KONTIKI_VERSION]",
                 "heartbeat_interval": 2,
                 "group": "business",
+                "entrypoints": [
+                    {
+                        "type": "rpc",
+                        "name": "add_test_context",
+                        "handler": "add_test_context"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "raise_uncaught_exception",
+                        "handler": "raise_uncaught_exception"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "report_test_exception",
+                        "handler": "report_test_exception"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "return_rpc_error",
+                        "handler": "return_rpc_error"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "set_degraded",
+                        "handler": "set_degraded"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_http_error",
+                        "handler": "raise_http_error"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_mapped",
+                        "handler": "raise_mapped_http"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_uncaught",
+                        "handler": "raise_uncaught_http"
+                    }
+                ],
                 "timestamp": "[TIMESTAMP]"
             }
             """
@@ -113,7 +158,52 @@ Feature: Registration exports only the top-level public mapping
                             "service_version": "1.0.0",
                             "kontiki_version": "[KONTIKI_VERSION]",
                             "heartbeat_interval": 2,
-                            "group": "business"
+                            "group": "business",
+                            "entrypoints": [
+                                {
+                                    "type": "rpc",
+                                    "name": "add_test_context",
+                                    "handler": "add_test_context"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "raise_uncaught_exception",
+                                    "handler": "raise_uncaught_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "report_test_exception",
+                                    "handler": "report_test_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "return_rpc_error",
+                                    "handler": "return_rpc_error"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "set_degraded",
+                                    "handler": "set_degraded"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_http_error",
+                                    "handler": "raise_http_error"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_mapped",
+                                    "handler": "raise_mapped_http"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_uncaught",
+                                    "handler": "raise_uncaught_http"
+                                }
+                            ]
                         }
                     }
                 }
@@ -169,6 +259,51 @@ Feature: Registration exports only the top-level public mapping
                 "kontiki_version": "[KONTIKI_VERSION]",
                 "heartbeat_interval": 2,
                 "group": "business",
+                "entrypoints": [
+                    {
+                        "type": "rpc",
+                        "name": "add_test_context",
+                        "handler": "add_test_context"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "raise_uncaught_exception",
+                        "handler": "raise_uncaught_exception"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "report_test_exception",
+                        "handler": "report_test_exception"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "return_rpc_error",
+                        "handler": "return_rpc_error"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "set_degraded",
+                        "handler": "set_degraded"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_http_error",
+                        "handler": "raise_http_error"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_mapped",
+                        "handler": "raise_mapped_http"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_uncaught",
+                        "handler": "raise_uncaught_http"
+                    }
+                ],
                 "config": {
                     "environment": "earth",
                     "poll_interval": 30,
@@ -200,6 +335,51 @@ Feature: Registration exports only the top-level public mapping
                             "kontiki_version": "[KONTIKI_VERSION]",
                             "heartbeat_interval": 2,
                             "group": "business",
+                            "entrypoints": [
+                                {
+                                    "type": "rpc",
+                                    "name": "add_test_context",
+                                    "handler": "add_test_context"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "raise_uncaught_exception",
+                                    "handler": "raise_uncaught_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "report_test_exception",
+                                    "handler": "report_test_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "return_rpc_error",
+                                    "handler": "return_rpc_error"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "set_degraded",
+                                    "handler": "set_degraded"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_http_error",
+                                    "handler": "raise_http_error"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_mapped",
+                                    "handler": "raise_mapped_http"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_uncaught",
+                                    "handler": "raise_uncaught_http"
+                                }
+                            ],
                             "config": {
                                 "environment": "earth",
                                 "poll_interval": 30,
@@ -266,6 +446,51 @@ Feature: Registration exports only the top-level public mapping
                 "kontiki_version": "[KONTIKI_VERSION]",
                 "heartbeat_interval": 2,
                 "group": "business",
+                "entrypoints": [
+                    {
+                        "type": "rpc",
+                        "name": "add_test_context",
+                        "handler": "add_test_context"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "raise_uncaught_exception",
+                        "handler": "raise_uncaught_exception"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "report_test_exception",
+                        "handler": "report_test_exception"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "return_rpc_error",
+                        "handler": "return_rpc_error"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "set_degraded",
+                        "handler": "set_degraded"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_http_error",
+                        "handler": "raise_http_error"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_mapped",
+                        "handler": "raise_mapped_http"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_uncaught",
+                        "handler": "raise_uncaught_http"
+                    }
+                ],
                 "config": {
                     "environment": "earth",
                     "poll_interval": 30,
@@ -297,6 +522,51 @@ Feature: Registration exports only the top-level public mapping
                             "kontiki_version": "[KONTIKI_VERSION]",
                             "heartbeat_interval": 2,
                             "group": "business",
+                            "entrypoints": [
+                                {
+                                    "type": "rpc",
+                                    "name": "add_test_context",
+                                    "handler": "add_test_context"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "raise_uncaught_exception",
+                                    "handler": "raise_uncaught_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "report_test_exception",
+                                    "handler": "report_test_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "return_rpc_error",
+                                    "handler": "return_rpc_error"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "set_degraded",
+                                    "handler": "set_degraded"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_http_error",
+                                    "handler": "raise_http_error"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_mapped",
+                                    "handler": "raise_mapped_http"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_uncaught",
+                                    "handler": "raise_uncaught_http"
+                                }
+                            ],
                             "config": {
                                 "environment": "earth",
                                 "poll_interval": 30,
@@ -361,6 +631,51 @@ Feature: Registration exports only the top-level public mapping
                 "kontiki_version": "[KONTIKI_VERSION]",
                 "heartbeat_interval": 2,
                 "group": "business",
+                "entrypoints": [
+                    {
+                        "type": "rpc",
+                        "name": "add_test_context",
+                        "handler": "add_test_context"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "raise_uncaught_exception",
+                        "handler": "raise_uncaught_exception"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "report_test_exception",
+                        "handler": "report_test_exception"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "return_rpc_error",
+                        "handler": "return_rpc_error"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "set_degraded",
+                        "handler": "set_degraded"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_http_error",
+                        "handler": "raise_http_error"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_mapped",
+                        "handler": "raise_mapped_http"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_uncaught",
+                        "handler": "raise_uncaught_http"
+                    }
+                ],
                 "timestamp": "[TIMESTAMP]"
             }
             """
@@ -384,7 +699,52 @@ Feature: Registration exports only the top-level public mapping
                             "service_version": "1.0.0",
                             "kontiki_version": "[KONTIKI_VERSION]",
                             "heartbeat_interval": 2,
-                            "group": "business"
+                            "group": "business",
+                            "entrypoints": [
+                                {
+                                    "type": "rpc",
+                                    "name": "add_test_context",
+                                    "handler": "add_test_context"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "raise_uncaught_exception",
+                                    "handler": "raise_uncaught_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "report_test_exception",
+                                    "handler": "report_test_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "return_rpc_error",
+                                    "handler": "return_rpc_error"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "set_degraded",
+                                    "handler": "set_degraded"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_http_error",
+                                    "handler": "raise_http_error"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_mapped",
+                                    "handler": "raise_mapped_http"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_uncaught",
+                                    "handler": "raise_uncaught_http"
+                                }
+                            ]
                         }
                     }
                 }
@@ -441,6 +801,51 @@ Feature: Registration exports only the top-level public mapping
                 "kontiki_version": "[KONTIKI_VERSION]",
                 "heartbeat_interval": 2,
                 "group": "business",
+                "entrypoints": [
+                    {
+                        "type": "rpc",
+                        "name": "add_test_context",
+                        "handler": "add_test_context"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "raise_uncaught_exception",
+                        "handler": "raise_uncaught_exception"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "report_test_exception",
+                        "handler": "report_test_exception"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "return_rpc_error",
+                        "handler": "return_rpc_error"
+                    },
+                    {
+                        "type": "rpc",
+                        "name": "set_degraded",
+                        "handler": "set_degraded"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_http_error",
+                        "handler": "raise_http_error"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_mapped",
+                        "handler": "raise_mapped_http"
+                    },
+                    {
+                        "type": "http",
+                        "method": "GET",
+                        "path": "/raise_uncaught",
+                        "handler": "raise_uncaught_http"
+                    }
+                ],
                 "timestamp": "[TIMESTAMP]"
             }
             """
@@ -464,7 +869,52 @@ Feature: Registration exports only the top-level public mapping
                             "service_version": "1.0.0",
                             "kontiki_version": "[KONTIKI_VERSION]",
                             "heartbeat_interval": 2,
-                            "group": "business"
+                            "group": "business",
+                            "entrypoints": [
+                                {
+                                    "type": "rpc",
+                                    "name": "add_test_context",
+                                    "handler": "add_test_context"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "raise_uncaught_exception",
+                                    "handler": "raise_uncaught_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "report_test_exception",
+                                    "handler": "report_test_exception"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "return_rpc_error",
+                                    "handler": "return_rpc_error"
+                                },
+                                {
+                                    "type": "rpc",
+                                    "name": "set_degraded",
+                                    "handler": "set_degraded"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_http_error",
+                                    "handler": "raise_http_error"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_mapped",
+                                    "handler": "raise_mapped_http"
+                                },
+                                {
+                                    "type": "http",
+                                    "method": "GET",
+                                    "path": "/raise_uncaught",
+                                    "handler": "raise_uncaught_http"
+                                }
+                            ]
                         }
                     }
                 }

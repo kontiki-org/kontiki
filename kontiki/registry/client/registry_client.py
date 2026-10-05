@@ -12,6 +12,7 @@ from kontiki.messaging.common import (
     is_amqp_required,
 )
 from kontiki.messaging.serialization import Serializer
+from kontiki.registry.catalog import registration_entrypoints
 from kontiki.registry.common import (
     CONTEXT_RKEY,
     EXCEPTION_RKEY,
@@ -141,6 +142,7 @@ class ServiceRegistryClient:
             "kontiki_version": __version__,
             "heartbeat_interval": heartbeat_interval,
             "group": get_registration_group(self.container.config),
+            "entrypoints": registration_entrypoints(self.container),
         }
 
         if public_config:
