@@ -54,9 +54,9 @@ def on_event(
         broadcast: When True, every instance of the service will receive the
             event (no competing consumers within the service).
         max_attempts: Competing queues only. Overrides kontiki.amqp.max_attempts
-            (default 3). After that many failed deliveries RabbitMQ drops the
-            message. broadcast and in_session ignore it and drop on the first
-            failure.
+            (default 3). Failed deliveries are retried with a delay, then kept
+            in the failed queue. broadcast and in_session ignore it and drop
+            on the first failure.
     """
 
     def decorator(handler):

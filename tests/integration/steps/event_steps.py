@@ -1,6 +1,10 @@
+import asyncio
 import json
 
+from aio_pika import connect_robust
 from behave import then, when
+
+from kontiki.messaging.common import AMQP_DEFAULT_URL, failed_queue_name
 
 
 def _is_sortable_scalar_list(value):
@@ -53,3 +57,41 @@ def step_receive_processed_payloads(context, mock_name, event_count):
         f"{json.dumps(actual_events, indent=2, ensure_ascii=True)}"
     )
     context.manager.clean_events(mock_name)
+
+
+FAILED_MESSAGE_WAIT_SECONDS = 10
+
+
+@then("the {event_type} event has the following failed message")
+def step_failed_message(context, event_type):
+    expected = json.loads(context.text)
+    queue_name = failed_queue_name("TestService", event_type)
+    actual = asyncio.run(_read_failed_message(queue_name))
+    assert actual == expected, (
+        f"Failed message mismatch for {queue_name}.\n"
+        f"Expected:\n{json.dumps(expected, indent=2)}\n"
+        f"Actual:\n{json.dumps(actual, indent=2)}"
+    )
+
+
+async def _read_failed_message(queue_name):
+    connection = await connect_robust(AMQP_DEFAULT_URL)
+    try:
+        channel = await connection.channel()
+        queue = await channel.declare_queue(queue_name, passive=True)
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + FAILED_MESSAGE_WAIT_SECONDS
+        while True:
+            message = await queue.get(fail=False)
+            if message is not None:
+                body = json.loads(message.body.decode("utf-8"))
+                await message.ack()
+                return body
+            if loop.time() >= deadline:
+                raise AssertionError(
+                    f"No failed message on {queue_name} "
+                    f"after {FAILED_MESSAGE_WAIT_SECONDS}s."
+                )
+            await asyncio.sleep(0.2)
+    finally:
+        await connection.close()

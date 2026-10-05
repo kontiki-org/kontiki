@@ -94,6 +94,7 @@ class ServiceRegistryClient:
         )
         self.connection.reconnect_callbacks.add(self._on_amqp_reconnect)
 
+    async def register_service(self):
         if not self._registered:
             delay = get_kontiki_parameter(
                 self.container.config, "registration.delay", default=2

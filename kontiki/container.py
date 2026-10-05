@@ -301,6 +301,8 @@ class ServiceContainer:
     async def _setup_amqp(self):
         await self.setup_service_registry()
         await self.setup_amqp_endpoints()
+        if self.service_registry_client:
+            await self.service_registry_client.register_service()
         if self._amqp_ready():
             await self.amqp_consumer.start()
         for delegate in self.delegates.values():

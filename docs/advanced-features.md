@@ -730,7 +730,7 @@ loop (see `list_instances` above). Runnable example: `examples/rpc/`
 ### Event delivery: `max_attempts`
 
 **When:** A competing `@on_event` handler can fail transiently and the message
-should be tried again, then dropped.
+should be tried again, then kept.
 
 ```python
 @on_event("jobs.run", max_attempts=3)
@@ -740,9 +740,10 @@ async def on_job(self, payload):
 
 The queue is a quorum queue. A failed delivery is `basic.reject` with requeue.
 RabbitMQ counts those failures against `x-delivery-limit` (`max_attempts - 1`,
-so the default 3 is three deliveries). The next failure after the limit drops
-the message. There is no dead-letter queue. Each failed attempt is recorded
-as an exception.
+so the default 3 is three deliveries) and waits before the next one: 1 s,
+then 2 s, capped at 30 s. The next failure after the limit moves the message
+to `{service}.{event}.failed` (quorum, 10 000 messages, no TTL). Each failed
+attempt is recorded as an exception. A clean shutdown does not burn an attempt.
 
 `broadcast` and `in_session` use an exclusive queue with a single consumer.
 A handler failure drops the message. `max_attempts` does not apply.
@@ -756,7 +757,7 @@ sequenceDiagram
   Note over B: requeue
   B->>H: deliver #N (limit)
   H--xB: raise
-  Note over B: drop
+  Note over B: retain
 ```
 
 Omit `max_attempts` to use `kontiki.amqp.max_attempts` (default 3). The minimum

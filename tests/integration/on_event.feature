@@ -110,7 +110,7 @@ Feature: Events
     # Retry then drop
     # ------------------------------------------------------------
     @single_instance
-    Scenario: a competing event is dropped after max_attempts
+    Scenario: a competing event is retained after max_attempts
         When I publish the retry_drop event with the following payload
             """
             {
@@ -132,6 +132,12 @@ Feature: Events
         Then the mock TestMockService should receive 0 events
             """
             []
+            """
+        Then the retry_drop event has the following failed message
+            """
+            {
+                "message": "retry_drop"
+            }
             """
 
     # ------------------------------------------------------------

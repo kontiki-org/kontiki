@@ -2,6 +2,12 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from kontiki.messaging.common import (
+    DELAYED_RETRY_MAX_MS,
+    DELAYED_RETRY_MIN_MS,
+    FAILED_EXCHANGE,
+    FAILED_QUEUE_MAX_LENGTH,
+)
 from kontiki.messaging.consumer.core import Consumer
 from kontiki.messaging.consumer.event import on_event
 from kontiki.messaging.consumer.rpc import rpc
@@ -34,6 +40,8 @@ def _consumer():
     consumer.service_name = "Svc"
     consumer.channel = MagicMock()
     consumer.channel.default_exchange = MagicMock()
+    consumer.channel.declare_exchange = AsyncMock()
+    consumer.failed_exchange = None
     queue = MagicMock()
     queue.bind = AsyncMock()
     consumer.channel.declare_queue = AsyncMock(return_value=queue)
@@ -65,6 +73,7 @@ async def test_rpc_binds_shared_durable_and_instance_ephemeral_queues():
     await consumer.add_rpc_tasks([DummyService.ping])
 
     declares = _declares(consumer)
+    assert consumer.channel.declare_exchange.await_count == 0
     assert declares[0]["name"] == "Svc.ping.queue"
     assert declares[0].get("durable") is True
     assert "exclusive" not in declares[0]
@@ -81,11 +90,26 @@ async def test_competing_event_queue_is_durable():
     await consumer.add_on_event_tasks([DummyService.on_plain])
 
     declares = _declares(consumer)
-    assert len(declares) == 1
-    assert declares[0]["name"] == "Svc.plain_event.queue"
+    assert len(declares) == 2
+    assert declares[0]["name"] == "Svc.plain_event.failed"
     assert declares[0]["durable"] is True
     assert declares[0]["arguments"]["x-queue-type"] == "quorum"
-    assert declares[0]["arguments"]["x-delivery-limit"] == 2
+    assert declares[0]["arguments"]["x-max-length"] == FAILED_QUEUE_MAX_LENGTH
+    assert declares[0]["arguments"]["x-overflow"] == "reject-publish"
+    assert declares[1]["name"] == "Svc.plain_event.queue"
+    assert declares[1]["durable"] is True
+    assert declares[1]["arguments"] == {
+        "x-queue-type": "quorum",
+        "x-delivery-limit": 2,
+        "x-delayed-retry-type": "failed",
+        "x-delayed-retry-min": DELAYED_RETRY_MIN_MS,
+        "x-delayed-retry-max": DELAYED_RETRY_MAX_MS,
+        "x-dead-letter-exchange": FAILED_EXCHANGE,
+        "x-dead-letter-routing-key": "Svc.plain_event.failed",
+        "x-dead-letter-strategy": "at-least-once",
+        "x-overflow": "reject-publish",
+    }
+    consumer.channel.declare_exchange.assert_awaited_once()
     assert consumer.on_event_tasks[0].requeue is True
 
 
@@ -95,6 +119,7 @@ async def test_broadcast_queue_is_ephemeral():
     await consumer.add_on_event_tasks([DummyService.on_broadcast])
 
     declares = _declares(consumer)
+    assert consumer.channel.declare_exchange.await_count == 0
     assert declares[0]["name"] == "Svc.catalog.changed.inst-1.queue"
     assert declares[0].get("exclusive") is True
     assert declares[0].get("auto_delete") is True
@@ -108,6 +133,7 @@ async def test_in_session_queue_is_ephemeral():
     await consumer.add_on_event_tasks([DummyService.on_session])
 
     declares = _declares(consumer)
+    assert consumer.channel.declare_exchange.await_count == 0
     assert declares[0]["name"] == "Svc.ui.progress.inst-1.queue"
     assert declares[0].get("exclusive") is True
     assert declares[0].get("auto_delete") is True
