@@ -1,3 +1,4 @@
+import json
 import logging
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -6,7 +7,11 @@ from enum import Enum
 from aio_pika import connect_robust
 
 from kontiki.delegate import ServiceDelegate
-from kontiki.messaging.common import create_tls_context, get_amqp_url
+from kontiki.messaging.common import (
+    create_tls_context,
+    failed_queue_name,
+    get_amqp_url,
+)
 from kontiki.messaging.serialization import Serializer
 from kontiki.registry.common import declare_registry_admin_exchange
 from kontiki.registry.events import (
@@ -224,6 +229,77 @@ class ServiceRegistryCore(ServiceDelegate):
                 live.append(instance_id)
         live.sort()
         return live
+
+    def declares_competing_event(self, service_name, event_name):
+        instances = self.registry.services.get(service_name)
+        if not instances:
+            return False
+        for instance_id, data in instances.items():
+            status = self._get_instance_status(
+                instance_id,
+                service_name,
+                self._get_timeout(data.get("heartbeat_interval", 10)),
+            )
+            if status not in (ServiceStatus.ACTIVE.value, ServiceStatus.DEGRADED.value):
+                continue
+            entrypoints = data.get("entrypoints")
+            if not entrypoints:
+                continue
+            for entry in entrypoints:
+                if (
+                    entry.get("type") == "event"
+                    and entry.get("name") == event_name
+                    and entry.get("mode") == "competing"
+                ):
+                    return True
+        return False
+
+    async def list_failed_messages(self, service_name, event_name, limit):
+        channel = await self.connection.channel()
+        try:
+            queue = await channel.declare_queue(
+                failed_queue_name(service_name, event_name), passive=True
+            )
+            count = queue.declaration_result.message_count
+            held = []
+            messages = []
+            for _ in range(limit):
+                message = await queue.get(fail=False)
+                if message is None:
+                    break
+                held.append(message)
+                messages.append(json.loads(message.body))
+            for message in held:
+                await message.nack(requeue=True)
+            return {"count": count, "messages": messages}
+        finally:
+            await channel.close()
+
+    async def replay_failed_messages(self, service_name, event_name, count):
+        channel = await self.connection.channel()
+        try:
+            queue = await channel.declare_queue(
+                failed_queue_name(service_name, event_name), passive=True
+            )
+            replayed = 0
+            for _ in range(count):
+                message = await queue.get(fail=False)
+                if message is None:
+                    break
+                await self.container.messenger.publish(
+                    event_name, json.loads(message.body)
+                )
+                await message.ack()
+                replayed += 1
+            logging.info(
+                "Replayed %s failed message(s) for %s %s.",
+                replayed,
+                service_name,
+                event_name,
+            )
+            return {"replayed": replayed}
+        finally:
+            await channel.close()
 
     def is_live(self, service_name):
         if service_name == self.container.service_name:

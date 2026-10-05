@@ -244,6 +244,12 @@ class RegistryTestService:
         return self.delegate.is_degraded()
 
 
+class FailedReplayService:
+    @on_event("job.run", max_attempts=1)
+    async def on_job(self, payload):
+        raise RuntimeError("job.run failed")
+
+
 class RegistryUncaughtTaskTestService:
     name = "RegistryTestService"
 
