@@ -130,6 +130,7 @@ def before_all(context):
     context.service_managers = []
     context.active_suite_tag = None
     context.registry_test_manager = None
+    context.registry_test_placeholders = None
     context.service_name_manager = None
     context.rpc_proxy_caller_manager = None
     context.amqp_required_manager = None

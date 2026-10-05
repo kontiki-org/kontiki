@@ -16,6 +16,8 @@ REGISTRY_RPC_METHODS = frozenset(
         "get_events",
         "get_filtered_events",
         "get_filtered_exceptions",
+        "list_failed_messages",
+        "replay_failed_messages",
     }
 )
 
@@ -38,6 +40,9 @@ def step_call_rpc_method(context, rpc_method):
         if placeholders:
             params = resolve_placeholders(params, placeholders)
         service_name = _get_rpc_service(context, rpc_method)
+        context.rpc_method = rpc_method
+        context.rpc_params = params
+        context.rpc_service_name = service_name
         context.result = context.runner.call(service_name, rpc_method, **params)
         if (
             getattr(context, "active_suite_tag", None) == "registry"
