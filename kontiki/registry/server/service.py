@@ -89,6 +89,26 @@ class ServiceRegistry:
         return self.core.list_instances(service_name)
 
     @rpc
+    async def list_failed_messages(self, service_name, name, limit):
+        if not self.core.declares_competing_event(service_name, name):
+            return rpc_error(
+                "ENTRYPOINT_UNAVAILABLE",
+                "No live instance of "
+                f"{service_name} declares competing event {name}",
+            )
+        return await self.core.list_failed_messages(service_name, name, limit)
+
+    @rpc
+    async def replay_failed_messages(self, service_name, name, count):
+        if not self.core.declares_competing_event(service_name, name):
+            return rpc_error(
+                "ENTRYPOINT_UNAVAILABLE",
+                "No live instance of "
+                f"{service_name} declares competing event {name}",
+            )
+        return await self.core.replay_failed_messages(service_name, name, count)
+
+    @rpc
     async def get_events(self):
         return self.core.get_events()
 

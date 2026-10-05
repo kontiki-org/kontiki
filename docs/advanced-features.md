@@ -20,7 +20,7 @@ features** that are easy to miss and worth knowing early.
 | Filter services by kind in KontikiTUI | `kontiki.registration.group` |
 | Crash visibility | let exceptions propagate |
 | Expected RPC failures | `rpc_error` + `RpcClientError.code` |
-| Retry a competing event, then drop | `kontiki.amqp.max_attempts` (default 3) |
+| Retry a competing event, then keep it for replay | `kontiki.amqp.max_attempts` (default 3) |
 | Cross-service debug | `flow_id` → filter in KontikiTUI Logs |
 | Predictable per-instance log files (TUI / replicas) | `logging.directory` (recommended) |
 | Route by business field | encode it in `event_type` |
@@ -763,6 +763,22 @@ sequenceDiagram
 Omit `max_attempts` to use `kontiki.amqp.max_attempts` (default 3). The minimum
 is 1. A bad payload still burns the attempts: validate before publishing when
 the sender can.
+
+### Replay of a retained message
+
+**When:** A competing handler has exhausted `max_attempts` and the same payload
+should be tried again.
+
+The message stays in `{service}.{event}.failed`. KontikiTUI republishes the
+oldest one. That publish is a new event: delivery counters start at zero, and
+any live instance of the service may take it. There is no choice of replica.
+
+Replay stays closed when no live instance (`active` or `degraded`) still
+declares that event as `competing`. `broadcast` and `in_session` are not
+retained and cannot be replayed.
+
+The handler must accept the same payload twice. Work already committed is not
+undone. Idempotence belongs to the application.
 
 ---
 
