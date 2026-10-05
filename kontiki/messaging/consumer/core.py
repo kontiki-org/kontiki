@@ -8,10 +8,16 @@ from kontiki.configuration.parameter import (
     resolve_parameter_path,
 )
 from kontiki.messaging.common import (
+    DELAYED_RETRY_MAX_MS,
+    DELAYED_RETRY_MIN_MS,
+    FAILED_EXCHANGE,
+    FAILED_QUEUE_MAX_LENGTH,
     KONTIKI_SESSION_OPEN_RPC,
     create_tls_context,
     declare_event_exchange,
+    declare_failed_exchange,
     declare_rpc_exchange,
+    failed_queue_name,
     get_amqp_url,
     is_amqp_required,
 )
@@ -55,6 +61,7 @@ class Consumer:
         self.connection = None
         self.work_in_flight = WorkInFlight()
         self._handler_tasks = set()
+        self.failed_exchange = None
         self.max_attempts = 3  # Default value, overridden in setup()
 
     def register_handler_task(self, task):
@@ -167,11 +174,15 @@ class Consumer:
                 else:
                     # Profil W (Work): quorum queue with max_attempts
                     qname = f"{self.service_name}.{event_type}.queue"
+                    await self._declare_failed_queue(event_type)
                     queue = await self._declare_queue(
                         qname,
                         durable=True,
                         is_work_queue=True,
                         max_attempts=effective_max_attempts,
+                        failed_routing_key=failed_queue_name(
+                            self.service_name, event_type
+                        ),
                     )
 
                 routing_key = (
@@ -195,8 +206,29 @@ class Consumer:
                 self.on_event_tasks.append(on_event_task)
                 log.debug("On event task registered for event: %s", event_type)
 
+    async def _declare_failed_queue(self, event_type):
+        if self.failed_exchange is None:
+            self.failed_exchange = await declare_failed_exchange(self.channel)
+        name = failed_queue_name(self.service_name, event_type)
+        queue = await self.channel.declare_queue(
+            name,
+            durable=True,
+            arguments={
+                "x-queue-type": "quorum",
+                "x-max-length": FAILED_QUEUE_MAX_LENGTH,
+                "x-overflow": "reject-publish",
+            },
+        )
+        await queue.bind(self.failed_exchange, routing_key=name)
+        log.debug("Failed queue %s bound", name)
+
     async def _declare_queue(
-        self, qname, durable, is_work_queue=False, max_attempts=None
+        self,
+        qname,
+        durable,
+        is_work_queue=False,
+        max_attempts=None,
+        failed_routing_key=None,
     ):
         if is_work_queue:
             # Profil W: quorum queue avec max_attempts
@@ -211,6 +243,13 @@ class Consumer:
                 arguments={
                     "x-queue-type": "quorum",
                     "x-delivery-limit": effective_max - 1,
+                    "x-delayed-retry-type": "failed",
+                    "x-delayed-retry-min": DELAYED_RETRY_MIN_MS,
+                    "x-delayed-retry-max": DELAYED_RETRY_MAX_MS,
+                    "x-dead-letter-exchange": FAILED_EXCHANGE,
+                    "x-dead-letter-routing-key": failed_routing_key,
+                    "x-dead-letter-strategy": "at-least-once",
+                    "x-overflow": "reject-publish",
                 },
             )
         if durable:

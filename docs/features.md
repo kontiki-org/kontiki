@@ -103,7 +103,8 @@ Events in Kontiki are **asynchronous messages over AMQP**: publishers fire-and-f
   options apply to every type. Options:
   - `include_headers=True` : pass message headers to the handler.
   - `max_attempts=N` : competing queues only. Overrides `kontiki.amqp.max_attempts`
-    (default 3). After N failed deliveries RabbitMQ drops the message.
+    (default 3). Failed deliveries are retried with a delay. After N attempts
+    the message stays in `{service}.{event}.failed`.
   - `broadcast=True` : every instance of the service receives the event (per-instance
     exclusive queue). The first handler failure drops the message.
   - `in_session=True` : event is targeted at a specific instance within a session

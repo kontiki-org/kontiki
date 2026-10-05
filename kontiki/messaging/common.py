@@ -10,6 +10,10 @@ from kontiki.utils import KONTIKI
 AMQP_DEFAULT_URL = "amqp://guest:guest@localhost/"
 EVENT_EXCHANGE = "event_exchange"
 RPC_EXCHANGE = "rpc_exchange"
+FAILED_EXCHANGE = "kontiki.failed"
+FAILED_QUEUE_MAX_LENGTH = 10000
+DELAYED_RETRY_MIN_MS = 1000
+DELAYED_RETRY_MAX_MS = 30000
 KONTIKI_SESSION_OPEN_RPC = f"___{KONTIKI}__internal_session_open__"
 
 # AMQP delivery modes
@@ -22,6 +26,14 @@ async def declare_event_exchange(channel, name=EVENT_EXCHANGE):
 
 async def declare_rpc_exchange(channel, name=RPC_EXCHANGE):
     return await channel.declare_exchange(name, ExchangeType.TOPIC)
+
+
+async def declare_failed_exchange(channel, name=FAILED_EXCHANGE):
+    return await channel.declare_exchange(name, ExchangeType.DIRECT, durable=True)
+
+
+def failed_queue_name(service_name, event_type):
+    return f"{service_name}.{event_type}.failed"
 
 
 def get_amqp_url(config, default_url=AMQP_DEFAULT_URL):

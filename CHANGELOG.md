@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 - **New**: `kontiki.http.disable` (default `false`). When `true`, declared `@http` routes are not served: no bind, and `use_config` route paths are not resolved. Other entrypoints still run.
+- **New**: Competing `@on_event` queues delay a failed delivery (1 s, capped at 30 s) and keep the message in `{service}.{event}.failed` after `max_attempts`. `broadcast` and `in_session` still drop on the first failure. Delete existing `{service}.{event}.queue` quorum queues before restart: the new arguments cannot be redeclared in place.
 
 ## [2.0.1] - 2026-10-04
 - **Fix**: A heartbeat publish interrupted by an AMQP disconnect retries after the interval. The task still stops when the service shuts down. After reconnect, a finished heartbeat task is started again.
