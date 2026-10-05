@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [2.1.0] - 2026-10-05
 
 - **New**: `kontiki.http.disable` (default `false`). When `true`, declared `@http` routes are not served: no bind, and `use_config` route paths are not resolved. Other entrypoints still run.
 - **New**: Competing `@on_event` queues delay a failed delivery (1 s, capped at 30 s) and keep the message in `{service}.{event}.failed` after `max_attempts`. `broadcast` and `in_session` still drop on the first failure. Delete existing `{service}.{event}.queue` quorum queues before restart: the new arguments cannot be redeclared in place.
