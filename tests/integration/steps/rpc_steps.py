@@ -18,6 +18,7 @@ REGISTRY_RPC_METHODS = frozenset(
         "get_filtered_exceptions",
         "list_failed_messages",
         "replay_failed_messages",
+        "drop_failed_messages",
     }
 )
 

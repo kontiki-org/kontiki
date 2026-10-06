@@ -301,6 +301,29 @@ class ServiceRegistryCore(ServiceDelegate):
         finally:
             await channel.close()
 
+    async def drop_failed_messages(self, service_name, event_name, count):
+        channel = await self.connection.channel()
+        try:
+            queue = await channel.declare_queue(
+                failed_queue_name(service_name, event_name), passive=True
+            )
+            dropped = 0
+            for _ in range(count):
+                message = await queue.get(fail=False)
+                if message is None:
+                    break
+                await message.ack()
+                dropped += 1
+            logging.info(
+                "Dropped %s failed message(s) for %s %s.",
+                dropped,
+                service_name,
+                event_name,
+            )
+            return {"dropped": dropped}
+        finally:
+            await channel.close()
+
     def is_live(self, service_name):
         if service_name == self.container.service_name:
             return True

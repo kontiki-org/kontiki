@@ -1,5 +1,5 @@
 @registry @failed_replay
-Feature: Replay of failed competing events
+Feature: Failed messages of competing events
 
     FailedReplayService handles the competing event job.run with
     max_attempts 1. The handler raises, so one publish retains the
@@ -14,8 +14,13 @@ Feature: Replay of failed competing events
     publish is confirmed. It returns replayed. When fewer messages are
     waiting, replayed is how many were waiting.
 
-    Both calls are refused when no live instance declares that event as
-    competing. Live is the same predicate as list_instances: active or
+    drop_failed_messages(service_name, name, count) removes the oldest
+    messages, in queue order, without republishing them. It returns
+    dropped. When fewer messages are waiting, dropped is how many were
+    waiting. A count of 0 removes nothing.
+
+    All three calls are refused when no live instance declares that event
+    as competing. Live is the same predicate as list_instances: active or
     degraded.
 
     Background:
@@ -82,7 +87,7 @@ Feature: Replay of failed competing events
                 level: DEBUG
             """
 
-    Scenario: a live competing event with nothing retained is an empty list
+    Scenario: a live competing event with nothing retained reports empty results
         When I call the list_failed_messages method with the following parameters
             """
             {
@@ -110,6 +115,34 @@ Feature: Replay of failed competing events
             """
             {
                 "replayed": 0
+            }
+            """
+        When I call the drop_failed_messages method with the following parameters
+            """
+            {
+                "service_name": "FailedReplayService",
+                "name": "job.run",
+                "count": 0
+            }
+            """
+        Then the registry service should return the result
+            """
+            {
+                "dropped": 0
+            }
+            """
+        When I call the drop_failed_messages method with the following parameters
+            """
+            {
+                "service_name": "FailedReplayService",
+                "name": "job.run",
+                "count": 1
+            }
+            """
+        Then the registry service should return the result
+            """
+            {
+                "dropped": 0
             }
             """
 
@@ -228,6 +261,104 @@ Feature: Replay of failed competing events
             }
             """
 
+    Scenario: drop removes the oldest retained messages and leaves the rest
+        When I publish the job.run event with the following payload
+            """
+            {
+                "job": "a"
+            }
+            """
+        When I publish the job.run event with the following payload
+            """
+            {
+                "job": "b"
+            }
+            """
+        When I call the list_failed_messages method with the following parameters
+            """
+            {
+                "service_name": "FailedReplayService",
+                "name": "job.run",
+                "limit": 10
+            }
+            """
+        Then the registry service should return the result
+            """
+            {
+                "count": 2,
+                "messages": [
+                    {
+                        "job": "a"
+                    },
+                    {
+                        "job": "b"
+                    }
+                ]
+            }
+            """
+        When I call the drop_failed_messages method with the following parameters
+            """
+            {
+                "service_name": "FailedReplayService",
+                "name": "job.run",
+                "count": 1
+            }
+            """
+        Then the registry service should return the result
+            """
+            {
+                "dropped": 1
+            }
+            """
+        When I call the list_failed_messages method with the following parameters
+            """
+            {
+                "service_name": "FailedReplayService",
+                "name": "job.run",
+                "limit": 10
+            }
+            """
+        Then the registry service should return the result
+            """
+            {
+                "count": 1,
+                "messages": [
+                    {
+                        "job": "b"
+                    }
+                ]
+            }
+            """
+        When I call the drop_failed_messages method with the following parameters
+            """
+            {
+                "service_name": "FailedReplayService",
+                "name": "job.run",
+                "count": 5
+            }
+            """
+        Then the registry service should return the result
+            """
+            {
+                "dropped": 1
+            }
+            """
+        When I call the list_failed_messages method with the following parameters
+            """
+            {
+                "service_name": "FailedReplayService",
+                "name": "job.run",
+                "limit": 10
+            }
+            """
+        Then the registry service should return the result
+            """
+            {
+                "count": 0,
+                "messages": []
+            }
+            """
+
     Scenario: an event that no live instance declares as competing is refused
         When I call the list_failed_messages method with the following parameters
             """
@@ -259,8 +390,23 @@ Feature: Replay of failed competing events
                 "message": "No live instance of FailedReplayService declares competing event other.event"
             }
             """
+        When I call the drop_failed_messages method with the following parameters
+            """
+            {
+                "service_name": "FailedReplayService",
+                "name": "other.event",
+                "count": 1
+            }
+            """
+        Then the test service should return the error
+            """
+            {
+                "code": "ENTRYPOINT_UNAVAILABLE",
+                "message": "No live instance of FailedReplayService declares competing event other.event"
+            }
+            """
 
-    Scenario: a down instance does not keep replay open
+    Scenario: a down instance refuses list, replay, and drop
         When I kill the registry test service without unregistering
         And I wait for the next registry heartbeat
         And I wait for the next registry heartbeat
@@ -282,6 +428,21 @@ Feature: Replay of failed competing events
             }
             """
         When I call the replay_failed_messages method with the following parameters
+            """
+            {
+                "service_name": "FailedReplayService",
+                "name": "job.run",
+                "count": 1
+            }
+            """
+        Then the test service should return the error
+            """
+            {
+                "code": "ENTRYPOINT_UNAVAILABLE",
+                "message": "No live instance of FailedReplayService declares competing event job.run"
+            }
+            """
+        When I call the drop_failed_messages method with the following parameters
             """
             {
                 "service_name": "FailedReplayService",

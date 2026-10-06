@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- **New**: `drop_failed_messages` removes the oldest retained messages of a competing event without republishing them. Same live-declaration guard as list and replay (`ENTRYPOINT_UNAVAILABLE`). Returns `dropped`.
+
 ## [2.1.0] - 2026-10-05
 
 - **New**: `kontiki.http.disable` (default `false`). When `true`, declared `@http` routes are not served: no bind, and `use_config` route paths are not resolved. Other entrypoints still run.
