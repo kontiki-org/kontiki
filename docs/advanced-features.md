@@ -20,7 +20,8 @@ features** that are easy to miss and worth knowing early.
 | Filter services by kind in KontikiTUI | `kontiki.registration.group` |
 | Crash visibility | let exceptions propagate |
 | Expected RPC failures | `rpc_error` + `RpcClientError.code` |
-| Retry a competing event, then keep it for replay | `kontiki.amqp.max_attempts` (default 3) |
+| Retry a competing event, then keep it | `kontiki.amqp.max_attempts` (default 3) |
+| List, replay, or drop a retained message | `list_failed_messages` / `replay_failed_messages` / `drop_failed_messages` |
 | Cross-service debug | `flow_id` → filter in KontikiTUI Logs |
 | Predictable per-instance log files (TUI / replicas) | `logging.directory` (recommended) |
 | Route by business field | encode it in `event_type` |
@@ -764,21 +765,31 @@ Omit `max_attempts` to use `kontiki.amqp.max_attempts` (default 3). The minimum
 is 1. A bad payload still burns the attempts: validate before publishing when
 the sender can.
 
-### Replay of a retained message
+### Retained messages
 
-**When:** A competing handler has exhausted `max_attempts` and the same payload
-should be tried again.
+**When:** A competing handler has exhausted `max_attempts`. The payload should
+be inspected, tried again, or discarded.
 
-The message stays in `{service}.{event}.failed`. KontikiTUI republishes the
-oldest one. That publish is a new event: delivery counters start at zero, and
+The message stays in `{service}.{event}.failed`. Three registry RPCs act on
+that queue, oldest first. They return `ENTRYPOINT_UNAVAILABLE` when no live
+instance (`active` or `degraded`) still declares that event as `competing`.
+`broadcast` and `in_session` are not retained.
+
+`list_failed_messages(service_name, name, limit)` returns `count` (how many
+are retained) and `messages` (the oldest bodies, up to `limit`). The call
+leaves the messages in place.
+
+`replay_failed_messages(service_name, name, count)` republishes the oldest
+messages and removes each one after the publish is confirmed. It returns
+`replayed`. The publish is a new event: delivery counters start at zero, and
 any live instance of the service may take it. There is no choice of replica.
-
-Replay stays closed when no live instance (`active` or `degraded`) still
-declares that event as `competing`. `broadcast` and `in_session` are not
-retained and cannot be replayed.
-
 The handler must accept the same payload twice. Work already committed is not
-undone. Idempotence belongs to the application.
+undone.
+
+`drop_failed_messages(service_name, name, count)` removes the oldest messages
+without republishing them. It returns `dropped`. A count of 0 removes nothing.
+When fewer messages are waiting, `replayed` or `dropped` is how many were
+waiting.
 
 ---
 
