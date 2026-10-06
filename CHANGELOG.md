@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [2.2.0] - 2026-10-06
 
 - **New**: `drop_failed_messages` removes the oldest retained messages of a competing event without republishing them. Same live-declaration guard as list and replay (`ENTRYPOINT_UNAVAILABLE`). Returns `dropped`.
 
