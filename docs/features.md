@@ -219,16 +219,14 @@ See [configuration.md](configuration.md) and [advanced-features.md](advanced-fea
 
 ## AMQP broker
 
-Use `kontiki.amqp.required: false` when the work itself does not need the bus
-and must still run if RabbitMQ is down — for example a periodic database dump.
-When the broker is up, the same process still gets the full stack: registry,
-heartbeats, exception reporting, TUI / Monitor.
+Two contracts when the work does not need RabbitMQ for every deployment.
 
 - **Required (default)** : `kontiki.amqp.required: true`. If RabbitMQ is unreachable at start, setup fails and the process does not stay up.
-- **Optional** : `required: false`. `@http` and `@task` start even when the broker is down. As soon as it is reachable, the service uses it normally. A later broker outage does not stop the process. `publish` / `call` raise `AmqpDisconnectedError` while disconnected; there is no local buffer of messages or exceptions.
-- **vs `registration.disable`** : `kontiki.registration.disable: true` never registers. Optional AMQP registers when the broker is up. If both are set, disable wins (no registry client).
+- **Optional** : `kontiki.amqp.required: false`. Use when the work itself does not need the bus and must still run if RabbitMQ is down — for example a periodic database dump. `@http` and `@task` start even when the broker is down. As soon as it is reachable, the service uses it normally (registry, heartbeats, exception reporting, TUI / Monitor). A later broker outage does not stop the process. `publish` / `call` raise `AmqpDisconnectedError` while disconnected; there is no local buffer of messages or exceptions.
+- **Disabled** : `kontiki.amqp.disable: true` (default `false`). The process does not connect: no queues, no registry, no heartbeat. `amqp.url` may be omitted. `@http` and `@task` start. Declared `@rpc` / `@on_event` are not consumed; their `use_config` keys are not resolved. `publish` / `call` raise `AmqpDisconnectedError`. The same class can run with the bus in another deployment that omits this flag. Writing `required: true` or `registration.disable: false` beside it fails startup.
+- **vs `registration.disable`** : `kontiki.registration.disable: true` never registers. Optional AMQP registers when the broker is up. If both are set, disable wins (no registry client). `amqp.disable: true` turns registration off without that key.
 
-Orchestrator liveness for `required: false` services is the **process** (systemd / PID / container). Registry `GET /live/{service}` stays **503** until the registry sees the instance, even if `@task` is already running.
+Orchestrator liveness for `required: false` and `disable: true` services is the **process** (systemd / PID / container). Registry `GET /live/{service}` stays **503** until the registry sees the instance — forever under `disable: true`, and until the first heartbeat under `required: false`.
 
 ---
 

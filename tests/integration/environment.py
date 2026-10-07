@@ -54,6 +54,7 @@ SERVICE_DEFINITIONS_BY_TAG = {
     "service_name": [],
     "logging": [],
     "amqp_required": [],
+    "amqp_disable": [],
     "http_disable": [],
 }
 EXCLUSIVE_SUITE_TAGS = list(SERVICE_DEFINITIONS_BY_TAG.keys())

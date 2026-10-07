@@ -7,11 +7,7 @@ from enum import Enum
 from aio_pika import connect_robust
 
 from kontiki.delegate import ServiceDelegate
-from kontiki.messaging.common import (
-    create_tls_context,
-    failed_queue_name,
-    get_amqp_url,
-)
+from kontiki.messaging.common import create_tls_context, failed_queue_name, get_amqp_url
 from kontiki.messaging.serialization import Serializer
 from kontiki.registry.common import declare_registry_admin_exchange
 from kontiki.registry.events import (

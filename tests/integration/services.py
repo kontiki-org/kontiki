@@ -259,6 +259,8 @@ class RegistryUncaughtTaskTestService:
 
 
 class DatabaseOps:
+    messenger = Messenger()
+
     def __init__(self):
         self.count = 0
 
@@ -269,3 +271,7 @@ class DatabaseOps:
     @http("/ticks", "GET")
     async def ticks(self, request):
         return {"count": self.count}
+
+    @http("/publish", "GET")
+    async def publish(self, request):
+        await self.messenger.publish("amqp_disable.probe", {})

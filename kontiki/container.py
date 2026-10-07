@@ -9,7 +9,12 @@ from kontiki.configuration.configuration import DEFAULT_LOGGING_CONFIGURATION
 from kontiki.configuration.merge import merge
 from kontiki.configuration.parameter import get_kontiki_parameter
 from kontiki.delegate import ServiceDelegate
-from kontiki.messaging.common import get_grace_seconds, is_amqp_required
+from kontiki.messaging.common import (
+    check_amqp_disable,
+    get_grace_seconds,
+    is_amqp_disabled,
+    is_amqp_required,
+)
 from kontiki.messaging.consumer.core import Consumer
 from kontiki.messaging.flow import prepare_logging_config
 from kontiki.messaging.publisher.messenger import Messenger
@@ -102,17 +107,35 @@ class ServiceContainer:
     # Setup
     # --------------------------------------------------------------------------
 
+    def _configure_amqp(self):
+        check_amqp_disable(self.config)
+        if not is_amqp_disabled(self.config):
+            return
+        log.info("AMQP is disabled.")
+        self.disable_service_registration = True
+        # None: do not connect. False: connect in the background.
+        self._amqp_required = None
+
     async def setup(self):
+        self._configure_amqp()
+
         if hasattr(self.service_instance, "config"):
             self.service_instance.config = self.config
 
-        self.amqp_consumer = Consumer(self)
-        await self._prepare_registry_client()
+        self.disable_service_registration = (
+            get_kontiki_parameter(
+                self.config, "registration.disable", self.disable_service_registration
+            )
+            or self.disable_service_registration
+        )
+        if not self.disable_service_registration:
+            self.service_registry_client = ServiceRegistryClient(self)
+
         await self.setup_http_endpoints()
         await self.setup_delegates()
         if self._amqp_required:
             await self._setup_amqp()
-        else:
+        elif self._amqp_required is False:
             log.info("AMQP is optional; connecting in the background.")
 
         log.info("Service setup completed")
@@ -149,14 +172,6 @@ class ServiceContainer:
                 continue
             await delegate.setup()
 
-    async def _prepare_registry_client(self):
-        self.disable_service_registration = get_kontiki_parameter(
-            self.config, "registration.disable", self.disable_service_registration
-        )
-        if self.disable_service_registration:
-            return
-        self.service_registry_client = ServiceRegistryClient(self)
-
     async def setup_service_registry(self):
         if self.service_registry_client is None:
             return
@@ -180,7 +195,7 @@ class ServiceContainer:
                 continue
             await delegate.start()
 
-        if not self._amqp_required:
+        if self._amqp_required is False:
             self._amqp_setup_task = asyncio.create_task(self._setup_amqp())
 
     async def start_tasks(self):
@@ -299,6 +314,7 @@ class ServiceContainer:
             await self.http_server.drain()  # no-op if drain in-flight already ran
 
     async def _setup_amqp(self):
+        self.amqp_consumer = Consumer(self)
         await self.setup_service_registry()
         await self.setup_amqp_endpoints()
         if self.service_registry_client:

@@ -13,6 +13,7 @@ features** that are easy to miss and worth knowing early.
 | Async reaction | `@on_event` |
 | Time-driven work | `@task` |
 | Local `@task` that must run even if RabbitMQ is down | `kontiki.amqp.required: false` |
+| Same binary with no RabbitMQ in that deployment | `kontiki.amqp.disable: true` |
 | Fleet health | registry + `degraded_on` |
 | Orchestrator liveness | `GET /live/{service_name}` |
 | Live instance ids for a client loop | `list_instances` / `GET /instances/{service_name}` |
@@ -846,6 +847,28 @@ still registers when the broker is up. If both are set, disable wins. `@rpc` /
 `@on_event` with `required: false` is valid: consumers start at the first
 successful connect. Orchestrator liveness is the PID, not registry
 `GET /live/{service}` (503 until the registry sees a heartbeat).
+
+### Disabled AMQP — no broker in this deployment
+
+**When:** The same service class runs with the bus in one environment and
+without RabbitMQ in another — for example a notifier that is also an external
+sentinel. That deployment must not connect, register, or declare queues.
+
+```yaml
+kontiki:
+  amqp:
+    disable: true
+```
+
+`disable: true` alone is enough. `amqp.url` may be omitted. `@http` and `@task`
+start. Declared `@rpc` / `@on_event` are not consumed; their `use_config` keys
+are not resolved. Registration and heartbeats stay off without
+`registration.disable: true`. `publish` / `call` raise `AmqpDisconnectedError`.
+
+**Gotcha:** Writing `required: true` or `registration.disable: false` beside
+`disable: true` fails startup. This is not `required: false`: there is no
+background reconnect and no registry when the broker comes back. Orchestrator
+liveness is the PID; `/live/{service}` stays **503**.
 
 ---
 
