@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [2.3.0] - 2026-10-07
 
 - **New**: `kontiki.amqp.disable` (default `false`). When `true`, the process does not connect to the broker: no queues, no registry, no heartbeat. `amqp.url` may be omitted. `@http` and `@task` still run. Declared `@rpc` / `@on_event` are not consumed. `publish` / `call` raise `AmqpDisconnectedError`. Writing `required: true` or `registration.disable: false` beside it fails startup. Distinct from `amqp.required: false`.
 
