@@ -53,6 +53,7 @@ integration-test: run-amqp
 	@$(MAKE) integration-test-service-name
 	@$(MAKE) integration-test-logging
 	@$(MAKE) integration-test-amqp-required
+	@$(MAKE) integration-test-amqp-disable
 	@$(MAKE) integration-test-http-disable
 
 integration-test-single: run-amqp
@@ -84,6 +85,10 @@ integration-test-logging: run-amqp
 integration-test-amqp-required: run-amqp
 	@echo "Running integration tests (amqp_required suite)..."
 	$(PY) -m behave tests/integration --tags @amqp_required --stop --no-skipped
+
+integration-test-amqp-disable: run-amqp
+	@echo "Running integration tests (amqp_disable suite)..."
+	$(PY) -m behave tests/integration --tags @amqp_disable --stop --no-skipped
 
 integration-test-http-disable: run-amqp
 	@echo "Running integration tests (http_disable suite)..."

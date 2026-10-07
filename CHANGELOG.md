@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- **New**: `kontiki.amqp.disable` (default `false`). When `true`, the process does not connect to the broker: no queues, no registry, no heartbeat. `amqp.url` may be omitted. `@http` and `@task` still run. Declared `@rpc` / `@on_event` are not consumed. `publish` / `call` raise `AmqpDisconnectedError`. Writing `required: true` or `registration.disable: false` beside it fails startup. Distinct from `amqp.required: false`.
+
 ## [2.2.0] - 2026-10-06
 
 - **New**: `drop_failed_messages` removes the oldest retained messages of a competing event without republishing them. Same live-declaration guard as list and replay (`ENTRYPOINT_UNAVAILABLE`). Returns `dropped`.

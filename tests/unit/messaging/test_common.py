@@ -1,9 +1,13 @@
+import pytest
+
 from kontiki.messaging.common import (
     AMQP_DEFAULT_URL,
+    check_amqp_disable,
     create_tls_context,
     get_amqp_url,
     get_grace_seconds,
     get_rpc_timeout,
+    is_amqp_disabled,
     is_amqp_required,
 )
 from kontiki.messaging.publisher.messenger import Messenger
@@ -89,6 +93,52 @@ def test_is_amqp_required_defaults_true():
 def test_is_amqp_required_false():
     config = {"kontiki": {"amqp": {"required": False}}}
     assert is_amqp_required(config) is False
+
+
+def test_is_amqp_disabled_defaults_false():
+    assert is_amqp_disabled({}) is False
+    assert is_amqp_disabled({"kontiki": {"amqp": {"url": "amqp://x/"}}}) is False
+
+
+def test_is_amqp_disabled_true():
+    config = {"kontiki": {"amqp": {"disable": True}}}
+    assert is_amqp_disabled(config) is True
+
+
+def test_amqp_disable_alone_is_consistent():
+    check_amqp_disable({"kontiki": {"amqp": {"disable": True}}})
+
+
+def test_amqp_disable_allows_explicit_required_false():
+    check_amqp_disable({"kontiki": {"amqp": {"disable": True, "required": False}}})
+
+
+def test_amqp_disable_allows_explicit_registration_disable():
+    check_amqp_disable(
+        {
+            "kontiki": {
+                "amqp": {"disable": True},
+                "registration": {"disable": True},
+            }
+        }
+    )
+
+
+def test_amqp_disable_rejects_required_true():
+    config = {"kontiki": {"amqp": {"disable": True, "required": True}}}
+    with pytest.raises(ValueError):
+        check_amqp_disable(config)
+
+
+def test_amqp_disable_rejects_registration_enabled():
+    config = {
+        "kontiki": {
+            "amqp": {"disable": True},
+            "registration": {"disable": False},
+        }
+    }
+    with pytest.raises(ValueError):
+        check_amqp_disable(config)
 
 
 def test_messenger_service_headers_timestamp_is_utc_iso_string():

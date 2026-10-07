@@ -199,6 +199,42 @@ async def test_optional_amqp_setup_starts_without_broker():
 
 
 @pytest.mark.asyncio
+async def test_amqp_disable_skips_broker_and_registration():
+    class _DisabledAmqpService:
+        messenger = Messenger()
+
+    container = ServiceContainer(
+        _DisabledAmqpService,
+        version="test",
+        config_paths=None,
+        disable_service_registration=False,
+        config={"kontiki": {"amqp": {"disable": True}}},
+    )
+    await container.setup()
+    await container.start()
+    assert container.amqp_consumer is None
+    assert container.service_registry_client is None
+    assert container.disable_service_registration is True
+    assert container._amqp_setup_task is None
+    with pytest.raises(AmqpDisconnectedError):
+        await container.service_instance.messenger.publish("event", {})
+    await container.stop()
+
+
+@pytest.mark.asyncio
+async def test_amqp_disable_rejects_conflicting_config():
+    container = ServiceContainer(
+        _StubService,
+        version="test",
+        config_paths=None,
+        disable_service_registration=False,
+        config={"kontiki": {"amqp": {"disable": True, "required": True}}},
+    )
+    with pytest.raises(ValueError):
+        await container.setup()
+
+
+@pytest.mark.asyncio
 async def test_publish_raises_when_amqp_is_not_connected():
     messenger = Messenger(standalone=True)
     with pytest.raises(AmqpDisconnectedError):

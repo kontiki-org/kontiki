@@ -4,13 +4,6 @@ import time
 
 from aio_pika import connect_robust
 from behave import given, step, then, when
-
-from kontiki.messaging.common import (
-    AMQP_DEFAULT_URL,
-    FAILED_QUEUE_MAX_LENGTH,
-    failed_queue_name,
-)
-from kontiki.messaging.publisher.rpc import RpcError
 from runtime.process_manager import ServiceProcessManager
 from runtime.registry_test_context import (
     matches_with_timestamps,
@@ -19,6 +12,13 @@ from runtime.registry_test_context import (
     resolve_placeholders,
     wait_for_registry_event,
 )
+
+from kontiki.messaging.common import (
+    AMQP_DEFAULT_URL,
+    FAILED_QUEUE_MAX_LENGTH,
+    failed_queue_name,
+)
+from kontiki.messaging.publisher.rpc import RpcError
 
 HEARTBEAT_INTERVAL_SECONDS = 2
 REGISTRY_SERVICE_CLASS = "kontiki.registry.server.service.ServiceRegistry"

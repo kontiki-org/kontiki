@@ -26,7 +26,7 @@ def _stop_rpc_proxy_caller(context):
 def step_service_running_with_config(context):
     if not context.text or not context.text.strip():
         raise AssertionError("Configuration DocString is required.")
-    if context.active_suite_tag == "amqp_required":
+    if context.active_suite_tag in ("amqp_required", "amqp_disable"):
         start_database_ops_service(context, context.text)
         return
     _stop_service_name_service(context)

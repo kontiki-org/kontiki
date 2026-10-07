@@ -44,6 +44,25 @@ def is_amqp_required(config):
     return get_kontiki_parameter(config, "amqp.required", True)
 
 
+def is_amqp_disabled(config):
+    return get_kontiki_parameter(config, "amqp.disable", False)
+
+
+def check_amqp_disable(config):
+    if not is_amqp_disabled(config):
+        return
+    # None means the key is absent. The real defaults would look like a conflict.
+    if get_kontiki_parameter(config, "amqp.required", None) is True:
+        raise ValueError(
+            "kontiki.amqp.disable and kontiki.amqp.required cannot both be true."
+        )
+    if get_kontiki_parameter(config, "registration.disable", None) is False:
+        raise ValueError(
+            "kontiki.amqp.disable cannot be combined with "
+            "kontiki.registration.disable: false."
+        )
+
+
 def get_rpc_timeout(config):
     return get_kontiki_parameter(config, "amqp.rpc.timeout", 10)
 

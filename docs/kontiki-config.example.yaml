@@ -13,6 +13,7 @@ kontiki:
 
   amqp:
     url: "amqp://guest:guest@localhost/"
+    # disable: true  # no broker in this deployment; url may be omitted; no registry
     required: true  # false: @task/@http that don't need the bus still run if RabbitMQ is down; registry/exceptions when it is up
     rpc:
       timeout: 10
