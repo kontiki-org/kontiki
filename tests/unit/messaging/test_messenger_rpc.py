@@ -77,6 +77,7 @@ async def test_reconnect_clears_started_and_recreates_setup():
     messenger.setup.assert_awaited_once()
     assert messenger._reconnecting is False
     assert messenger._started is False
+    assert messenger._needs_reconnect is True
     assert messenger.connection is None
 
 
@@ -89,14 +90,18 @@ async def test_reconnect_resets_started_before_setup():
 
     async def fake_setup():
         observed["started_during_setup"] = messenger._started
+        observed["needs_reconnect_during_setup"] = messenger._needs_reconnect
         messenger._started = True
+        messenger._needs_reconnect = False
 
     messenger.setup = fake_setup
 
     await messenger.reconnect()
 
     assert observed["started_during_setup"] is False
+    assert observed["needs_reconnect_during_setup"] is True
     assert messenger._started is True
+    assert messenger._needs_reconnect is False
     assert messenger.callback_queue is None
     assert messenger._callback_consumer_tag is None
 
@@ -140,6 +145,100 @@ async def test_call_raises_when_amqp_is_not_connected():
     messenger = Messenger(standalone=True)
     with pytest.raises(AmqpDisconnectedError):
         await messenger.call("Svc", "method")
+
+
+@pytest.mark.asyncio
+async def test_call_retries_setup_after_failed_reconnect():
+    messenger = _ready_messenger()
+    messenger.rpc_exchange.publish.side_effect = ChannelInvalidStateError()
+
+    async def failing_setup():
+        raise ConnectionError("broker down")
+
+    messenger.setup = failing_setup
+
+    with pytest.raises(ConnectionError, match="broker down"):
+        await messenger.call("Svc", "method")
+
+    assert messenger._started is False
+    assert messenger._needs_reconnect is True
+
+    async def restore(message, routing_key):
+        cid = message.correlation_id
+        messenger.futures[cid].set_result(RpcReturn(success=True, result="ok"))
+
+    messenger.rpc_exchange.publish = AsyncMock(side_effect=restore)
+
+    async def later_setup():
+        messenger.callback_queue = MagicMock()
+        messenger.callback_queue.name = "amq.callback"
+        messenger._started = True
+        messenger._needs_reconnect = False
+
+    messenger.setup = later_setup
+
+    result = await messenger.call("Svc", "method")
+
+    assert result == "ok"
+
+
+@pytest.mark.asyncio
+async def test_publish_retries_setup_after_failed_reconnect():
+    messenger = _ready_messenger()
+    messenger.event_exchange.publish.side_effect = ChannelInvalidStateError()
+
+    async def failing_setup():
+        raise ConnectionError("broker down")
+
+    messenger.setup = failing_setup
+
+    with pytest.raises(ConnectionError, match="broker down"):
+        await messenger.publish("event", "payload")
+
+    assert messenger._started is False
+    assert messenger._needs_reconnect is True
+
+    messenger.event_exchange.publish = AsyncMock()
+
+    async def later_setup():
+        messenger._started = True
+        messenger._needs_reconnect = False
+
+    messenger.setup = later_setup
+
+    await messenger.publish("event", "payload")
+
+    messenger.event_exchange.publish.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_call_after_stop_does_not_reconnect():
+    messenger = _ready_messenger()
+    messenger._needs_reconnect = True
+    await messenger.stop()
+    messenger.setup = AsyncMock()
+
+    with pytest.raises(AmqpDisconnectedError):
+        await messenger.call("Svc", "method")
+
+    messenger.setup.assert_not_awaited()
+    assert messenger._needs_reconnect is False
+
+
+@pytest.mark.asyncio
+async def test_call_skips_reconnect_while_shutting_down():
+    messenger = _ready_messenger()
+    messenger._started = False
+    messenger._needs_reconnect = True
+    container = MagicMock()
+    container.shutting_down = True
+    messenger.container = container
+    messenger.setup = AsyncMock()
+
+    with pytest.raises(AmqpDisconnectedError):
+        await messenger.call("Svc", "method")
+
+    messenger.setup.assert_not_awaited()
 
 
 @pytest.mark.asyncio
