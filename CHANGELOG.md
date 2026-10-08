@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.3.1] - 2026-10-08
+
+- **Fix**: After a failed AMQP reconnect, the next `publish` / `call` tries to connect again while the process is running. The call that finds the broker down still fails. A messenger that never started, or that has stopped, raises `AmqpDisconnectedError` without connecting. Shutdown does not reconnect.
+
 ## [2.3.0] - 2026-10-07
 
 - **New**: `kontiki.amqp.disable` (default `false`). When `true`, the process does not connect to the broker: no queues, no registry, no heartbeat. `amqp.url` may be omitted. `@http` and `@task` still run. Declared `@rpc` / `@on_event` are not consumed. `publish` / `call` raise `AmqpDisconnectedError`. Writing `required: true` or `registration.disable: false` beside it fails startup. Distinct from `amqp.required: false`.

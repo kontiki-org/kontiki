@@ -59,6 +59,7 @@ class Messenger(ServiceDelegate):
         self.standalone = standalone
         self._reconnecting = False
         self._started = False
+        self._needs_reconnect = False
 
         # Identification differs between standalone and container-attached modes.
         if self.standalone:
@@ -106,6 +107,7 @@ class Messenger(ServiceDelegate):
         else:
             await self._setup(self.container.config)
         self._started = True
+        self._needs_reconnect = False
 
     def _fail_fast(self):
         if self.container is None:
@@ -115,6 +117,17 @@ class Messenger(ServiceDelegate):
     def _require_amqp(self):
         if not self._started:
             raise AmqpDisconnectedError()
+
+    async def _ensure_amqp(self):
+        shutting_down = self.container and self.container.shutting_down
+        if (
+            not self._started
+            and self._needs_reconnect
+            and not self._reconnecting
+            and not shutting_down
+        ):
+            await self.reconnect()
+        self._require_amqp()
 
     async def start(self):
         # Alias for standalone clients: start/stop feels more natural than setup/stop.
@@ -139,6 +152,7 @@ class Messenger(ServiceDelegate):
         self.futures = {}
         self._response_models = {}
         self._started = False
+        self._needs_reconnect = False
 
     async def _on_response(self, message):
         # Ack every delivered reply, including unknown / post-timeout correlation ids.
@@ -172,7 +186,7 @@ class Messenger(ServiceDelegate):
         flow_id=None,
         session_id=None,
     ):
-        self._require_amqp()
+        await self._ensure_amqp()
         if extra_headers is None:
             extra_headers = {}
         validate_extra_headers(extra_headers)
@@ -227,7 +241,7 @@ class Messenger(ServiceDelegate):
         response_model=None,
         **kwargs,
     ):
-        self._require_amqp()
+        await self._ensure_amqp()
         instance_id = require_instance_id(instance_id)
         cid = str(uuid.uuid4())
         loop = asyncio.get_running_loop()
@@ -354,6 +368,7 @@ class Messenger(ServiceDelegate):
             self.callback_queue = None
             self._callback_consumer_tag = None
             self._started = False
+            self._needs_reconnect = True
             await self.setup()
             log.info("Reconnected successfully.")
         finally:
