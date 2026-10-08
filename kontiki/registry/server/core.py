@@ -277,11 +277,17 @@ class ServiceRegistryCore(ServiceDelegate):
             queue = await channel.declare_queue(
                 failed_queue_name(service_name, event_name), passive=True
             )
-            replayed = 0
+            # Take the waiting messages before any publish. A replayed
+            # message can fail again and return to this queue during the
+            # same call; those must not be counted in this replay.
+            waiting = []
             for _ in range(count):
                 message = await queue.get(fail=False)
                 if message is None:
                     break
+                waiting.append(message)
+            replayed = 0
+            for message in waiting:
                 await self.container.messenger.publish(
                     event_name, json.loads(message.body)
                 )

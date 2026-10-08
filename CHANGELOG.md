@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.3.2] - 2026-10-08
+
+- **Fix**: `replay_failed_messages` republishes only the messages that were waiting when the call started. A message that fails again during that call stays in the failed queue and is not counted in `replayed`.
+
 ## [2.3.1] - 2026-10-08
 
 - **Fix**: After a failed AMQP reconnect, the next `publish` / `call` tries to connect again while the process is running. The call that finds the broker down still fails. A messenger that never started, or that has stopped, raises `AmqpDisconnectedError` without connecting. Shutdown does not reconnect.
