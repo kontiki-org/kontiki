@@ -1,3 +1,6 @@
+import os
+
 __all__ = ["__version__"]
 
-__version__ = "2.3.2"
+image_version = os.environ.get("KONTIKI_VERSION", "")
+__version__ = image_version or "2.3.2"

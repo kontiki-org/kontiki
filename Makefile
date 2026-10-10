@@ -10,7 +10,8 @@
 	run-simple-events-service run-simple-events-example \
 	run-serialization-service run-serialization-example \
 	run-registry run-registry-service run-registry-client \
-	run-task-service
+	run-task-service \
+	publish-kontiki-registry
 
 PY ?= poetry run python
 
@@ -228,3 +229,15 @@ run-amqp:
 
 down-amqp:
 	docker compose -f docker-compose.dev.yaml down
+
+# Publish the registry image. One tag per push, so Actions runs one workflow.
+# make publish-kontiki-registry VERSION=2.3.2
+define publish_image
+	@test -n "$(VERSION)" || { echo "VERSION is required, e.g. make $@ VERSION=2.3.2" >&2; exit 1; }
+	@printf '%s' "$(VERSION)" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$$' || { echo "VERSION must be x.y.z, got: $(VERSION)" >&2; exit 1; }
+	git tag $(1)/$(VERSION)
+	git push origin $(1)/$(VERSION)
+endef
+
+publish-kontiki-registry:
+	$(call publish_image,kontiki-registry)
