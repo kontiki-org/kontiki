@@ -102,6 +102,8 @@ registry, and terminal UI:
 | [**kontiki-tui**](https://github.com/kontiki-org/kontiki-tui) | Terminal UI over the registry and local logs — browse services, flows, and exceptions |
 | [**kontiki-monitor**](https://github.com/kontiki-org/kontiki-monitor) | Fleet checks, registry signals, and host disk alerts |
 
+The registry runs from [`ghcr.io/kontiki-org/kontiki-registry:2.3.2`](kontiki/registry/README.md). `pip install kontiki` is the library.
+
 When services register with the **Kontiki registry**, KontikiTUI gives a live
 picture of the fleet from the terminal:
 

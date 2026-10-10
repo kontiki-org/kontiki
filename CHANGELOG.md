@@ -1,5 +1,7 @@
 # Changelog
 
+## [Unreleased]
+
 ## [2.3.2] - 2026-10-08
 
 - **Fix**: `replay_failed_messages` republishes only the messages that were waiting when the call started. A message that fails again during that call stays in the failed queue and is not counted in `replayed`.
