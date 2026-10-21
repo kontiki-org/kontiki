@@ -1,4 +1,5 @@
 from aiohttp import web
+from pydantic import BaseModel, ConfigDict, Field
 
 from kontiki.messaging import Messenger
 from kontiki.messaging.consumer.rpc import rpc, rpc_error
@@ -9,7 +10,22 @@ from kontiki.web.web import http
 # -----------------------------------------------------------------------------
 
 
+class ActivityTrackerConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    ttl_minutes: int = 0
+    ttl_hours: int = 24 * 7
+    disable: bool = False
+    cleanup_interval_seconds: int = 3600
+
+
+class RegistryConfig(BaseModel):
+    activity_tracker: ActivityTrackerConfig = Field(
+        default_factory=ActivityTrackerConfig
+    )
+
+
 class ServiceRegistry:
+    config_model = RegistryConfig
     core = ServiceRegistryCore()
     messenger = Messenger()
 

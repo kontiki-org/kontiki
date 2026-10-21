@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- **New**: A service may set `config_model` on its class (a Pydantic model, inherited). Field names are top-level keys of the merged file. Setup validates those keys and exposes the instance on `container.settings`. Without the attribute, `settings` is `None`.
+- **New**: The `kontiki` mapping is validated at setup, before delegates. The merged file is unchanged; `get_kontiki_parameter` still reads it. The validated object is `container.kontiki`. `logging` is outside that model. `public` is checked only when the service model declares that field.
+
 ## [2.3.2] - 2026-10-08
 
 - **Fix**: `replay_failed_messages` republishes only the messages that were waiting when the call started. A message that fails again during that call stays in the failed queue and is not counted in `replayed`.

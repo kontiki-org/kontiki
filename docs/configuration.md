@@ -10,6 +10,51 @@ in the process.
 
 An example file with every option is in [kontiki-config.example.yaml](kontiki-config.example.yaml).
 
+At setup, before delegates start, Kontiki validates the `kontiki` mapping.
+A key that is not listed below, a wrong type, or a forbidden combination stops
+the process. The merged file is left as loaded. `get_kontiki_parameter` reads
+that mapping. The validated object, with defaults filled in, is
+`container.kontiki`.
+
+`logging` stays a Python dictConfig block. `public` is exported as written.
+Neither is part of the `kontiki` model.
+
+### Service model
+
+A service may declare a Pydantic model on the class. The attribute is
+inherited. Each field name is a top-level key of the merged file (`app`,
+`public`, …). Only those keys are validated. A misspelled top-level name is
+left untouched. Inside a field, `extra="forbid"` and `strict=True` on that
+model reject unknown keys and wrong types.
+
+Without `config_model`, `container.settings` is `None`. With it, setup assigns
+the validated instance to `container.settings` and stops before delegates if
+validation fails. Defaults stay on that object.
+
+```python
+class AppConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    token: str
+    poll_interval: int = 30
+
+class PublicFacts(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    environment: str
+
+class ServiceConfig(BaseModel):
+    app: AppConfig
+    public: PublicFacts | None = None
+
+class MyService:
+    config_model = ServiceConfig
+```
+
+```python
+class MyDelegate(ServiceDelegate):
+    async def setup(self):
+        self.token = self.container.settings.app.token
+```
+
 ---
 
 ## `kontiki.service_name`
@@ -150,7 +195,8 @@ field. `kontiki`, `logging`, and other top-level keys are never exported.
 A nested key named `public` (for example `app.public`) is not exported.
 
 Read values with `get_parameter(config, "public.poll_interval")` like any
-other application key.
+other application key. To check the mapping at startup, declare `public` on
+the service `config_model`. Without that field, the mapping is not validated.
 
 ```yaml
 public:
@@ -200,7 +246,7 @@ See [advanced-features.md](advanced-features.md) (`logging.directory`, `flow_id`
 
 ## Registry server only
 
-The **Kontiki registry** service uses the same `kontiki.*` keys where relevant (e.g. `kontiki.amqp`, `kontiki.http`). In addition, its config supports top-level keys (not under `kontiki`) for its own features:
+The **Kontiki registry** service uses the same `kontiki.*` keys where relevant (e.g. `kontiki.amqp`, `kontiki.http`). It validates `activity_tracker` at setup: an unknown key or a wrong type stops the process. The tracker reads that validated object. Fields:
 
 - **`activity_tracker.ttl_minutes`** (default: `0`), **`activity_tracker.ttl_hours`** (default: `24 * 7`): retention of the registry's activity records (event timeline, contexts, exception records).
 - **`activity_tracker.disable`** (default: `false`): disable activity tracking. No tracking queue is declared; published events, contexts, and exceptions are dropped by the broker, and `registry.exception.recorded` is no longer published.
