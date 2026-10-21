@@ -7,6 +7,7 @@ import uuid
 
 from kontiki.configuration.configuration import DEFAULT_LOGGING_CONFIGURATION
 from kontiki.configuration.merge import merge
+from kontiki.configuration.model import KontikiConfig
 from kontiki.configuration.parameter import get_kontiki_parameter
 from kontiki.delegate import ServiceDelegate
 from kontiki.messaging.common import (
@@ -63,6 +64,8 @@ class ServiceContainer:
         self.version = version
 
         self.config = {}
+        self.settings = None
+        self.kontiki = None
         self.delegates = {}
         self.tasks = []
         self.disable_service_registration = disable_service_registration
@@ -117,6 +120,25 @@ class ServiceContainer:
         self._amqp_required = None
 
     async def setup(self):
+        def declared_config_model():
+            for cls in self.service_cls.__mro__:
+                if "config_model" in cls.__dict__:
+                    return cls.__dict__["config_model"]
+            return None
+
+        self.kontiki = KontikiConfig.model_validate(self.config.get("kontiki", {}))
+
+        model = declared_config_model()
+        if model is not None:
+            # Only keys declared on the model. kontiki, logging, and any other
+            # block stay untouched on container.config.
+            data = {
+                name: self.config[name]
+                for name in model.model_fields
+                if name in self.config
+            }
+            self.settings = model.model_validate(data)
+
         self._configure_amqp()
 
         if hasattr(self.service_instance, "config"):

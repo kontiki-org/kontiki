@@ -4,7 +4,7 @@ The registry records the fleet: heartbeats, instance state, and activity. Other 
 
 ## Configure and run
 
-The process uses the same `kontiki.*` keys as any service (`amqp`, `http`). `activity_tracker` sets how long event and exception records are kept. Field reference: [configuration](../../docs/configuration.md#registry-server-only).
+The process uses the same `kontiki.*` keys as any service (`amqp`, `http`). `activity_tracker` sets how long event and exception records are kept. An unknown key or a wrong type in that block fails startup. Field reference: [configuration](../../docs/configuration.md#registry-server-only).
 
 ```yaml
 kontiki:

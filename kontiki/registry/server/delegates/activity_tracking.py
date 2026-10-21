@@ -2,7 +2,6 @@ import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 
-from kontiki.configuration.parameter import get_parameter
 from kontiki.messaging.common import declare_event_exchange, declare_rpc_exchange
 from kontiki.registry.common import (
     CONTEXT_RKEY,
@@ -27,13 +26,9 @@ class ActivityTracker:
         self.exceptions = []
 
     async def setup(self):
-        self.ttl_minutes = get_parameter(
-            self.core.container.config, "activity_tracker.ttl_minutes", 0
-        )
-
-        self.ttl_hours = get_parameter(
-            self.core.container.config, "activity_tracker.ttl_hours", 24 * 7
-        )
+        tracker = self.core.container.settings.activity_tracker
+        self.ttl_minutes = tracker.ttl_minutes
+        self.ttl_hours = tracker.ttl_hours
 
         # Use minutes if set, otherwise use hours.
         if self.ttl_minutes > 0:
@@ -41,15 +36,8 @@ class ActivityTracker:
         elif self.ttl_hours > 0:
             self.ttl = self.ttl_hours * 60
 
-        self.disable_tracking = get_parameter(
-            self.core.container.config, "activity_tracker.disable", False
-        )
-
-        self.cleanup_interval = get_parameter(
-            self.core.container.config,
-            "activity_tracker.cleanup_interval_seconds",
-            3600,
-        )
+        self.disable_tracking = tracker.disable
+        self.cleanup_interval = tracker.cleanup_interval_seconds
 
         if self.is_disabled():
             return

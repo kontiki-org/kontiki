@@ -23,6 +23,8 @@ Keep the **service class** as a thin layer that only exposes entrypoints: method
 
 The **service name** used in the registry and for RPC/event routing is the class name by default. To use a user-defined name (e.g. for deployment or to decouple from the class name), set the `name` class attribute.
 
+Delegates read the merged file on `self.container.config`. A class attribute `config_model` (a Pydantic model) validates the service's own top-level keys at setup; the instance is `self.container.settings`. See [configuration.md](configuration.md).
+
 ```python
 from kontiki.delegate import ServiceDelegate
 from kontiki.messaging import Messenger, on_event, rpc
@@ -198,6 +200,8 @@ python -m kontiki.runner.__main__ <module.path.ServiceClass> --config config.yam
 ## Configuration
 
 - **Merge** : Multiple YAML config files can be merged with `--config file1.yaml --config file2.yaml`. Nested dicts are combined; new keys from later files are added. The same leaf key with the same value logs a warning; conflicting leaf values raise an error (later files do **not** override earlier ones).
+- **Validation** : At setup, the `kontiki` mapping is checked. An unknown key, a wrong type, or a forbidden combination (for example `amqp.disable: true` with `amqp.required: true`) stops the process before delegates. The validated object is `container.kontiki`. `logging` is not part of that check.
+- **Service model** : Optional class attribute `config_model`. Its fields are top-level keys the service owns (`app`, `public`, …). The validated instance is `container.settings`. Absent attribute: no check of those keys, `settings` is `None`.
 - **Parameters** : `get_parameter(config, "path.to.key", default)` and `get_kontiki_parameter(config, "amqp.url", default)` read from the merged config using **dot-separated paths** (e.g. `app.http.port`). Use your own namespace (e.g. `app.*`) for private application settings; **do not use the `kontiki.*` namespace** for your own keys. Registry-visible facts go under top-level `public` (see Service registry).
 - **Paths from config** : For HTTP routes and event types, you can pass a config key and set `use_config=True` so the value is read from config at startup (e.g. different paths per environment). For task intervals, pass a config key string instead of a number (no `use_config` flag). For crontab expressions, use `@task(cron="app.backup.schedule", use_config=True)`.
 

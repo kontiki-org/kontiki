@@ -1,5 +1,6 @@
 # Example configuration for a Kontiki service.
 # Copy and adapt; use your own top-level keys (e.g. "app") for application settings.
+# A key under kontiki that is not in docs/configuration.md fails startup.
 # See docs/configuration.md for the full reference.
 
 kontiki:
