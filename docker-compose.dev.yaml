@@ -13,3 +13,15 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  lavinmq:
+    profiles: ["lavinmq"]
+    image: cloudamqp/lavinmq:2.11.1
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "lavinmqctl", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 12

@@ -14,6 +14,7 @@
 	publish-kontiki-registry
 
 PY ?= poetry run python
+BROKER ?= rabbitmq
 
 install:
 	$(PY) -m pip install -U pip setuptools wheel
@@ -225,7 +226,9 @@ run-http-example:
 # AMQP
 # -----------------------------------------------------------------------------
 run-amqp:
-	docker compose -f docker-compose.dev.yaml up -d --wait --wait-timeout 60 rabbitmq
+	@case "$(BROKER)" in rabbitmq|lavinmq) ;; *) echo "BROKER must be rabbitmq or lavinmq (got $(BROKER))" >&2; exit 1 ;; esac
+	docker compose -f docker-compose.dev.yaml --profile lavinmq stop $(if $(filter lavinmq,$(BROKER)),rabbitmq,lavinmq)
+	docker compose -f docker-compose.dev.yaml --profile lavinmq up -d --wait --wait-timeout 60 $(BROKER)
 
 down-amqp:
 	docker compose -f docker-compose.dev.yaml down
