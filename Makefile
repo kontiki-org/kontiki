@@ -14,7 +14,7 @@
 	publish-kontiki-registry
 
 PY ?= poetry run python
-BROKER ?= rabbitmq
+BROKER ?= lavinmq
 
 install:
 	$(PY) -m pip install -U pip setuptools wheel

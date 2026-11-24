@@ -7,7 +7,7 @@ and [kontiki-monitor](https://github.com/kontiki-org/kontiki-monitor), it is
 distributed-system needs stay in that model; extra tooling is for specialized
 problems, not the common path.
 
-- **Write only your business logic**: Kontiki manages connections to RabbitMQ, message routing (RPC, events, sessions, broadcast), service lifecycle and configuration merge for you.
+- **Write only your business logic**: Kontiki manages the AMQP connection (LavinMQ, or RabbitMQ 4.3), message routing (RPC, events, sessions, broadcast), service lifecycle and configuration merge for you.
 - **Run several instances of the same service to scale out**: Kontiki uses asyncio to handle many concurrent requests per process, and you can add more service instances to scale horizontally without dealing with threads yourself.
 - **Design service interactions as messages**: combine RPC, events, broadcast and per‑instance sessions to describe how services collaborate, while Kontiki takes care of the AMQP wiring for you.
 - **Keep environments aligned**: drive differences between development, staging and production through configuration and a unified way to start services, not ad‑hoc scripts.
@@ -223,10 +223,12 @@ See [configuration.md](configuration.md) and [advanced-features.md](advanced-fea
 
 ## AMQP broker
 
-Two contracts when the work does not need RabbitMQ for every deployment.
+The reference broker is LavinMQ ≥ 2.11. RabbitMQ ≥ 4.3 runs the same declarations. `make run-amqp` starts LavinMQ; `BROKER=rabbitmq` starts RabbitMQ.
 
-- **Required (default)** : `kontiki.amqp.required: true`. If RabbitMQ is unreachable at start, setup fails and the process does not stay up. After start, a broker outage fails the `publish` / `call` in progress. The next call connects again when the broker is back. Shutdown does not reconnect.
-- **Optional** : `kontiki.amqp.required: false`. Use when the work itself does not need the bus and must still run if RabbitMQ is down — for example a periodic database dump. `@http` and `@task` start even when the broker is down. As soon as it is reachable, the service uses it normally (registry, heartbeats, exception reporting, TUI / Monitor). A later broker outage does not stop the process. `publish` / `call` raise `AmqpDisconnectedError` while disconnected; there is no local buffer of messages or exceptions.
+Two contracts when the work does not need the broker for every deployment.
+
+- **Required (default)** : `kontiki.amqp.required: true`. If the broker is unreachable at start, setup fails and the process does not stay up. After start, a broker outage fails the `publish` / `call` in progress. The next call connects again when the broker is back. Shutdown does not reconnect.
+- **Optional** : `kontiki.amqp.required: false`. Use when the work itself does not need the bus and must still run if the broker is down — for example a periodic database dump. `@http` and `@task` start even when the broker is down. As soon as it is reachable, the service uses it normally (registry, heartbeats, exception reporting, TUI / Monitor). A later broker outage does not stop the process. `publish` / `call` raise `AmqpDisconnectedError` while disconnected; there is no local buffer of messages or exceptions.
 - **Disabled** : `kontiki.amqp.disable: true` (default `false`). The process does not connect: no queues, no registry, no heartbeat. `amqp.url` may be omitted. `@http` and `@task` start. Declared `@rpc` / `@on_event` are not consumed; their `use_config` keys are not resolved. `publish` / `call` raise `AmqpDisconnectedError`. The same class can run with the bus in another deployment that omits this flag. Writing `required: true` or `registration.disable: false` beside it fails startup.
 - **vs `registration.disable`** : `kontiki.registration.disable: true` never registers. Optional AMQP registers when the broker is up. If both are set, disable wins (no registry client). `amqp.disable: true` turns registration off without that key.
 

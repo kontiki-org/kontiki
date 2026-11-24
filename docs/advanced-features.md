@@ -12,8 +12,8 @@ features** that are easy to miss and worth knowing early.
 | Sync API | `@http` / `@rpc` |
 | Async reaction | `@on_event` |
 | Time-driven work | `@task` |
-| Local `@task` that must run even if RabbitMQ is down | `kontiki.amqp.required: false` |
-| Same binary with no RabbitMQ in that deployment | `kontiki.amqp.disable: true` |
+| Local `@task` that must run even if the broker is down | `kontiki.amqp.required: false` |
+| Same binary with no broker in that deployment | `kontiki.amqp.disable: true` |
 | Fleet health | registry + `degraded_on` |
 | Orchestrator liveness | `GET /live/{service_name}` |
 | Live instance ids for a client loop | `list_instances` / `GET /instances/{service_name}` |
@@ -740,12 +740,17 @@ async def on_job(self, payload):
     await self.delegate.run_job(payload)  # may raise
 ```
 
-The queue is a quorum queue. A failed delivery is `basic.reject` with requeue.
-RabbitMQ counts those failures against `x-delivery-limit` (`max_attempts - 1`,
-so the default 3 is three deliveries) and waits before the next one: 1 s,
-then 2 s, capped at 30 s. The next failure after the limit moves the message
-to `{service}.{event}.failed` (quorum, 10 000 messages, no TTL). Each failed
-attempt is recorded as an exception. A clean shutdown does not burn an attempt.
+A failed delivery is `basic.reject` with requeue. The broker counts those
+failures against `x-delivery-limit` (`max_attempts - 1`, so the default 3 is
+three deliveries) and waits before the next one: 1 s, then 2 s, capped at 30 s.
+The next failure after the limit moves the message to `{service}.{event}.failed`
+(10 000 messages, no TTL). Each failed attempt is recorded as an exception.
+
+LavinMQ ≥ 2.11 is the reference broker. The work queue is a standard durable
+queue. A `nack` during shutdown counts as a delivery and is delayed. RabbitMQ
+≥ 4.3 hosts the same declaration as a quorum queue. On that broker a shutdown
+`nack` does not burn an attempt, and the move to the failed queue is
+at-least-once. On LavinMQ that move is at-most-once.
 
 `broadcast` and `in_session` use an exclusive queue with a single consumer.
 A handler failure drops the message. `max_attempts` does not apply.
@@ -824,7 +829,7 @@ two instances mean two ticks.
 
 ### Optional AMQP — the work does not need the bus
 
-**When:** A `@task` (or local HTTP) does its job without RabbitMQ — a periodic
+**When:** A `@task` (or local HTTP) does its job without the broker — a periodic
 database dump, a filesystem sweep — and that job must still run when the broker
 is down. When the broker is up, the same process should still get the Kontiki
 stack: registry, heartbeats, exception reporting, TUI / Monitor.
@@ -836,7 +841,7 @@ kontiki:
 ```
 
 The task is independent of AMQP. HTTP and `@task` start without waiting for the
-broker. As soon as RabbitMQ is reachable, the service registers, heartbeats, and
+broker. As soon as the broker is reachable, the service registers, heartbeats, and
 reports uncaught exceptions like any other Kontiki process. `publish` / `call`
 raise `AmqpDisconnectedError` while disconnected. There is no
 local buffer of messages or exceptions. A later broker outage does not stop the
@@ -851,7 +856,7 @@ successful connect. Orchestrator liveness is the PID, not registry
 ### Disabled AMQP — no broker in this deployment
 
 **When:** The same service class runs with the bus in one environment and
-without RabbitMQ in another — for example a notifier that is also an external
+without a broker in another — for example a notifier that is also an external
 sentinel. That deployment must not connect, register, or declare queues.
 
 ```yaml
@@ -906,7 +911,7 @@ Path Kontiki writes:
 # common.services.yaml
 kontiki:
   amqp:
-    url: amqp://guest:guest@rabbitmq/
+    url: amqp://guest:guest@lavinmq/
 
 logging:
   directory: logs
@@ -961,7 +966,7 @@ In each service file, set only true per-service knobs.
 # common.services.yaml — used by every service
 kontiki:
   amqp:
-    url: amqp://guest:guest@rabbitmq/
+    url: amqp://guest:guest@lavinmq/
 
 logging:
   directory: logs

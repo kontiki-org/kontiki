@@ -1,6 +1,6 @@
 # Kontiki configuration reference
 
-**Note**: Kontiki V2.0+ requires **RabbitMQ ≥ 4.3** for quorum queues and reliable execution features.
+**Brokers**: the reference broker is **LavinMQ ≥ 2.11**. **RabbitMQ ≥ 4.3** runs the same queue declarations. Local start: `make run-amqp` (LavinMQ), or `make run-amqp BROKER=rabbitmq`.
 
 Framework options live under the **`kontiki`** key. Logging uses a top-level
 **`logging`** block (Python dictConfig + Kontiki extensions). Facts shown in
@@ -105,28 +105,27 @@ for fixed platform targets.
 | `kontiki.amqp.max_attempts` | `3` | Competing `@on_event` queues only. A failed delivery is requeued, then retried after a delay (1 s, capped at 30 s). After this many attempts the message stays in `{service}.{event}.failed`. Per-handler override: `@on_event(..., max_attempts=N)`. `broadcast` and `in_session` drop on the first failure. Minimum 1. |
 | `kontiki.amqp.tls` | `{}` | Optional TLS. See below. |
 
-`amqp.disable: true` is for a deployment with no RabbitMQ — for example the
+`amqp.disable: true` is for a deployment with no broker — for example the
 same notifier binary used as an external sentinel. `disable: true` alone is
 enough. Startup fails when the configuration also contains `required: true`,
 or `registration.disable: false`.
 
 `amqp.required: false` is for work that does not use the bus and must still run
-if RabbitMQ is down — typically a periodic `@task` such as a database dump.
+if the broker is down — typically a periodic `@task` such as a database dump.
 When the broker is reachable, the process still registers and reports exceptions
 to the registry (TUI / Monitor). `registration.disable: true` never registers.
 If both are set, disable wins (no registry client). There is no local buffer:
 `publish` / `call` raise while disconnected. Losing the broker after start does
 not stop the process.
 
-Upgrading to V2.0: competing event queues become quorum queues with the same
-name (`{service}.{event}.queue`). Delete the existing classic queues before
-starting the service. RabbitMQ refuses the redeclaration while the classic
-queue is still there.
+A queue that already exists is redeclared only when its arguments match. Delete
+`{service}.{event}.queue` before starting when they differ. Messages still in
+that queue are lost. `broadcast` and `in_session` queues are unchanged.
 
-Competing quorum queues declared before the backoff and retention arguments
-must be deleted the same way (`{service}.{event}.queue`). RabbitMQ refuses
-the redeclaration. Messages still in those queues are lost. `broadcast` and
-`in_session` queues are unchanged.
+On RabbitMQ the competing queue is a quorum queue, so a classic queue of the
+same name must be deleted before the service starts. LavinMQ keeps the same
+arguments and serves a standard durable queue: `x-queue-type: quorum` is
+ignored, and so are `x-delayed-retry-type` and `x-dead-letter-strategy`.
 
 ### `kontiki.amqp.tls`
 

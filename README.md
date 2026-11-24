@@ -10,7 +10,8 @@
 ---
 ## Overview
 
-**Kontiki** is a Python runtime for distributed services on RabbitMQ. You write
+**Kontiki** is a Python runtime for distributed services on AMQP. The reference
+broker is LavinMQ; RabbitMQ 4.3 runs the same declarations. You write
 `@http`, `@rpc`, `@on_event`, and `@task`. The decorators are the visible API;
 most of the leverage sits one layer deeper — identity, routing, delivery, fleet
 health, configuration, and testing. You express **intentions in Kontiki terms**,
@@ -42,7 +43,8 @@ introduces another way of being built and operated.
 ### What Kontiki is not
 
 Kontiki does not aim for maximum infrastructure choice. It is intentionally
-Python-first, RabbitMQ-based, and convention-driven. It does not abstract every
+Python-first and convention-driven. LavinMQ is the reference broker, and
+RabbitMQ 4.3 runs the same declarations. It does not abstract every
 broker, become a language-neutral platform, replace orchestration, or reproduce
 a tracing, long-term metrics, or IAM product. Those can coexist outside the
 common model; they are not the default for everyday needs.
@@ -271,12 +273,15 @@ See `docs/features.md` (Testing) and `tests/integration/`.
 - Contributing guidelines: `CONTRIBUTING.md`
 - License: `LICENSE`
 
-Kontiki requires **RabbitMQ ≥ 4.3** (for V2.0+ features like quorum queues). You do not declare exchanges or queues yourself —
-decorators and config declare the topology. To start a broker locally:
+The reference broker is **LavinMQ ≥ 2.11**. **RabbitMQ ≥ 4.3** runs the same
+declarations. You do not declare exchanges or queues yourself —
+decorators and config declare the topology. To start LavinMQ locally:
 
 ```bash
 make run-amqp
 ```
+
+`make run-amqp BROKER=rabbitmq` starts RabbitMQ instead.
 
 ---
 
