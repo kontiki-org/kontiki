@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- **New**: An `@rpc` handler may `yield` once to send the RPC reply immediately, then continue in the same handler on that instance (respond-then-continue). Plain `return` is unchanged. See `docs/features.md` (RPC) and `docs/advanced-features.md`.
 - **Change**: `make run-amqp` starts LavinMQ 2.11. RabbitMQ 4.3 stays available with `BROKER=rabbitmq`.
 - **New**: A service may set `config_model` on its class (a Pydantic model, inherited). Field names are top-level keys of the merged file. Setup validates those keys and exposes the instance on `container.settings`. Without the attribute, `settings` is `None`.
 - **New**: The `kontiki` mapping is validated at setup, before delegates. The merged file is unchanged; `get_kontiki_parameter` still reads it. The validated object is `container.kontiki`. `logging` is outside that model. `public` is checked only when the service model declares that field.

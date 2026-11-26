@@ -1,3 +1,5 @@
+import asyncio
+
 from aiohttp import web
 from pydantic import BaseModel
 
@@ -51,6 +53,25 @@ class TestService:
     @rpc(include_headers=True)
     async def rpc_with_headers(self, _headers):
         return _headers["user_header"]
+
+    @rpc
+    async def rpc_yield_continue(self, feature=None, pause_seconds=0):
+        if feature == "user_input_error":
+            yield rpc_error("USER_INPUT_ERROR", "User input error")
+            return
+        if feature == "error_before_yield":
+            raise RuntimeError("Boom before yield")
+        if feature == "error_after_yield":
+            yield "accepted"
+            raise RuntimeError("Boom after yield")
+        if feature == "second_yield":
+            yield "accepted"
+            yield "ignored"
+            return
+        yield "accepted"
+        if pause_seconds:
+            await asyncio.sleep(pause_seconds)
+        await self.messenger.publish("rpc_yield_continued", {"status": "done"})
 
     # ------------------------------------------------------------
     # Events

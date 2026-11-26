@@ -10,6 +10,7 @@ features** that are easy to miss and worth knowing early.
 | Need | Reach for |
 |------|-----------|
 | Sync API | `@http` / `@rpc` |
+| RPC ack now, long work on **same** instance | `@rpc` + `yield` (then continue in the handler) |
 | Async reaction | `@on_event` |
 | Time-driven work | `@task` |
 | Local `@task` that must run even if the broker is down | `kontiki.amqp.required: false` |
@@ -179,8 +180,9 @@ and log with a traceback (`exc_info`). The stack is in the instance log with
 `[flow=…]`; the registry record does not carry a traceback.
 
 Not reported: mapped HTTP (`errors=` / `http_error_handlers`), aiohttp
-`HTTPException` (controlled HTTP response), and a **returned** `rpc_error`.
-A `raise` in an RPC handler is uncaught.
+`HTTPException` (controlled HTTP response), and a **returned** or **yielded**
+`rpc_error`. A `raise` in an RPC handler is uncaught — including after a
+`yield` that already sent the RPC reply (the caller keeps the first reply).
 
 `entrypoint`, `operation`, and `flow_id` come from the handler scope.
 `publish_exception` takes only the exception and stamps the same way. Outside a
@@ -261,6 +263,42 @@ except RpcServerError as e:
 **Gotcha:** Raising a domain exception without mapping still becomes a **server**
 error. Use `rpc_error` for anything the caller is expected to handle. Keep codes
 stable (`NOT_FOUND`, `VALIDATION_ERROR`, …) — they are your RPC API contract.
+
+### RPC `yield` — respond then continue on this instance
+
+**When:** The caller needs a short admission reply (`ok`, `job_id`, validation
+error), and the long work must run on **the same instance** that accepted the
+RPC — without `asyncio.create_task` outside a handler, and without a competing
+`@on_event` that may land on another replica.
+
+**How:** In an `@rpc` method, **`yield`** the response once. Kontiki sends that
+value as the RPC reply, then resumes the handler body. The continuation stays
+in the same handler scope.
+
+```python
+@rpc
+async def push(self, source_uri, dest_url):
+    if not source_uri:
+        yield rpc_error("BAD_INPUT", "source_uri required")
+        return
+    job_id = new_id()
+    yield {"ok": True, "job_id": job_id}
+    await self.delegate.transfer(job_id, source_uri, dest_url)
+```
+
+| Path | Caller sees | Continuation |
+|------|-------------|--------------|
+| `yield` success value | That result | Runs after the reply |
+| `yield rpc_error(...)` | `RpcClientError` | Skipped |
+| `raise` before `yield` | `RpcServerError` / `INTERNAL_ERROR` | — |
+| `raise` after `yield` | Reply already sent | Stops; exception reported if enabled |
+| Second `yield` | First value only | Treated as continuation failure |
+
+**Gotcha:** The `yield` unblocks the caller; it does not free the event loop.
+Blocking I/O or CPU after the yield should use `await asyncio.to_thread(...)`
+(or async APIs). This mode is process-local stickiness, not a durable job
+store and not horizontal dispatch — if any replica may run the work, use a
+competing `@on_event`.
 
 ---
 

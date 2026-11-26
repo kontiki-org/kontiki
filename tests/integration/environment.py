@@ -93,6 +93,10 @@ class TestMockService(MockService):
     async def on_multi_event_config_processed(self, payload):
         self.event_manager.store_event(payload)
 
+    @on_event("rpc_yield_continued")
+    async def on_rpc_yield_continued(self, payload):
+        self.event_manager.store_event(payload)
+
 
 class TaskMockService(MockService):
     @on_event("task")
