@@ -231,7 +231,7 @@ run-amqp:
 	docker compose -f docker-compose.dev.yaml --profile lavinmq up -d --wait --wait-timeout 60 $(BROKER)
 
 down-amqp:
-	docker compose -f docker-compose.dev.yaml down
+	docker compose -f docker-compose.dev.yaml --profile lavinmq down
 
 # Publish the registry image. One tag per push, so Actions runs one workflow.
 # make publish-kontiki-registry VERSION=2.3.2
