@@ -82,9 +82,11 @@ class ServiceRegistryClient:
         instance_id = self.container.instance_id
         # Per-instance queue: a shared register_again.queue would let any
         # Kontiki process on the vhost consume another instance's signal.
+        # exclusive + auto_delete: drop with the connection so restarts do not
+        # leave orphan {service}.{uuid}.register_again.queue bindings.
         queue_name = f"{service_name}.{instance_id}.register_again.queue"
         self._register_again_queue = await self.channel.declare_queue(
-            queue_name, durable=True
+            queue_name, exclusive=True, auto_delete=True
         )
         routing_key = f"{service_name}.{instance_id}.register_again"
         await self._register_again_queue.bind(
