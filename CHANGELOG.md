@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- **Fix**: The per-instance `register_again` queue is exclusive and auto-deleted with the connection, so process restarts no longer leave orphan `{service}.{uuid}.register_again.queue` queues. Existing durable orphans must be deleted once on the broker.
 - **New**: An `@rpc` handler may `yield` once to send the RPC reply immediately, then continue in the same handler on that instance (respond-then-continue). Plain `return` is unchanged. See `docs/features.md` (RPC) and `docs/advanced-features.md`.
 - **Change**: `make run-amqp` starts LavinMQ 2.11. RabbitMQ 4.3 stays available with `BROKER=rabbitmq`.
 - **New**: A service may set `config_model` on its class (a Pydantic model, inherited). Field names are top-level keys of the merged file. Setup validates those keys and exposes the instance on `container.settings`. Without the attribute, `settings` is `None`.
