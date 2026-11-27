@@ -51,6 +51,12 @@ async def main():
                 % e.code
             )
 
+        print("Testing RPC respond then continue (yield)...")
+        result = await RpcServiceProxy(messenger).rpc_respond_then_continue(
+            pause_seconds=3
+        )
+        print("Result (returned before continuation finished): %s" % result)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

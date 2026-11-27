@@ -20,7 +20,7 @@ kontiki:
 ```bash
 docker run --rm \
   -v "$PWD/examples:/examples:ro" \
-  ghcr.io/kontiki-org/kontiki-registry:2.3.2 \
+  ghcr.io/kontiki-org/kontiki-registry:2.4.0 \
   --config /examples/registry/config.yaml \
   --config /examples/common.yaml
 ```

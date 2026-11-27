@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from kontiki.delegate import ServiceDelegate
@@ -28,6 +29,10 @@ class RpcServiceDelegate(ServiceDelegate):
             return rpc_error("USER_INPUT_ERROR", "User input error")
         elif feature == "server_error":
             raise RuntimeError("Unexpected Server error")
+
+    async def finish_after_reply(self, pause_seconds):
+        await asyncio.sleep(pause_seconds)
+        logging.info("Continuation finished after the RPC reply was sent.")
 
 
 class RpcService:
@@ -61,3 +66,10 @@ class RpcService:
         """Example that triggers an unhandled server-side exception."""
         logging.info("rpc_unhandled_exception called, about to raise.")
         raise RuntimeError("Unhandled error in rpc_unhandled_exception")
+
+    @rpc
+    async def rpc_respond_then_continue(self, pause_seconds=1):
+        """Yield once to reply immediately, then continue on this instance."""
+        logging.info("Admit work and yield the RPC reply.")
+        yield {"ok": True, "status": "accepted"}
+        await self.delegate.finish_after_reply(pause_seconds)
