@@ -6,13 +6,24 @@ from runtime.registry_test_context import resolve_placeholders
 
 from kontiki.messaging.flow import FLOW_ID_LENGTH
 
-BASE_URL = "http://127.0.0.1:8080"
+# Relative paths target the suite's HTTP service under test.
+_BASE_URL_BY_SUITE = {
+    "single_instance": "http://127.0.0.1:18080",
+    "multi_instance": "http://127.0.0.1:8081",
+    "registry": "http://127.0.0.1:8080",
+}
+_DEFAULT_BASE_URL = "http://127.0.0.1:18080"
 
 
-def _resolve_url(path_or_url):
+def _base_url(context):
+    suite = getattr(context, "active_suite_tag", None)
+    return _BASE_URL_BY_SUITE.get(suite, _DEFAULT_BASE_URL)
+
+
+def _resolve_url(context, path_or_url):
     if path_or_url.startswith("http://") or path_or_url.startswith("https://"):
         return path_or_url
-    return f"{BASE_URL}{path_or_url}"
+    return f"{_base_url(context)}{path_or_url}"
 
 
 def _parse_response_body(body):
@@ -51,7 +62,7 @@ def _perform_request(context, req):
 
 @when('I send an HTTP GET request to "{path}"')
 def step_send_http_get(context, path):
-    req = request.Request(_resolve_url(path), method="GET")
+    req = request.Request(_resolve_url(context, path), method="GET")
     _perform_request(context, req)
 
 
@@ -60,7 +71,7 @@ def step_send_http_post(context, path):
     payload_str = context.text.strip() if context.text else ""
     payload = payload_str.encode("utf-8")
     req = request.Request(
-        _resolve_url(path),
+        _resolve_url(context, path),
         data=payload,
         method="POST",
         headers={"Content-Type": "application/json"},

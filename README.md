@@ -302,6 +302,7 @@ Examples can be run via the `Makefile` (see targets such as `run-rpc-service`,
 | Session-based events                         | `examples/events/session/`                                       |
 | Periodic tasks (interval and cron)           | `examples/task/`                                                 |
 | Service registry (admin + client)            | `examples/registry/`                                             |
+| Typed RPC contracts + registry catalog       | `examples/messaging_contracts/`                                  |
 | Heartbeats & degraded mode                   | `examples/heartbeat/`                                            |
 | HTTP entrypoints                             | `examples/http/simple/`                                          |
 

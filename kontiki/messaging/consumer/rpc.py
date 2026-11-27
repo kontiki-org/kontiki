@@ -3,8 +3,9 @@ import inspect
 from typing import get_type_hints
 
 from aio_pika import Message
+from pydantic import ValidationError
 
-from kontiki.messaging.reconstruct import model_type
+from kontiki.messaging.reconstruct import reconstruct
 from kontiki.messaging.rpc import RpcErrorType, RpcReturn
 from kontiki.runtime.handler_scope import enter_handler_scope, reset_handler_scope
 from kontiki.utils import log
@@ -74,14 +75,6 @@ class RpcTask:
 
         self._consumer_tag = await self.queue.consume(handle_rpc)
 
-    def _apply_hint(self, hint, value):
-        if not isinstance(value, dict):
-            return value
-        model = model_type(hint)
-        if model is None:
-            return value
-        return model(**value)
-
     def _reconstruct_rpc_args(self, args, kwargs, handler):
         sig = inspect.signature(handler)
         type_hints = get_type_hints(handler)
@@ -97,7 +90,7 @@ class RpcTask:
                 new_args.append(param_value)
                 continue
             if param_name in type_hints:
-                param_value = self._apply_hint(type_hints[param_name], param_value)
+                param_value = reconstruct(type_hints[param_name], param_value)
             new_args.append(param_value)
 
         new_kwargs = {}
@@ -106,7 +99,7 @@ class RpcTask:
                 new_kwargs[name] = value
                 continue
             if name in type_hints:
-                value = self._apply_hint(type_hints[name], value)
+                value = reconstruct(type_hints[name], value)
             new_kwargs[name] = value
 
         return new_args, new_kwargs
@@ -167,7 +160,19 @@ class RpcTask:
                     return response_data
 
                 try:
-                    args, kwargs = self._reconstruct_rpc_args(args, kwargs, self.task)
+                    try:
+                        args, kwargs = self._reconstruct_rpc_args(
+                            args, kwargs, self.task
+                        )
+                    except ValidationError:
+                        log.warning(
+                            "Invalid RPC arguments for method %s", self.name
+                        )
+                        await send_reply(
+                            rpc_error("INVALID_ARGUMENT", "Invalid argument")
+                        )
+                        return
+
                     if headers:
                         invoked = self.task(
                             self.container, *args, **kwargs, _headers=headers

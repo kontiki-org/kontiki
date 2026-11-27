@@ -2,6 +2,7 @@ import asyncio
 import json
 
 from aio_pika import connect_robust
+from aio_pika.exceptions import ChannelNotFoundEntity
 from behave import then, when
 
 from kontiki.messaging.common import AMQP_DEFAULT_URL, failed_queue_name
@@ -72,6 +73,39 @@ def step_failed_message(context, event_type):
         f"Expected:\n{json.dumps(expected, indent=2)}\n"
         f"Actual:\n{json.dumps(actual, indent=2)}"
     )
+
+
+@then("the {event_type} event has no failed message")
+def step_no_failed_message(context, event_type):
+    queue_name = failed_queue_name("TestService", event_type)
+    actual = asyncio.run(_peek_failed_message(queue_name, wait_seconds=2))
+    assert actual is None, (
+        f"Expected no failed message on {queue_name}, "
+        f"got:\n{json.dumps(actual, indent=2)}"
+    )
+
+
+async def _peek_failed_message(queue_name, wait_seconds=2):
+    connection = await connect_robust(AMQP_DEFAULT_URL)
+    try:
+        channel = await connection.channel()
+        try:
+            queue = await channel.declare_queue(queue_name, passive=True)
+        except ChannelNotFoundEntity:
+            return None
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + wait_seconds
+        while True:
+            message = await queue.get(fail=False)
+            if message is not None:
+                body = json.loads(message.body.decode("utf-8"))
+                await message.nack(requeue=True)
+                return body
+            if loop.time() >= deadline:
+                return None
+            await asyncio.sleep(0.2)
+    finally:
+        await connection.close()
 
 
 async def _read_failed_message(queue_name):

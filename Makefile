@@ -10,6 +10,7 @@
 	run-simple-events-service run-simple-events-example \
 	run-serialization-service run-serialization-example \
 	run-registry run-registry-service run-registry-client \
+	run-contracts-example-service run-contracts-inspect-registry \
 	run-task-service \
 	publish-kontiki-registry
 
@@ -187,6 +188,18 @@ run-registry-service: run-amqp
 run-registry-client:
 	@echo "Running registry example client..."
 	$(PY) -m examples.registry.client
+
+# -----------------------------------------------------------------------------
+# Messaging contracts (typed RPC + registry catalog)
+# Needs: make run-amqp, make run-registry, make run-contracts-example-service
+# -----------------------------------------------------------------------------
+run-contracts-example-service: run-amqp
+	@echo "Starting ContractsExampleService..."
+	$(PY) -m kontiki.runner.__main__ examples.messaging_contracts.service.ContractsExampleService --config examples/common.yaml
+
+run-contracts-inspect-registry:
+	@echo "Inspecting ContractsExampleService entrypoints via ServiceRegistry..."
+	$(PY) -m examples.messaging_contracts.inspect_registry
 
 # -----------------------------------------------------------------------------
 # Heartbeat (Degraded state)

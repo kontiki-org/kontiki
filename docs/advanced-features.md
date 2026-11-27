@@ -368,6 +368,42 @@ reported.
 
 ## Messaging
 
+### Typed RPC and event contracts
+
+**When:** You want inbound validation and a discoverable schema on the
+registry (TUI, clients, agents) without a parallel YAML of contracts.
+
+Annotate handler parameters. Kontiki validates with Pydantic `TypeAdapter`
+before your code runs. The same hints feed registration `entrypoints`.
+
+```python
+from pydantic import BaseModel
+
+class Job(BaseModel):
+    name: str
+
+@rpc
+async def create_job(self, job: Job, dry_run: bool = False) -> Job:
+    """Create a job from a typed payload."""
+    ...
+
+@on_event("job.created")
+async def on_job_created(self, payload: Job):
+    ...
+```
+
+- RPC validation failure → `RpcClientError` with `INVALID_ARGUMENT`.
+- Event validation failure → message dropped (acked); not retried or kept in
+  the failed queue.
+- No annotation → no validation and no schema on that parameter.
+- Registry export is automatic when a hint is present (`parameters`,
+  `return`, `payload_schema`, optional `description` from the docstring).
+
+Coercion follows Pydantic v2 lax defaults. Prefer models for rich payloads;
+scalars and generics work the same path.
+
+---
+
 ### Headers on the bus
 
 **When:** You need request metadata (auth tokens, custom ids) alongside the

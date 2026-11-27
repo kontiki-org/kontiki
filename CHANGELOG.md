@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+- **New**: Typed `@rpc` / `@on_event` contracts via Pydantic `TypeAdapter`.
+  Annotated arguments are validated before the handler. RPC validation
+  failures return client error `INVALID_ARGUMENT` / `"Invalid argument"`.
+  Event payload validation failures ack and drop (no retry, no failed queue).
+  Untyped parameters are unchanged.
+- **New**: Registration `entrypoints` export JSON Schema for typed RPC
+  parameters / return and event `payload_schema`, plus optional `description`
+  from the handler docstring. Untyped entrypoints stay name-only. See
+  `docs/features.md` (RPC, Events, Service registry).
+
 ## [2.4.0] - 2026-11-27
 
 - **Fix**: The per-instance `register_again` queue is exclusive and auto-deleted with the connection, so process restarts no longer leave orphan `{service}.{uuid}.register_again.queue` queues. Existing durable orphans must be deleted once on the broker.
