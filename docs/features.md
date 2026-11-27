@@ -91,6 +91,23 @@ RPC in Kontiki is a **synchronous request/reply call over AMQP**: the caller wai
   Omit `instance_id` for competing consumers on the shared queue. Empty or
   whitespace id fails fast. Unknown or dead id → `RpcTimeoutError`.
 - **Headers** : With `include_headers=True`, the handler receives a `_headers` argument containing AMQP headers.
+- **Respond then continue** : An `@rpc` handler may **`yield`** once to send the
+  RPC reply immediately, then keep running in the **same** handler on that
+  instance (`flow_id`, work-in-flight, shutdown drain). Use this when the
+  caller needs a quick ack and the rest of the work must stay on the accepting
+  process. A plain `return` is unchanged. Yield `rpc_error(...)` to fail
+  admission without running the continuation. Exceptions before the yield are
+  normal RPC server errors; after the yield they do not change the reply
+  already sent. Blocking work after the yield should use `asyncio.to_thread`
+  (or async APIs) so the event loop is not stalled.
+
+```python
+@rpc
+async def push(self, source_uri, dest_url):
+    job_id = new_id()
+    yield {"ok": True, "job_id": job_id}  # caller unblocked
+    await self.delegate.transfer(job_id, source_uri, dest_url)
+```
 
 ---
 

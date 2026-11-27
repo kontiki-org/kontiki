@@ -32,6 +32,14 @@ def rpc_error(error_code: str, msg: str):
     )
 
 
+def _as_rpc_return(response_data):
+    if not isinstance(response_data, RpcReturn):
+        response_data = RpcReturn(success=True, result=response_data)
+    if response_data is None:
+        return RpcReturn(success=True, result="")
+    return response_data
+
+
 class RpcTask:
     def __init__(
         self, name, task, container, reply_exchange, queue, serializer, include_headers
@@ -103,6 +111,16 @@ class RpcTask:
 
         return new_args, new_kwargs
 
+    async def _publish_reply(self, message, cid, response_data):
+        if not message.reply_to:
+            return
+        serialized = self.serializer.dumps(response_data)
+        log.debug("Reply %s to %s", serialized, message.reply_to)
+        response_message = Message(body=serialized, correlation_id=cid)
+        await self.reply_exchange.publish(
+            response_message, routing_key=message.reply_to
+        )
+
     async def _handle_rpc(self, message):
         scope = enter_handler_scope(
             "rpc",
@@ -118,9 +136,8 @@ class RpcTask:
                     log.error("Duplicate message (%s)", cid)
                     return
 
-                loop = asyncio.get_running_loop()
-                future = loop.create_future()
-                self.futures[cid] = future
+                self.futures[cid] = True
+                reply_sent = False
 
                 try:
                     request = self.serializer.loads(message.body)
@@ -136,29 +153,63 @@ class RpcTask:
                 msg = "RPC request received: method=%s args=%s, kwargs=%s"
                 log.info(msg, self.name, args, kwargs)
 
+                async def send_reply(response_data):
+                    nonlocal reply_sent
+                    response_data = _as_rpc_return(response_data)
+                    try:
+                        await self._publish_reply(message, cid, response_data)
+                    except Exception as e:
+                        log.error("Failed to send response: %s", e)
+                    finally:
+                        reply_sent = True
+                        if cid in self.futures:
+                            del self.futures[cid]
+                    return response_data
+
                 try:
                     args, kwargs = self._reconstruct_rpc_args(args, kwargs, self.task)
                     if headers:
-                        response_data = await self.task(
+                        invoked = self.task(
                             self.container, *args, **kwargs, _headers=headers
                         )
                     else:
-                        response_data = await self.task(self.container, *args, **kwargs)
+                        invoked = self.task(self.container, *args, **kwargs)
 
-                    if not isinstance(response_data, RpcReturn):
-                        response_data = RpcReturn(success=True, result=response_data)
+                    if inspect.isasyncgen(invoked):
+                        try:
+                            response_data = await invoked.__anext__()
+                        except StopAsyncIteration:
+                            raise RuntimeError(
+                                f"RPC method {self.name} yielded no response"
+                            )
 
-                    if response_data is None:
-                        response_data = ""
-                    if not future.done():
-                        future.set_result(response_data)
+                        rpc_return = await send_reply(response_data)
+                        if not rpc_return.success:
+                            await invoked.aclose()
+                            return
+
+                        try:
+                            await invoked.__anext__()
+                        except StopAsyncIteration:
+                            return
+
+                        await invoked.aclose()
+                        raise RuntimeError(
+                            f"RPC method {self.name} yielded more than once"
+                        )
+
+                    if inspect.iscoroutine(invoked):
+                        response_data = await invoked
+                    else:
+                        response_data = invoked
+                    await send_reply(response_data)
 
                 except Exception as e:
                     msg = "Error while processing RPC method %s: %s"
                     log.error(msg, self.name, e, exc_info=True)
                     await self.container.report_uncaught_exception(e)
-                    if not future.done():
-                        future.set_result(
+                    if not reply_sent:
+                        await send_reply(
                             RpcReturn(
                                 success=False,
                                 message=str(e),
@@ -166,20 +217,5 @@ class RpcTask:
                                 error_code="INTERNAL_ERROR",
                             )
                         )
-
-                if message.reply_to:
-                    try:
-                        response_data = await future
-                        serialized = self.serializer.dumps(response_data)
-                        log.debug("Reply %s to %s", serialized, message.reply_to)
-                        response_message = Message(body=serialized, correlation_id=cid)
-                        await self.reply_exchange.publish(
-                            response_message, routing_key=message.reply_to
-                        )
-                    except Exception as e:
-                        log.error("Failed to send response: %s", e)
-                    finally:
-                        if cid in self.futures:
-                            del self.futures[cid]
         finally:
             reset_handler_scope(scope)
