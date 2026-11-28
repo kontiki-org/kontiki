@@ -1,11 +1,15 @@
 import inspect
+from typing import get_type_hints
 
 from kontiki.configuration.parameter import (
     get_kontiki_parameter,
     resolve_parameter_path,
 )
 from kontiki.messaging.consumer.event import normalize_event_types
+from kontiki.messaging.reconstruct import hint_json_schema
 from kontiki.task.task import resolve_task_cron, resolve_task_interval
+
+_SKIP_PARAMS = frozenset({"self", "container", "_headers"})
 
 
 def registration_entrypoints(container):
@@ -15,6 +19,52 @@ def registration_entrypoints(container):
         + _http_entrypoints(container)
         + _task_entrypoints(container)
     )
+
+
+def _handler_description(method):
+    doc = inspect.getdoc(method)
+    if doc:
+        return doc
+    return None
+
+
+def _parameter_entries(method):
+    sig = inspect.signature(method)
+    type_hints = get_type_hints(method)
+    parameters = []
+    for name, param in sig.parameters.items():
+        if name in _SKIP_PARAMS:
+            continue
+        if name not in type_hints:
+            continue
+        entry = {
+            "name": name,
+            "required": param.default is inspect.Parameter.empty,
+            "schema": hint_json_schema(type_hints[name]),
+        }
+        if param.default is not inspect.Parameter.empty:
+            entry["default"] = param.default
+        parameters.append(entry)
+    return parameters
+
+
+def _return_schema(method):
+    type_hints = get_type_hints(method)
+    if "return" not in type_hints:
+        return None
+    return hint_json_schema(type_hints["return"])
+
+
+def _payload_schema(method):
+    sig = inspect.signature(method)
+    type_hints = get_type_hints(method)
+    for name in sig.parameters:
+        if name in _SKIP_PARAMS:
+            continue
+        if name not in type_hints:
+            continue
+        return hint_json_schema(type_hints[name])
+    return None
 
 
 def _event_entrypoints(container):
@@ -31,6 +81,8 @@ def _event_entrypoints(container):
             mode = "in_session"
         else:
             mode = "competing"
+        description = _handler_description(method)
+        payload_schema = _payload_schema(method)
         for event_type in normalize_event_types(resolved):
             entry = {
                 "type": "event",
@@ -43,6 +95,10 @@ def _event_entrypoints(container):
                 if attempts is None:
                     attempts = default_attempts
                 entry["max_attempts"] = attempts
+            if description is not None:
+                entry["description"] = description
+            if payload_schema is not None:
+                entry["payload_schema"] = payload_schema
             entrypoints.append(entry)
     return entrypoints
 
@@ -50,13 +106,21 @@ def _event_entrypoints(container):
 def _rpc_entrypoints(container):
     entrypoints = []
     for method in container.get_endpoints("rpc"):
-        entrypoints.append(
-            {
-                "type": "rpc",
-                "name": method._rpc_endpoint["name"],
-                "handler": method.__name__,
-            }
-        )
+        entry = {
+            "type": "rpc",
+            "name": method._rpc_endpoint["name"],
+            "handler": method.__name__,
+        }
+        description = _handler_description(method)
+        if description is not None:
+            entry["description"] = description
+        parameters = _parameter_entries(method)
+        if parameters:
+            entry["parameters"] = parameters
+        return_schema = _return_schema(method)
+        if return_schema is not None:
+            entry["return"] = return_schema
+        entrypoints.append(entry)
     return entrypoints
 
 

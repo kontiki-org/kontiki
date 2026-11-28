@@ -27,6 +27,15 @@ class TestHttpRequestModel(BaseModel):
     age: int
 
 
+class TypedJob(BaseModel):
+    name: str
+
+
+class ScalarEcho(BaseModel):
+    label: str
+    count: int
+
+
 class TestHttpExampleError(Exception):
     pass
 
@@ -49,6 +58,21 @@ class TestService:
             return rpc_error("USER_INPUT_ERROR", "User input error")
         elif feature == "server_error":
             raise RuntimeError("Unexpected Server error")
+
+    @rpc
+    async def rpc_typed_job(self, job: TypedJob):
+        return {"name": job.name}
+
+    @rpc
+    async def rpc_typed_scalars(self, label: str, count: int) -> ScalarEcho:
+        """Echo typed scalar arguments."""
+        return ScalarEcho(label=label, count=count)
+
+    @rpc
+    async def rpc_typed_optional_job(self, job: TypedJob | None = None):
+        if job is None:
+            return {"job": None}
+        return {"job": {"name": job.name}}
 
     @rpc(include_headers=True)
     async def rpc_with_headers(self, _headers):
@@ -114,6 +138,12 @@ class TestService:
     @on_event("broadcast_on", broadcast=True)
     async def on_broadcast_on(self, payload):
         await self.messenger.publish("broadcast_on_processed", payload)
+
+    @on_event("typed_job_event")
+    async def on_typed_job_event(self, payload: TypedJob):
+        await self.messenger.publish(
+            "typed_job_event_processed", {"name": payload.name}
+        )
 
     # ------------------------------------------------------------
     # Http
@@ -263,6 +293,36 @@ class RegistryTestService:
     @degraded_on
     def is_degraded(self):
         return self.delegate.is_degraded()
+
+
+class MessagingContractsCatalogService:
+    """Minimal service for Registry entrypoint-schema discovery features."""
+
+    name = "MessagingContractsCatalogService"
+    messenger = Messenger()
+
+    @rpc
+    async def rpc_typed_job(self, job: TypedJob):
+        return {"name": job.name}
+
+    @rpc
+    async def rpc_typed_scalars(self, label: str, count: int) -> ScalarEcho:
+        """Echo typed scalar arguments."""
+        return ScalarEcho(label=label, count=count)
+
+    @rpc
+    async def rpc_typed_optional_job(self, job: TypedJob | None = None):
+        if job is None:
+            return {"job": None}
+        return {"job": {"name": job.name}}
+
+    @rpc
+    async def return_rpc_error(self):
+        return rpc_error("CLIENT", "rpc error")
+
+    @on_event("typed_job_event")
+    async def on_typed_job_event(self, payload: TypedJob):
+        return
 
 
 class FailedReplayService:

@@ -27,6 +27,9 @@ REGISTRY_UNCAUGHT_TASK_SERVICE_CLASS = (
     "tests.integration.services.RegistryUncaughtTaskTestService"
 )
 FAILED_REPLAY_SERVICE_CLASS = "tests.integration.services.FailedReplayService"
+MESSAGING_CONTRACTS_CATALOG_SERVICE_CLASS = (
+    "tests.integration.services.MessagingContractsCatalogService"
+)
 FAILED_LIST_WAIT_SECONDS = 10
 
 
@@ -36,6 +39,8 @@ def _registry_test_service_class(context):
         return FAILED_REPLAY_SERVICE_CLASS
     if "uncaught_task" in tags:
         return REGISTRY_UNCAUGHT_TASK_SERVICE_CLASS
+    if "messaging_contracts_catalog" in tags:
+        return MESSAGING_CONTRACTS_CATALOG_SERVICE_CLASS
     return REGISTRY_TEST_SERVICE_CLASS
 
 

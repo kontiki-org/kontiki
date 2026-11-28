@@ -78,6 +78,13 @@ RPC in Kontiki is a **synchronous request/reply call over AMQP**: the caller wai
   class name. Use config when the same binary must expose distinct deployment
   identities on one mesh.
 - **Server** : Decorate methods with `@rpc` or `@rpc(include_headers=True)` to expose them. Use `rpc_error("CODE", "message")` to return a client error; let exceptions raise for server errors.
+- **Typed arguments** : Annotate parameters (and optionally the return type) with
+  types Pydantic can validate (`str`, `int`, `list[…]`, `BaseModel`,
+  `Model | None`, …). Kontiki runs `TypeAdapter` on each annotated argument
+  before the handler. A validation failure is a **client** error
+  `INVALID_ARGUMENT` / `"Invalid argument"` (not `INTERNAL_ERROR`). Parameters
+  without a hint are unchanged. `self`, `container`, and `_headers` are never
+  validated as contracts.
 - **Client** : Create a `Messenger` (standalone or from a container), then use
   `RpcProxy`. Prefer `RpcProxy(messenger, peer="alert_engine")`, which resolves
   `kontiki.peers.alert_engine`. Use `service_name="…"` for fixed platform
@@ -130,7 +137,15 @@ Events in Kontiki are **asynchronous messages over AMQP**: publishers fire-and-f
     exclusive queue). The first handler failure drops the message.
   - `in_session=True` : event is targeted at a specific instance within a session
     (mutually exclusive with `broadcast`). Same drop-on-failure rule as `broadcast`.
-- **Publisher** : `messenger.publish(event_type, payload, extra_headers=...)`. AMQP payloads use **JSON** as the only format (V2.0+). A handler parameter annotated `Model` or `Model | None` is rebuilt from the JSON object. A payload that does not match raises, and the delivery follows the retry rule above. HTTP request/response bodies use JSON independently.
+- **Typed payload** : Annotate the handler payload parameter. Kontiki validates
+  it with `TypeAdapter` before the handler runs (same family of types as RPC).
+  A validation failure **acks and drops** the message: no handler call, no
+  retry, no failed-queue retention (the payload is not replayable as-is).
+  Handler failures after a valid payload still follow the retry / failed-queue
+  rules above. Untyped handlers are unchanged.
+- **Publisher** : `messenger.publish(event_type, payload, extra_headers=...)`.
+  AMQP payloads use **JSON** as the only format (V2.0+). HTTP request/response
+  bodies use JSON independently.
 
 ---
 
@@ -259,6 +274,15 @@ If the Kontiki registry service is running and registration is not disabled, the
 
 - **Registration group** : Each registration includes a first-class `group` field (`kontiki.registration.group`, default `business`). It is a **free-form label** — as many groups as you need (`business`, `platform`, `batch`, a team name, …). Blank or whitespace is normalized to `business`. UIs (KontikiTUI) filter on this field to show one kind of service at a time; registry RPC and live probes still see the full fleet. Group is a view, not a visibility wall.
 - **Configuration** : A top-level `public` mapping is sent as `config` on registration (`get_services` metadata and `registry.instance.registered`) when it is a non-empty dict. `kontiki`, `logging`, and other roots (e.g. `app`) stay in the process. Absent or empty `public`: no `config` field. UIs (KontikiTUI) show that mapping for the selected instance.
+- **Entrypoint contracts** : Registration `entrypoints` list the armed RPC,
+  events, HTTP routes, and tasks. For typed RPC / event handlers, Kontiki
+  exports JSON Schema from the hints (`TypeAdapter` / Pydantic): RPC
+  `parameters` (name, required, optional default, schema), optional `return`,
+  event `payload_schema`. A handler docstring becomes `description` when
+  present. Untyped entrypoints stay name-only (`type`, `name`, `handler`, plus
+  event `mode` / `max_attempts`). No export flag — annotate to publish a
+  schema. The same list appears on `get_services` metadata and on
+  `registry.instance.registered`.
 - **Heartbeats** : Sent automatically at a configurable interval.
 - **Degraded state** : Decorate a method with `@degraded_on`; it is called at each heartbeat. Return `True` or `(True, reason)` to report the service as degraded. On transition to `degraded`, `registry.instance.status_changed` includes an optional `reason` for alerting. Use your own logic (e.g. error count, dependency health).
 - **Live probe** : The registry HTTP API exposes `GET /live/{service_name}` for orchestrators (Docker Compose / Kubernetes). Returns **200** if at least one instance is `active` or `degraded` (recent heartbeat), **503** otherwise. When `{service_name}` is the registry's own name (e.g. `ServiceRegistry`), returns **200** as soon as the registry HTTP server is up (no self-registration required). Prefer this over in-service HTTP probes on bus-only workers. With `amqp.required: false`, `/live/{service}` is **503** until the broker and registry see the instance, even if local HTTP or `@task` already run — use the process as the orchestrator probe in that case.
@@ -276,7 +300,13 @@ If the registry **service** is down but the broker is up, the process still star
 
 ## Serialization
 
-- **V2.0+** : JSON is the only supported AMQP format. A handler parameter annotated `Model` or `Model | None` is rebuilt from the JSON object; a mismatch raises. `response_model=` on `messenger.call()` does the same for a successful RPC result. HTTP request/response bodies use JSON independently.
+- **V2.0+** : JSON is the only supported AMQP format. Annotated RPC / event
+  parameters are validated with Pydantic `TypeAdapter` (models, scalars,
+  generics, `T | None`, …). RPC mismatches are client errors
+  (`INVALID_ARGUMENT`); event mismatches are dropped. Coercion follows
+  Pydantic v2 defaults (lax). `response_model=` on `messenger.call()` still
+  rebuilds a successful RPC result on the caller. HTTP request/response bodies
+  use JSON independently.
 
 ---
 

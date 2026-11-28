@@ -75,7 +75,12 @@ def step_call_rpc_method_with_headers(context, rpc_method):
 @then("the test service should return the result")
 def step_return_result(context):
     assert context.result is not None
-    assert context.result == context.text.strip()
+    expected_text = context.text.strip()
+    try:
+        expected = json.loads(expected_text)
+    except json.JSONDecodeError:
+        expected = expected_text
+    assert context.result == expected
 
 
 @then("the test service should return the error")

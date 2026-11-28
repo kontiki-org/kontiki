@@ -1,6 +1,8 @@
 import types
 from typing import Union, get_args, get_origin
 
+from pydantic import TypeAdapter
+
 
 def model_type(hint):
     """Concrete class to build from a payload dict.
@@ -21,9 +23,8 @@ def model_type(hint):
 
 
 def reconstruct(hint, data):
-    if not isinstance(data, dict):
-        return data
-    model = model_type(hint)
-    if model is None:
-        return data
-    return model(**data)
+    return TypeAdapter(hint).validate_python(data)
+
+
+def hint_json_schema(hint):
+    return TypeAdapter(hint).json_schema()

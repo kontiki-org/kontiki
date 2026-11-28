@@ -12,7 +12,10 @@ SERVICE_DEFINITIONS_BY_TAG = {
         {
             "name": "TestService-1",
             "service_class": "tests.integration.services.TestService",
-            "config_paths": ["tests/integration/config.yaml"],
+            "config_paths": [
+                "tests/integration/config.yaml",
+                "tests/integration/config_single.yaml",
+            ],
         }
     ],
     "multi_instance": [
@@ -95,6 +98,10 @@ class TestMockService(MockService):
 
     @on_event("rpc_yield_continued")
     async def on_rpc_yield_continued(self, payload):
+        self.event_manager.store_event(payload)
+
+    @on_event("typed_job_event_processed")
+    async def on_typed_job_event_processed(self, payload):
         self.event_manager.store_event(payload)
 
 

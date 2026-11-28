@@ -3,8 +3,9 @@ import inspect
 from typing import get_type_hints
 
 from aio_pika import IncomingMessage
+from pydantic import ValidationError
 
-from kontiki.messaging.reconstruct import model_type
+from kontiki.messaging.reconstruct import reconstruct
 from kontiki.runtime.handler_scope import enter_handler_scope, reset_handler_scope
 from kontiki.utils import log
 
@@ -123,8 +124,6 @@ class OnEventTask:
         self._consumer_tag = await self.queue.consume(consume_message)
 
     def _reconstruct_from_type_hint(self, data, handler):
-        if not isinstance(data, dict):
-            return data
         sig = inspect.signature(handler)
         type_hints = get_type_hints(handler)
         for name in sig.parameters:
@@ -132,10 +131,7 @@ class OnEventTask:
                 continue
             if name not in type_hints:
                 continue
-            model = model_type(type_hints[name])
-            if model is None:
-                continue
-            return model(**data)
+            return reconstruct(type_hints[name], data)
         return data
 
     async def _consume_message(self, message):
@@ -155,7 +151,14 @@ class OnEventTask:
                 )
                 async with message.process(requeue=self.requeue):
                     obj = self.serializer.loads(message.body)
-                    obj = self._reconstruct_from_type_hint(obj, self.task)
+                    try:
+                        obj = self._reconstruct_from_type_hint(obj, self.task)
+                    except ValidationError:
+                        log.warning(
+                            "Invalid event payload for %s; dropping",
+                            self.event_type,
+                        )
+                        return
 
                     headers = message.headers if self.include_headers else {}
                     if asyncio.iscoroutinefunction(self.task):
