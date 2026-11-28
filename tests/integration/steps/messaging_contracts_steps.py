@@ -87,7 +87,9 @@ def _entrypoint_matches(actual, expected):
     elif "return" in actual:
         return False
     if "payload_schema" in expected:
-        if not _schema_matches(actual.get("payload_schema"), expected["payload_schema"]):
+        if not _schema_matches(
+            actual.get("payload_schema"), expected["payload_schema"]
+        ):
             return False
     elif "payload_schema" in actual:
         return False
@@ -111,9 +113,7 @@ def _find_entrypoint(services, service_name, entrypoint_type, entrypoint_name):
     )
 
 
-@then(
-    "the {service_name} entrypoint {entrypoint_type} {entrypoint_name} is"
-)
+@then("the {service_name} entrypoint {entrypoint_type} {entrypoint_name} is")
 def step_service_entrypoint_contract(
     context, service_name, entrypoint_type, entrypoint_name
 ):
@@ -121,12 +121,8 @@ def step_service_entrypoint_contract(
     try:
         services = context.runner.call("ServiceRegistry", "get_services")
     except RpcError as exc:
-        raise AssertionError(
-            f"get_services failed: {exc.code}: {exc.message}"
-        ) from exc
-    actual = _find_entrypoint(
-        services, service_name, entrypoint_type, entrypoint_name
-    )
+        raise AssertionError(f"get_services failed: {exc.code}: {exc.message}") from exc
+    actual = _find_entrypoint(services, service_name, entrypoint_type, entrypoint_name)
     assert _entrypoint_matches(actual, expected), (
         f"Entrypoint mismatch for {service_name} "
         f"{entrypoint_type} {entrypoint_name}.\n"

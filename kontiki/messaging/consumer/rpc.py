@@ -165,9 +165,7 @@ class RpcTask:
                             args, kwargs, self.task
                         )
                     except ValidationError:
-                        log.warning(
-                            "Invalid RPC arguments for method %s", self.name
-                        )
+                        log.warning("Invalid RPC arguments for method %s", self.name)
                         await send_reply(
                             rpc_error("INVALID_ARGUMENT", "Invalid argument")
                         )
